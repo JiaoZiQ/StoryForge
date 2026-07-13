@@ -22,6 +22,8 @@ classifiers = [
 dependencies = [
     "alembic>=1.15,<2.0",
     "fastapi>=0.115,<1.0",
+    "httpx>=0.28,<1.0",
+    "openai>=2.11,<3.0",
     "psycopg[binary]>=3.2,<4.0",
     "pydantic>=2.10,<3.0",
     "sqlalchemy>=2.0.40,<3.0",
@@ -30,7 +32,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28,<1.0",
     "httpx2>=2.0,<3.0",
     "mypy>=1.14,<2.0",
     "pytest>=8.3,<10.0",

@@ -63,3 +63,30 @@ uv run alembic downgrade base
 ```
 
 2026-07-13 独立验收结果：从锁文件无缓存重建 Python 3.12.12 环境；Ruff format/check 通过；strict mypy（src + tests）通过；pytest 29 passed；总覆盖率 100%；Alembic upgrade/current/check/downgrade 通过；迁移后 repository 实际写入 1 个 project 和 1 个 chapter；PostgreSQL 方言离线迁移编译通过。
+
+## Milestone 2：LLM 抽象与结构化输出
+
+状态：已完成并通过最终质量门禁。
+
+已完成：
+
+- 实现统一、泛型化的 `LLMProvider.generate(PromptRequest, ResponseModel)` 结构化输出接口。
+- 实现项目内部配置、timeout、认证、限流、服务、无效响应、refusal 和 prompt registry 异常。
+- 实现确定性的离线 `MockLLMProvider`，支持多个 Pydantic model 和顺序故障注入。
+- 实现环境驱动的 `OpenAICompatibleProvider`，使用 SDK strict structured output，并由项目统一执行 timeout、指数退避和有限修复重试。
+- 实现具名、版本化 `PromptRegistry`，在 `LLMResponse` 中记录实际 prompt 名称和版本。
+- 使用真实 OpenAI Python SDK 与 `httpx.MockTransport` 覆盖成功和全部要求的故障路径，测试不访问公网、不要求 API Key、不真实等待。
+- 日志不记录 key、base URL、prompt/响应正文或 SDK 异常正文；base URL 拒绝内嵌凭据、query 和 fragment。
+- 修复 Alembic 进程内日志配置会禁用应用 logger 的问题。
+
+验收命令：
+
+```powershell
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy src
+uv run pytest
+uv run python scripts/milestone2_demo.py
+```
+
+2026-07-13 独立验收结果：删除虚拟环境和全部工具缓存后，使用锁文件与 Python 3.12.12 无缓存重建并安装 51 个包；Ruff format/check 通过；strict mypy（src + tests）通过；pytest 92 passed；926 条语句与 120 个分支均覆盖，总覆盖率 100%。README 中的 `uv sync`、SQLite Alembic、Uvicorn `/health`/OpenAPI、质量门禁和 Mock 演示均实际执行成功；PostgreSQL 迁移离线编译成功。验收删除了已有真实脚本后冗余的 `scripts/.gitkeep`；真实 OpenAI endpoint 因无凭据且测试禁止公网而未调用。Milestone 3 未开始。

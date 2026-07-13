@@ -15,7 +15,7 @@
 - repository 层、默认 SQLite、可选 PostgreSQL 配置
 - Alembic 初始化迁移与 CRUD 测试
 
-## Milestone 2：LLM 抽象
+## Milestone 2：LLM 抽象（已完成）
 
 - 统一的结构化 LLM provider 接口
 - 确定性的 MockLLMProvider

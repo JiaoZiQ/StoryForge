@@ -2,7 +2,7 @@
 
 ## 目标与当前范围
 
-StoryForge 第一版采用模块化单体：在一个 Python 进程中保持明确边界，先获得可测试、可恢复的逐章生成闭环，再考虑拆分服务。Milestone 1 已实现关系模型、schema、repository、数据库配置和迁移；Agent、LLM、工作流与业务入口仍是后续里程碑的目标设计。
+StoryForge 第一版采用模块化单体：在一个 Python 进程中保持明确边界，先获得可测试、可恢复的逐章生成闭环，再考虑拆分服务。Milestone 1 已实现关系模型、schema、repository、数据库配置和迁移；Milestone 2 已实现具名版本化 prompt、统一结构化 LLM provider、确定性 mock 和 OpenAI-compatible adapter。具体 Agent、工作流与业务入口仍是后续里程碑的目标设计。
 
 ## 目标组件图
 
@@ -85,7 +85,8 @@ flowchart TD
 ## 目录策略
 
 - `src/storyforge/api` 当前只包含健康检查；`models`、`schemas`、`repositories` 和 `database.py` 已包含 Milestone 1 的可运行数据层。
-- `agents`、`llm`、`evaluation`、`services`、`workflows` 和 `cli` 仍以 `.gitkeep` 记录后续边界，等对应里程碑出现真实行为时再增加模块。
+- `src/storyforge/llm` 包含 provider 协议、内部异常、prompt registry、Mock 与 OpenAI-compatible 实现；该目录是所有模型调用的唯一出口。
+- `agents`、`evaluation`、`services`、`workflows` 和 `cli` 仍以 `.gitkeep` 记录后续边界，等对应里程碑出现真实行为时再增加模块。
 - `tests/unit` 和 `tests/integration` 分别保存隔离逻辑测试与跨边界测试。
 - `alembic` 在 Milestone 1 初始化，`scripts` 仅接收可重复的开发辅助脚本。
 
@@ -93,7 +94,7 @@ flowchart TD
 
 - M0：包结构、质量门禁、健康检查。
 - M1：models、schemas、repositories 和 Alembic（已完成）。
-- M2：llm provider 抽象与实现。
+- M2：llm provider 抽象与实现（已完成）。
 - M3：Planner/Writer/FactExtractor、ContextBuilder、首条生成路径。
 - M4：一致性和两层评估。
 - M5：完整 LangGraph 修订闭环、checkpoint 与恢复。
