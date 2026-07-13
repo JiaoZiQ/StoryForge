@@ -1,0 +1,4 @@
+Alembic migrations for the StoryForge relational schema.
+
+The runtime DATABASE_URL overrides the safe SQLite default in alembic.ini.
+

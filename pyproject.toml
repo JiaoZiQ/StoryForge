@@ -20,8 +20,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "alembic>=1.15,<2.0",
     "fastapi>=0.115,<1.0",
+    "psycopg[binary]>=3.2,<4.0",
     "pydantic>=2.10,<3.0",
+    "sqlalchemy>=2.0.40,<3.0",
     "uvicorn[standard]>=0.34,<1.0",
 ]
 

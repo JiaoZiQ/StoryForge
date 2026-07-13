@@ -9,7 +9,7 @@
 - 最小 FastAPI `/health` 入口
 - 基础测试和架构文档
 
-## Milestone 1：领域模型与数据库
+## Milestone 1：领域模型与数据库（已完成）
 
 - SQLAlchemy 2 模型与 Pydantic v2 schema
 - repository 层、默认 SQLite、可选 PostgreSQL 配置
@@ -53,4 +53,3 @@
 ## 后续方向
 
 第一版完成后再评估 Neo4j、Redis、Celery、Web 前端、TTS、图片生成、PDF 和 ePub；这些能力不进入第一版核心范围。
-
