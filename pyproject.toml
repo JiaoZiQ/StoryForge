@@ -7,7 +7,7 @@ name = "storyforge"
 version = "0.1.0"
 description = "A staged, multi-agent long-form fiction generation system."
 readme = "README.md"
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.12,<3.13"
 license = { file = "LICENSE" }
 authors = [{ name = "StoryForge contributors" }]
 classifiers = [
@@ -16,7 +16,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -29,6 +28,9 @@ dependencies = [
     "sqlalchemy>=2.0.40,<3.0",
     "uvicorn[standard]>=0.34,<1.0",
 ]
+
+[project.scripts]
+storyforge = "storyforge.cli.app:main"
 
 [dependency-groups]
 dev = [

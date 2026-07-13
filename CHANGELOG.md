@@ -1,24 +1,29 @@
 # Changelog
 
-本项目遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 的结构；版本策略将在首次功能发布前确定。
+本项目遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 的结构。
 
 ## [Unreleased]
 
 ### Added
 
-- 初始化 Python 3.12 `src` 布局与模块目录。
-- 添加最小 FastAPI `/health` 端点及自动化测试。
-- 配置 pytest、coverage、Ruff 与 mypy 质量门禁。
-- 添加架构、进度、路线图与仓库工程约定文档。
-- 添加 10 个 SQLAlchemy 2 领域模型及项目/章节级联关系。
-- 添加对应的 Pydantic v2 create/update/read schema。
-- 添加默认 SQLite、可选 PostgreSQL/Psycopg 3 的数据库与 session 配置。
-- 添加类型化 repository 层及调用方拥有的事务边界。
-- 添加首个 Alembic 迁移和 upgrade/check/downgrade 集成测试。
-- 添加 CRUD、约束、级联删除和事务回滚测试。
-- 添加统一的结构化 `LLMProvider` 协议、项目内部 LLM 异常与响应元数据。
-- 添加确定性、零网络的 `MockLLMProvider`，支持按 Pydantic model 配置响应及注入超时、格式、schema 和调用失败。
-- 添加环境驱动的 `OpenAICompatibleProvider`，支持 strict structured output、超时、指数退避、有限修复重试和脱敏日志。
-- 添加具名、版本化 `PromptRegistry`，并在每次 LLM 响应中保留实际 prompt 名称与版本。
-- 添加真实 OpenAI SDK + mock HTTP transport 的离线集成测试和 Milestone 2 演示脚本。
-- 保留 Alembic 进程内运行前已存在的应用 logger，避免迁移配置静默禁用后续日志。
+- M0：Python 3.12 `src` 工程、FastAPI 健康检查、pytest/coverage/Ruff/mypy 门禁。
+- M1：十个基础 SQLAlchemy 2 领域模型、Pydantic v2 schema、repository、SQLite/PostgreSQL 配置与首个 Alembic 迁移。
+- M2：统一结构化 LLM provider、确定性 Mock、OpenAI-compatible provider、脱敏错误策略与版本化 PromptRegistry。
+- M3：`PlannerAgent`、`WriterAgent`、`FactExtractorAgent` 及六个独立、显式版本的 system/user Prompt。
+- M3：`PlanningService`，支持结构校验、引用校验、原子持久化与受保护的计划替换。
+- M3：独立 `ContextBuilder`，支持防未来信息泄漏、来源章节过滤、秘密隔离、相关事实筛选和可审计字符预算。
+- M3：`ChapterGenerationService`，持久化正文、摘要、事实、人物状态、伏笔状态、生成元数据与完整版本快照。
+- M3：事实提取失败时保留正文并进入 `fact_extraction_failed` 可恢复状态。
+- M3：第二个独立 Alembic 迁移 `b550a962dc62`，包含 M3 字段、状态和 `chapter_versions` 表。
+- M3：`create-project`、`plan`、`show-context`、`generate-chapter`、`show-chapter` 与可重复的 `demo-m3` 离线 CLI。
+- M3：成功、无效规划、上下文预算、未来信息隔离、重复生成保护、版本保留、失败状态、迁移与 CLI 测试。
+
+### Changed
+
+- 项目状态增加 `planned`、`generating`、`failed`；章节状态增加生成与事实提取阶段状态，同时保留此前状态供后续里程碑使用。
+- README、架构、数据模型、开发、工作流与进度文档同步到 Milestone 3。
+
+### Fixed
+
+- Writer 上下文不再暴露结局方向、角色秘密、未来章节摘要或由未来章节产生的事实。
+- FactExtractor 的 setup 更新会复用同一章节已有的计划伏笔，避免重复记录。

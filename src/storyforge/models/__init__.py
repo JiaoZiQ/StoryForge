@@ -3,6 +3,7 @@
 from storyforge.models.base import Base, EntityBase, TimestampMixin
 from storyforge.models.entities import (
     Chapter,
+    ChapterVersion,
     Character,
     Evaluation,
     Fact,
@@ -17,6 +18,7 @@ from storyforge.models.entities import (
 __all__ = [
     "Base",
     "Chapter",
+    "ChapterVersion",
     "Character",
     "EntityBase",
     "Evaluation",

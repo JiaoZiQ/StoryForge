@@ -54,6 +54,15 @@ class Project(TimestampMixin, EntityBase):
     premise: Mapped[str] = mapped_column(Text, nullable=False)
     target_chapters: Mapped[int] = mapped_column(nullable=False)
     target_words_per_chapter: Mapped[int] = mapped_column(nullable=False)
+    language: Mapped[str] = mapped_column(String(32), default="zh-CN", nullable=False)
+    tone: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    audience: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    logline: Mapped[str | None] = mapped_column(Text, nullable=True)
+    themes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    world_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    central_conflict: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ending_direction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    style_guide: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[ProjectStatus] = mapped_column(
         SQLAlchemyEnum(
             ProjectStatus,
@@ -124,6 +133,7 @@ class Character(EntityBase):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     goals: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     personality: Mapped[str] = mapped_column(Text, nullable=False)
+    personality_traits: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     speech_style: Mapped[str] = mapped_column(Text, nullable=False)
     current_state: Mapped[str] = mapped_column(Text, nullable=False)
     secrets: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
@@ -183,6 +193,8 @@ class Chapter(TimestampMixin, EntityBase):
     chapter_number: Mapped[int] = mapped_column(nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     outline: Mapped[str] = mapped_column(Text, nullable=False)
+    objective: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    outline_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     content: Mapped[str] = mapped_column(Text, default="", nullable=False)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[ChapterStatus] = mapped_column(
@@ -199,6 +211,7 @@ class Chapter(TimestampMixin, EntityBase):
     )
     version: Mapped[int] = mapped_column(default=1, nullable=False)
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    generation_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="chapters")
     facts: Mapped[list[Fact]] = relationship(
@@ -216,6 +229,12 @@ class Chapter(TimestampMixin, EntityBase):
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="Revision.new_version",
+    )
+    versions: Mapped[list[ChapterVersion]] = relationship(
+        back_populates="chapter",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="ChapterVersion.version",
     )
     workflow_runs: Mapped[list[WorkflowRun]] = relationship(
         back_populates="chapter",
@@ -253,6 +272,7 @@ class Fact(EntityBase):
     valid_to_chapter: Mapped[int | None] = mapped_column(nullable=True)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     source_quote: Mapped[str] = mapped_column(Text, nullable=False)
+    fact_type: Mapped[str] = mapped_column(String(50), default="event", nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="facts")
     chapter: Mapped[Chapter] = relationship(back_populates="facts")
@@ -293,8 +313,36 @@ class Foreshadowing(EntityBase):
         nullable=False,
     )
     payoff_chapter: Mapped[int | None] = mapped_column(nullable=True)
+    importance: Mapped[str] = mapped_column(String(32), default="medium", nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="foreshadowings")
+
+
+class ChapterVersion(EntityBase):
+    """Immutable full-text snapshot for one generated chapter version."""
+
+    __tablename__ = "chapter_versions"
+    __table_args__ = (
+        UniqueConstraint("chapter_id", "version", name="chapter_version_number"),
+        CheckConstraint("version > 0", name="chapter_snapshot_version_positive"),
+    )
+
+    chapter_id: Mapped[int] = mapped_column(
+        ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    version: Mapped[int] = mapped_column(nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    generation_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=utc_now,
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    chapter: Mapped[Chapter] = relationship(back_populates="versions")
 
 
 class Evaluation(EntityBase):

@@ -8,8 +8,11 @@ class ProjectStatus(StrEnum):
 
     DRAFT = "draft"
     PLANNING = "planning"
+    PLANNED = "planned"
+    GENERATING = "generating"
     ACTIVE = "active"
     COMPLETED = "completed"
+    FAILED = "failed"
     ARCHIVED = "archived"
 
 
@@ -17,7 +20,12 @@ class ChapterStatus(StrEnum):
     """Lifecycle status for a chapter."""
 
     PLANNED = "planned"
+    GENERATING = "generating"
     DRAFT = "draft"
+    EXTRACTING_FACTS = "extracting_facts"
+    GENERATED = "generated"
+    FACT_EXTRACTION_FAILED = "fact_extraction_failed"
+    FAILED = "failed"
     EVALUATING = "evaluating"
     NEEDS_REVISION = "needs_revision"
     ACCEPTED = "accepted"
