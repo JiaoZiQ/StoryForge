@@ -6,7 +6,7 @@
 - uv
 - PowerShell 示例命令
 
-M3 的默认开发、测试与演示不需要 Docker、数据库服务、API Key 或公网。
+默认开发、测试与 M4 演示不需要 Docker、外部数据库、API Key 或公网。
 
 ## 安装
 
@@ -15,7 +15,7 @@ uv sync --all-groups
 uv run python --version
 ```
 
-`uv.lock` 是依赖安装的锁定来源。不要把 `.venv` 提交到仓库。
+`uv.lock` 是依赖安装的锁定来源。不要提交 `.venv`、工具缓存或本地数据库。
 
 ## 数据库
 
@@ -25,7 +25,7 @@ uv run alembic current
 uv run alembic check
 ```
 
-全新迁移回归建议使用临时 SQLite 文件：
+全新迁移回归：
 
 ```powershell
 $env:DATABASE_URL="sqlite:///./migration-check.sqlite3"
@@ -36,6 +36,8 @@ Remove-Item -LiteralPath .\migration-check.sqlite3
 Remove-Item Env:DATABASE_URL
 ```
 
+测试同时覆盖空库升级、已有 M1/M3 数据升级、metadata 对齐和降级。新增字段或表必须创建新 migration，不能改写已交付 revision。
+
 ## 质量检查
 
 ```powershell
@@ -45,31 +47,46 @@ uv run mypy src
 uv run pytest
 ```
 
-单个测试文件：
+覆盖率已由 `uv run pytest` 自动启用并要求至少 80%。M4 相关测试：
 
 ```powershell
-uv run pytest tests/integration/test_milestone3_workflow.py -q
+uv run pytest tests/unit/test_milestone4_mechanical.py -q
+uv run pytest tests/unit/test_milestone4_consistency.py -q
+uv run pytest tests/unit/test_milestone4_critic.py -q
+uv run pytest tests/unit/test_milestone4_scoring.py -q
+uv run pytest tests/integration/test_milestone4_evaluation_service.py -q
+uv run pytest tests/integration/test_milestone4_cli.py -q
 ```
 
 ## 离线调试
 
 ```powershell
-uv run storyforge demo-m3 --database .\debug-m3.sqlite3 --reset
-uv run storyforge show-context --database .\debug-m3.sqlite3 --project-id 1 --chapter-number 1
-uv run storyforge show-chapter --database .\debug-m3.sqlite3 --project-id 1 --chapter-number 1
+uv run storyforge demo-m4 --database .\debug-m4.sqlite3 --reset
+uv run storyforge show-evaluation --database .\debug-m4.sqlite3 --project-id 1 --chapter-number 1 --latest
+uv run storyforge list-conflicts --database .\debug-m4.sqlite3 --project-id 1 --status open
 ```
 
-`MockLLMProvider` 按 Pydantic response model 注册确定性返回。三个 M3 Agent 使用不同 response model，因此一个 provider 可以稳定返回三个阶段的数据。失败测试使用 `MockFailure` 注入 timeout、无效结构或调用失败。
+`MockLLMProvider` 按 Pydantic response model 注册确定性返回。Critic 场景可选 `normal`、`death`、`outline`、`poor` 和 `conflict`；生产 service 不包含测试场景判断。
+
+单章分步调试：
+
+```powershell
+uv run storyforge create-project --database .\debug.db --title "Test" --genre "Mystery" --premise "A moving lighthouse." --chapters 3 --words 300
+uv run storyforge plan --database .\debug.db --project-id 1
+uv run storyforge generate-chapter --database .\debug.db --project-id 1 --chapter-number 1
+uv run storyforge evaluate-chapter --database .\debug.db --project-id 1 --chapter-number 1
+```
 
 ## 常见问题
 
-- `Project already has a plan`：未显式允许覆盖；无正文时使用 `plan --replace-existing`。
-- `Chapter already has content`：未显式允许重新生成；使用 `generate-chapter --regenerate`，旧正文会保留在 `chapter_versions`。
-- `fact_extraction_failed`：正文和快照已保存，事实事务没有部分提交；可显式重新生成重试。
-- `alembic check` 报新操作：模型与 head 迁移不一致，必须新增或修复迁移，不能只运行 `create_all`。
+- `Fact extraction must succeed before evaluation`：先修复/重试事实抽取，不能将缺失事实的结果冒充完整评估。
+- `Chapter cannot be evaluated from status ...`：章节未生成完成、已经在评估，或状态转换非法。
+- `CriticAgent failed; local evaluation results were preserved`：查询最新 Evaluation，可看到 `partial_failed` 的 Mechanical/Consistency 结果；修复 provider 后重试会新增版本。
+- `alembic check` 报新操作：模型与 head 不一致，必须新增或修复 migration。
 
-## 安全
+## 安全检查
 
-- 不把真实密钥写入命令历史、仓库或测试。
-- 本地数据库和生成正文不提交。
-- 日志不输出 Prompt 正文、模型响应正文、密钥或带凭据 URL。
+- 测试用 monkeypatch 阻断 `demo-m4` 网络连接并删除 API Key 环境变量。
+- 日志测试确认不出现整章正文、人物 secrets 或未来事实。
+- Prompt 请求可在 Mock 的 `requests` 中检查，确保只包含显式 CriticContext。
+- 不把真实密钥、正文、SQLite 文件或带凭据 URL 提交到仓库。

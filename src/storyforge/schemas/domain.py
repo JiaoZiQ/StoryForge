@@ -1,12 +1,16 @@
 """Pydantic v2 request and response schemas for persisted domain entities."""
 
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import ConfigDict, Field, model_validator
 
 from storyforge.enums import (
     ChapterStatus,
+    ConflictSeverity,
+    ConflictStatus,
+    ConflictType,
+    EvaluationStatus,
     ForeshadowingStatus,
     ProjectStatus,
     WorkflowRunStatus,
@@ -26,6 +30,8 @@ from storyforge.schemas.base import (
 
 CharacterName = Annotated[str, Field(min_length=1, max_length=150)]
 OptionalScore = Annotated[float, Field(ge=0, le=100)] | None
+M4Score = Annotated[float, Field(ge=0, le=10)]
+RecommendedAction = Literal["accept", "revise", "human_review", "reject"]
 
 
 class ProjectCreate(RequestModel):
@@ -85,6 +91,7 @@ class CharacterCreate(RequestModel):
     speech_style: LongText
     current_state: LongText
     secrets: list[LongText] = Field(default_factory=list)
+    knowledge: list[LongText] = Field(default_factory=list)
 
 
 class CharacterUpdate(RequestModel):
@@ -99,6 +106,7 @@ class CharacterUpdate(RequestModel):
     speech_style: LongText | None = None
     current_state: LongText | None = None
     secrets: list[LongText] | None = None
+    knowledge: list[LongText] | None = None
 
 
 class CharacterRead(CharacterCreate):
@@ -142,6 +150,7 @@ class StoryRuleCreate(RequestModel):
     statement: LongText
     source: ShortText
     active: bool = True
+    structured_metadata: dict[str, object] = Field(default_factory=dict)
 
 
 class StoryRuleUpdate(RequestModel):
@@ -151,6 +160,7 @@ class StoryRuleUpdate(RequestModel):
     statement: LongText | None = None
     source: ShortText | None = None
     active: bool | None = None
+    structured_metadata: dict[str, object] | None = None
 
 
 class StoryRuleRead(StoryRuleCreate):
@@ -303,6 +313,24 @@ class EvaluationCreate(RequestModel):
     plot_score: Score
     issues: list[dict[str, object]] = Field(default_factory=list)
     suggestions: list[LongText] = Field(default_factory=list)
+    evaluation_version: PositiveInt = 1
+    status: EvaluationStatus = EvaluationStatus.COMPLETED
+    mechanical_score: M4Score = 0
+    critic_score: M4Score = 0
+    pacing_score: M4Score = 0
+    dialogue_score: M4Score = 0
+    emotional_impact_score: M4Score = 0
+    outline_adherence_score: M4Score = 0
+    raw_scores: dict[str, float] = Field(default_factory=dict)
+    weighted_scores: dict[str, float] = Field(default_factory=dict)
+    evaluator_versions: dict[str, str] = Field(default_factory=dict)
+    prompt_versions: dict[str, str] = Field(default_factory=dict)
+    blocking_reasons: list[str] = Field(default_factory=list)
+    recommended_action: RecommendedAction = "human_review"
+    passed: bool = False
+    provider: str = "legacy"
+    model: str = "legacy"
+    config_version: str = "legacy"
 
 
 class EvaluationUpdate(RequestModel):
@@ -316,6 +344,16 @@ class EvaluationUpdate(RequestModel):
     plot_score: Score | None = None
     issues: list[dict[str, object]] | None = None
     suggestions: list[LongText] | None = None
+    status: EvaluationStatus | None = None
+    mechanical_score: M4Score | None = None
+    critic_score: M4Score | None = None
+    pacing_score: M4Score | None = None
+    dialogue_score: M4Score | None = None
+    emotional_impact_score: M4Score | None = None
+    outline_adherence_score: M4Score | None = None
+    blocking_reasons: list[str] | None = None
+    recommended_action: RecommendedAction | None = None
+    passed: bool | None = None
 
 
 class EvaluationRead(EvaluationCreate):
@@ -325,6 +363,51 @@ class EvaluationRead(EvaluationCreate):
 
     id: EntityId
     created_at: datetime
+
+
+class EvaluationIssueRead(ORMResponseModel):
+    """One persisted issue from a local or critic evaluator."""
+
+    id: EntityId
+    evaluation_id: EntityId
+    source: str
+    code: str
+    category: str
+    severity: ConflictSeverity
+    description: str
+    evidence: str | None = None
+    suggestion: str | None = None
+    score_penalty: M4Score
+    details: dict[str, object] = Field(default_factory=dict)
+    created_at: datetime
+
+
+class ConflictRead(ORMResponseModel):
+    """Persisted consistency conflict and its human-managed status."""
+
+    id: EntityId
+    evaluation_id: EntityId
+    project_id: EntityId
+    chapter_id: EntityId
+    conflict_type: ConflictType
+    severity: ConflictSeverity
+    subject: str
+    description: str
+    new_evidence: str
+    existing_evidence: str | None = None
+    existing_fact_id: EntityId | None = None
+    suggested_resolution: str
+    confidence: Confidence
+    rule_code: str
+    status: ConflictStatus
+    created_at: datetime
+    resolved_at: datetime | None = None
+
+
+class ConflictStatusUpdate(RequestModel):
+    """Only mutable field exposed for a consistency conflict."""
+
+    status: ConflictStatus
 
 
 class RevisionCreate(RequestModel):

@@ -29,10 +29,14 @@
 - 计划、正文、摘要、事实、人物状态、伏笔与完整版本快照持久化。
 - 可重复执行的 SQLite + Mock 离线演示与 M3 最小 CLI。
 
-## Milestone 4：评估与一致性（未开始）
+## Milestone 4：评估与一致性（已完成）
 
-- MechanicalEvaluator 与结构化 LLMCritic。
-- ConsistencyAgent、冲突模型与可配置评分权重。
+- 可配置、确定性的 MechanicalEvaluator 与集中扣分。
+- 结构化 CriticAgent、Prompt 版本和离线 Mock 场景。
+- FactNormalizer、规则驱动 ConsistencyChecker 与可持久化 Conflict。
+- EvaluationScorer 的权重、封顶、扣分与硬阻断条件。
+- EvaluationService 的版本历史、事务边界和 `partial_failed` 策略。
+- SQLite + Mock 的 `demo-m4` 及评估/冲突 CLI。
 
 ## Milestone 5：LangGraph 修订闭环（未开始）
 
