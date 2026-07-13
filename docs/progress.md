@@ -2,91 +2,56 @@
 
 ## Milestone 0：仓库初始化
 
-状态：已完成并通过质量门禁。
+状态：已完成并验收。
 
-已完成：
-
-- 初始化 Git 仓库与 Python 3.12 `src` 布局。
-- 创建未来模块、测试、文档、迁移和脚本目录。
-- 配置运行依赖和 `dev` 依赖组。
-- 配置 pytest/coverage、Ruff 和 strict mypy。
-- 实现带 Pydantic 响应模型的 `GET /health`。
-- 添加健康检查测试及基础项目文档。
-
-未开始：
-
-- Milestone 2 及之后的 LLM、Agent、工作流、业务 API、CLI 和部署功能。
-
-验收命令：
-
-```powershell
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy src
-uv run pytest
-uv run python -c "from storyforge.api.app import app; print(app.title)"
-```
-
-2026-07-13 验收结果：Python 3.12.12；Ruff format/check 通过；strict mypy 通过；pytest 1 passed；总覆盖率 100%；`/health` 返回 HTTP 200。
+交付了 Python 3.12 工程、质量工具、最小健康检查与基础文档。
 
 ## Milestone 1：领域模型与数据库
 
-状态：已完成并通过最终质量门禁。
+状态：已完成并验收。
 
-已完成：
-
-- 实现 Project、Character、Location、StoryRule、Chapter、Fact、Foreshadowing、Evaluation、Revision 和 WorkflowRun 的 SQLAlchemy 2 映射。
-- 为全部实体提供 Pydantic v2 create/update/read schema。
-- 默认使用 SQLite，并通过 `DATABASE_URL` 支持 `postgresql+psycopg://`。
-- 实现外键启用、engine、session factory、事务 context manager 和类型化 repository。
-- 配置 Alembic，并从模型 metadata 生成首迁移。
-- 覆盖 CRUD、project/chapter 级联、事务回滚、迁移和关键约束。
-
-关键不变量：
-
-- 删除 project 会删除全部直接和间接子数据。
-- chapter number 在 project 内唯一。
-- fact 结束章节不得早于起始章节，confidence 必须在 0..1。
-- evaluation 全部分数必须在 0..100。
-- revision 必须推进版本号，新版本号在 chapter 内唯一。
-
-验收命令：
-
-```powershell
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy src tests
-uv run pytest
-uv run alembic upgrade head
-uv run alembic check
-uv run alembic downgrade base
-```
-
-2026-07-13 独立验收结果：从锁文件无缓存重建 Python 3.12.12 环境；Ruff format/check 通过；strict mypy（src + tests）通过；pytest 29 passed；总覆盖率 100%；Alembic upgrade/current/check/downgrade 通过；迁移后 repository 实际写入 1 个 project 和 1 个 chapter；PostgreSQL 方言离线迁移编译通过。
+交付了基础领域表、schema、repository、SQLite/PostgreSQL 配置、Alembic 初始迁移与数据层测试。
 
 ## Milestone 2：LLM 抽象与结构化输出
 
-状态：已完成并通过最终质量门禁。
+状态：已完成并验收。
+
+交付了统一 LLM 边界、确定性 Mock、OpenAI-compatible provider、版本化 Prompt、重试与脱敏错误策略。
+
+## Milestone 3：规划与单章生成
+
+状态：已完成并通过最终独立验收。
 
 已完成：
 
-- 实现统一、泛型化的 `LLMProvider.generate(PromptRequest, ResponseModel)` 结构化输出接口。
-- 实现项目内部配置、timeout、认证、限流、服务、无效响应、refusal 和 prompt registry 异常。
-- 实现确定性的离线 `MockLLMProvider`，支持多个 Pydantic model 和顺序故障注入。
-- 实现环境驱动的 `OpenAICompatibleProvider`，使用 SDK strict structured output，并由项目统一执行 timeout、指数退避和有限修复重试。
-- 实现具名、版本化 `PromptRegistry`，在 `LLMResponse` 中记录实际 prompt 名称和版本。
-- 使用真实 OpenAI Python SDK 与 `httpx.MockTransport` 覆盖成功和全部要求的故障路径，测试不访问公网、不要求 API Key、不真实等待。
-- 日志不记录 key、base URL、prompt/响应正文或 SDK 异常正文；base URL 拒绝内嵌凭据、query 和 fragment。
-- 修复 Alembic 进程内日志配置会禁用应用 logger 的问题。
+- 规划、写作、事实抽取三个单一职责 Agent。
+- 六个独立且版本化的 system/user Prompt。
+- 原子保存完整计划的 `PlanningService`。
+- 防未来信息泄漏、秘密隔离、事实相关性筛选与字符预算。
+- 章节生成、事实抽取、人物状态与伏笔更新。
+- 章节完整版本快照与显式失败状态。
+- 第二个 Alembic 迁移。
+- 最小 M3 CLI 与 `demo-m3` 完全离线演示。
+- 103 项自动化测试全部通过；当前总覆盖率 95.71%。
 
-验收命令：
+明确未开始：
+
+- Milestone 4 的 MechanicalEvaluator、LLMCritic、ConsistencyAgent 和评分。
+- Milestone 5 的 LangGraph、checkpoint、RevisionAgent 与自动修订循环。
+- Milestone 6 的完整业务 API 和生产 CLI。
+- Milestone 7 与后续基础设施、前端及多媒体能力。
+
+M3 验收命令：
 
 ```powershell
+uv sync --all-groups
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy src
 uv run pytest
-uv run python scripts/milestone2_demo.py
+uv run alembic upgrade head
+uv run alembic check
+uv run storyforge demo-m3 --database .\storyforge-m3-demo.sqlite3 --reset
 ```
 
-2026-07-13 独立验收结果：删除虚拟环境和全部工具缓存后，使用锁文件与 Python 3.12.12 无缓存重建并安装 51 个包；Ruff format/check 通过；strict mypy（src + tests）通过；pytest 92 passed；926 条语句与 120 个分支均覆盖，总覆盖率 100%。README 中的 `uv sync`、SQLite Alembic、Uvicorn `/health`/OpenAPI、质量门禁和 Mock 演示均实际执行成功；PostgreSQL 迁移离线编译成功。验收删除了已有真实脚本后冗余的 `scripts/.gitkeep`；真实 OpenAI endpoint 因无凭据且测试禁止公网而未调用。Milestone 3 未开始。
+2026-07-13 最终验收结果：删除本仓库虚拟环境和工具缓存后，使用锁文件与 CPython 3.12.12 重装 51 个包；Ruff format/check、strict mypy 和 103 项 pytest 全部通过，总覆盖率 95.71%；全新 SQLite 的 Alembic upgrade/current/check/downgrade 通过；`demo-m3` 在同一数据库连续执行两次成功，分别创建 project 1 和 project 2，且每次都持久化 3 章计划、1 个生成章节、1 条事实与 1 个完整版本快照。README 的分步 CLI 和真实 Uvicorn `/health` 也已执行成功。未启动 Milestone 4。

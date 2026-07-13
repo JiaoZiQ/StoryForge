@@ -36,6 +36,9 @@ class ProjectCreate(RequestModel):
     premise: LongText
     target_chapters: PositiveInt
     target_words_per_chapter: PositiveInt
+    language: str = Field(default="zh-CN", min_length=2, max_length=32)
+    tone: CategoryText | None = None
+    audience: CategoryText | None = None
     status: ProjectStatus = ProjectStatus.DRAFT
 
 
@@ -47,6 +50,9 @@ class ProjectUpdate(RequestModel):
     premise: LongText | None = None
     target_chapters: PositiveInt | None = None
     target_words_per_chapter: PositiveInt | None = None
+    language: str | None = Field(default=None, min_length=2, max_length=32)
+    tone: CategoryText | None = None
+    audience: CategoryText | None = None
     status: ProjectStatus | None = None
 
 
@@ -56,6 +62,12 @@ class ProjectRead(ProjectCreate):
     model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
 
     id: EntityId
+    logline: str | None = None
+    themes: list[str] = Field(default_factory=list)
+    world_summary: str | None = None
+    central_conflict: str | None = None
+    ending_direction: str | None = None
+    style_guide: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -69,6 +81,7 @@ class CharacterCreate(RequestModel):
     description: LongText
     goals: list[LongText] = Field(default_factory=list)
     personality: LongText
+    personality_traits: list[LongText] = Field(default_factory=list)
     speech_style: LongText
     current_state: LongText
     secrets: list[LongText] = Field(default_factory=list)
@@ -82,6 +95,7 @@ class CharacterUpdate(RequestModel):
     description: LongText | None = None
     goals: list[LongText] | None = None
     personality: LongText | None = None
+    personality_traits: list[LongText] | None = None
     speech_style: LongText | None = None
     current_state: LongText | None = None
     secrets: list[LongText] | None = None
@@ -195,6 +209,7 @@ class FactCreate(RequestModel):
     valid_to_chapter: PositiveInt | None = None
     confidence: Confidence
     source_quote: LongText
+    fact_type: str = Field(default="event", min_length=1, max_length=50)
 
     @model_validator(mode="after")
     def validate_chapter_range(self) -> Self:
@@ -214,6 +229,7 @@ class FactUpdate(RequestModel):
     valid_to_chapter: PositiveInt | None = None
     confidence: Confidence | None = None
     source_quote: LongText | None = None
+    fact_type: str | None = Field(default=None, min_length=1, max_length=50)
 
     @model_validator(mode="after")
     def validate_complete_chapter_range(self) -> Self:
@@ -244,6 +260,7 @@ class ForeshadowingCreate(RequestModel):
     description: LongText
     status: ForeshadowingStatus = ForeshadowingStatus.PLANNED
     payoff_chapter: PositiveInt | None = None
+    importance: str = Field(default="medium", pattern="^(low|medium|high)$")
 
     @model_validator(mode="after")
     def validate_payoff_ranges(self) -> Self:
@@ -262,6 +279,7 @@ class ForeshadowingUpdate(RequestModel):
     description: LongText | None = None
     status: ForeshadowingStatus | None = None
     payoff_chapter: PositiveInt | None = None
+    importance: str | None = Field(default=None, pattern="^(low|medium|high)$")
 
 
 class ForeshadowingRead(ForeshadowingCreate):

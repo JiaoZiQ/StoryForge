@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 from storyforge.database import create_database_engine
 from storyforge.models import Base
@@ -46,3 +46,76 @@ def test_initial_migration_upgrade_matches_metadata_and_downgrades(
         assert model_tables.isdisjoint(downgraded_tables)
     finally:
         downgraded_engine.dispose()
+
+
+def test_milestone3_migration_backfills_existing_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M3 must upgrade real M1 rows, not only initialize an empty database."""
+    database_path = tmp_path / "existing.sqlite3"
+    database_url = f"sqlite:///{database_path.as_posix()}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    alembic_config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    command.upgrade(alembic_config, "3d5c121d94ea")
+
+    engine = create_database_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO projects "
+                "(id, title, genre, premise, target_chapters, "
+                "target_words_per_chapter, status) "
+                "VALUES (1, 'Existing', 'Mystery', 'Old data', 3, 1000, 'draft')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO chapters "
+                "(id, project_id, chapter_number, title, outline, content, status, version) "
+                "VALUES (1, 1, 1, 'One', 'Outline', '', 'planned', 1)"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO characters "
+                "(id, project_id, name, role, description, goals, personality, "
+                "speech_style, current_state, secrets) "
+                "VALUES (1, 1, 'Mara', 'lead', 'desc', '[]', 'calm', 'brief', 'home', '[]')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO facts "
+                "(id, project_id, chapter_id, subject, predicate, object, "
+                "valid_from_chapter, confidence, source_quote) "
+                "VALUES (1, 1, 1, 'Mara', 'is', 'home', 1, 1.0, 'Mara is home')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO foreshadowings "
+                "(id, project_id, setup_chapter, expected_payoff_chapter, description, status) "
+                "VALUES (1, 1, 1, 2, 'A key', 'planned')"
+            )
+        )
+    engine.dispose()
+
+    command.upgrade(alembic_config, "head")
+    upgraded = create_database_engine(database_url)
+    with upgraded.connect() as connection:
+        assert connection.execute(
+            text("SELECT language, themes FROM projects WHERE id=1")
+        ).one() == ("zh-CN", "[]")
+        assert connection.execute(
+            text("SELECT objective, outline_metadata FROM chapters WHERE id=1")
+        ).one() == ("", "{}")
+        assert (
+            connection.scalar(text("SELECT personality_traits FROM characters WHERE id=1")) == "[]"
+        )
+        assert connection.scalar(text("SELECT fact_type FROM facts WHERE id=1")) == "event"
+        assert (
+            connection.scalar(text("SELECT importance FROM foreshadowings WHERE id=1")) == "medium"
+        )
+    upgraded.dispose()
+    command.downgrade(alembic_config, "base")
