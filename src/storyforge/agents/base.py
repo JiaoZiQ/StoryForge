@@ -31,6 +31,20 @@ class StructuredAgent:
         self._provider = provider
         self._registry = registry
 
+    @property
+    def provider_name(self) -> str:
+        """Expose only the stable provider identifier for audit metadata."""
+        return self._provider.provider_name
+
+    def prompt_versions(self) -> dict[str, str]:
+        """Return the prompt versions that the next invocation will render."""
+        system = self._registry.render(f"{self.prompt_name}.system")
+        user = self._registry.render(f"{self.prompt_name}.user", variables={"payload": "{}"})
+        return {
+            system.prompt.name: system.prompt.version,
+            user.prompt.name: user.prompt.version,
+        }
+
     def _invoke[OutputT: BaseModel](
         self,
         payload: BaseModel,

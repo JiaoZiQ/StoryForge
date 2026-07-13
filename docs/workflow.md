@@ -1,60 +1,59 @@
-# Milestone 3 工作流
+# StoryForge 工作流
 
-## 规划
-
-1. 读取最小项目 brief，并验证尚无正文。
-2. 短事务将项目标记为 `planning`。
-3. `PlannerAgent` 在事务外调用 LLM，返回 `NovelPlan`。
-4. 校验章节总数、连续编号、唯一人物/地点、引用与伏笔范围。
-5. 单一事务保存项目规划字段、人物、地点、规则、全部章节计划和伏笔，并标记 `planned`。
-
-失败不会产生半套计划。已有计划默认拒绝覆盖；只有没有正文且显式 `replace_existing=True` 时，旧计划的删除与新计划写入才在同一事务发生。
-
-## 上下文
-
-ContextBuilder 的必选内容是项目方向和当前章计划；当前章计划不会因预算被裁掉。可选内容按以下优先级加入：
-
-1. 活跃世界规则
-2. 当前章参与人物
-3. 当前章相关且由更早章节产生的事实
-4. 已经 setup 的开放伏笔
-5. 最近已生成章节摘要
-6. 当前章地点详情
-
-预算元数据记录候选、纳入、遗漏数量和类别。即使预算小于必选内容，也保留当前章计划并明确 `mandatory_outline_exceeded_budget=true`。
-
-防泄漏规则：
-
-- 不查询当前章或未来章产生的事实。
-- 不加入未来章节摘要或未来伏笔 setup。
-- 不加入项目结局方向。
-- 不加入角色 `secrets`；`author_secrets` 在 M3 始终为空。
-
-## 章节生成
+## M3 生成前置链路
 
 ```text
-planned → generating → extracting_facts → generated
-                    ↘ failed
-                                      ↘ fact_extraction_failed
+create project → plan → build bounded context → generate chapter → extract facts
 ```
 
-1. 验证项目与章节状态；已有正文必须显式 `regenerate=True`。
-2. 构建上下文并调用 WriterAgent。
-3. 在独立事务中保存正文、摘要、生成元数据和完整 `ChapterVersion` 快照。
-4. 调用 FactExtractorAgent；机械过滤低置信度、重复、引句不存在、来源章节不符的记录。
-5. 在一个事务中写入事实、人物状态与伏笔状态，并将章节标记为 `generated`。
+只有正文存在且事实抽取成功的章节可以进入 M4。`fact_extraction_failed` 默认拒绝评估，避免在缺少当前章事实时给出虚假的完整一致性结论。
 
-最后一章生成完成后，项目状态为 `completed`；否则保持 `generating`。
+## M4 评估链路
 
-## 失败策略
+1. 读取项目、章节和当前章 outline，验证状态与正文。
+2. 只加载当前章事实、有效历史事实、人物公开状态/知识边界、活跃规则、当前可见伏笔和更早章节摘要。
+3. 短事务将章节标记为 `evaluating`。
+4. 在事务外运行 MechanicalEvaluator。
+5. 在事务外运行 ConsistencyChecker。
+6. 构造最小 CriticContext，在事务外调用 CriticAgent。
+7. EvaluationScorer 合并原始分、权重分、冲突扣分和阻断条件。
+8. 单一事务新增 Evaluation、EvaluationIssue、Conflict，并更新章节分数与最终状态。
 
-| 失败阶段 | 持久化结果 | 状态 | 是否可重试 |
-|---|---|---|---|
-| Planner 调用/校验 | 不保存部分计划 | project `failed` | 是 |
-| 计划写入 | 整体回滚 | project `failed` | 是 |
-| Writer 调用 | 不写正文 | chapter/project `failed` | 是 |
-| 正文写入 | 整体回滚 | chapter/project `failed` | 是 |
-| FactExtractor 调用 | 保留正文与快照，不写新事实 | `fact_extraction_failed` / project `failed` | 是 |
-| 事实事务 | 事实与状态更新整体回滚，正文保留 | `fact_extraction_failed` / project `failed` | 是 |
+## 状态转换
 
-M3 不实现自动重试循环、评分、自动修订或 LangGraph checkpoint。
+```text
+generated ───────────────→ evaluating
+evaluated_passed ────────→ evaluating
+evaluated_needs_revision → evaluating
+evaluation_failed ───────→ evaluating
+
+evaluating → evaluated_passed
+evaluating → evaluated_needs_revision
+evaluating → evaluation_failed
+```
+
+`planned`、`generating`、`extracting_facts`、`fact_extraction_failed` 或已在 `evaluating` 的章节不能开始新评估。
+
+## 失败与事务策略
+
+| 失败阶段 | 新 Evaluation | 本地结果 | 章节状态 | 历史记录 |
+|---|---|---|---|---|
+| Mechanical | 不创建 | 无可靠完整结果 | `evaluation_failed` | 保留 |
+| Consistency | 不创建 | 无可靠完整结果 | `evaluation_failed` | 保留 |
+| Critic/provider/schema | 创建 `partial_failed` | Mechanical、Consistency、Issue、Conflict 保留 | `evaluation_failed` | 保留 |
+| 完整结果写入 | 整体回滚 | 不产生半条完整评估 | `evaluation_failed` | 保留 |
+| 成功 | 创建 `completed` 新版本 | 全部保存 | passed/needs_revision | 保留 |
+
+Provider 原始错误统一在 Agent 边界转换；对外只暴露项目内部异常。日志只包含项目/章节/评估 ID、版本、分数和状态。
+
+## 未来信息隔离
+
+- 历史 Fact 查询要求来源章节 `< 当前章节`，同时要求 `valid_from_chapter <= 当前章节` 且未过期。
+- 更晚章节创建的 Fact 即使错误地写了较早有效期，也不会进入当前评估。
+- 只加载 setup chapter 不晚于当前章的伏笔。
+- CriticContext 不包含人物 secrets、项目 ending direction 或未来摘要。
+- ConsistencyChecker 自身仍保留 future-fact 规则，便于检测错误调用者直接传入的非法证据。
+
+## 不属于 M4
+
+M4 不执行重写、不循环调用 Critic、不做 AcceptanceEvaluator，也不建立 LangGraph checkpoint。`recommended_action` 是数据，不是自动动作。

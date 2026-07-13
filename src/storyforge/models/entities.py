@@ -25,6 +25,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from storyforge.enums import (
     ChapterStatus,
+    ConflictSeverity,
+    ConflictStatus,
+    ConflictType,
+    EvaluationStatus,
     ForeshadowingStatus,
     ProjectStatus,
     WorkflowRunStatus,
@@ -112,6 +116,11 @@ class Project(TimestampMixin, EntityBase):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+    conflicts: Mapped[list[Conflict]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     workflow_runs: Mapped[list[WorkflowRun]] = relationship(
         back_populates="project",
         cascade="all, delete-orphan",
@@ -137,6 +146,7 @@ class Character(EntityBase):
     speech_style: Mapped[str] = mapped_column(Text, nullable=False)
     current_state: Mapped[str] = mapped_column(Text, nullable=False)
     secrets: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    knowledge: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="characters")
 
@@ -169,6 +179,7 @@ class StoryRule(EntityBase):
     statement: Mapped[str] = mapped_column(Text, nullable=False)
     source: Mapped[str] = mapped_column(String(200), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    structured_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="story_rules")
 
@@ -220,6 +231,11 @@ class Chapter(TimestampMixin, EntityBase):
         passive_deletes=True,
     )
     evaluations: Mapped[list[Evaluation]] = relationship(
+        back_populates="chapter",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    conflicts: Mapped[list[Conflict]] = relationship(
         back_populates="chapter",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -276,6 +292,10 @@ class Fact(EntityBase):
 
     project: Mapped[Project] = relationship(back_populates="facts")
     chapter: Mapped[Chapter] = relationship(back_populates="facts")
+    referenced_conflicts: Mapped[list[Conflict]] = relationship(
+        back_populates="existing_fact",
+        passive_deletes=True,
+    )
 
 
 class Foreshadowing(EntityBase):
@@ -349,18 +369,36 @@ class Evaluation(EntityBase):
     """Structured chapter quality scores and revision guidance."""
 
     __tablename__ = "evaluations"
-    __table_args__ = tuple(
-        CheckConstraint(
-            f"{column} >= 0 AND {column} <= 100",
-            name=f"{column}_range",
-        )
-        for column in (
-            "overall_score",
-            "consistency_score",
-            "prose_score",
-            "character_score",
-            "plot_score",
-        )
+    __table_args__ = (
+        *tuple(
+            CheckConstraint(
+                f"{column} >= 0 AND {column} <= 100",
+                name=f"{column}_range",
+            )
+            for column in (
+                "overall_score",
+                "consistency_score",
+                "prose_score",
+                "character_score",
+                "plot_score",
+            )
+        ),
+        CheckConstraint("evaluation_version > 0", name="evaluation_version_positive"),
+        *tuple(
+            CheckConstraint(
+                f"{column} >= 0 AND {column} <= 10",
+                name=f"{column}_ten_range",
+            )
+            for column in (
+                "mechanical_score",
+                "critic_score",
+                "pacing_score",
+                "dialogue_score",
+                "emotional_impact_score",
+                "outline_adherence_score",
+            )
+        ),
+        UniqueConstraint("chapter_id", "evaluation_version", name="evaluation_chapter_version"),
     )
 
     project_id: Mapped[int] = mapped_column(
@@ -370,11 +408,42 @@ class Evaluation(EntityBase):
         ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False
     )
     evaluator: Mapped[str] = mapped_column(String(200), nullable=False)
+    evaluation_version: Mapped[int] = mapped_column(default=1, nullable=False)
+    status: Mapped[EvaluationStatus] = mapped_column(
+        SQLAlchemyEnum(
+            EvaluationStatus,
+            name="evaluation_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=EvaluationStatus.COMPLETED,
+        nullable=False,
+    )
     overall_score: Mapped[float] = mapped_column(Float, nullable=False)
+    mechanical_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    critic_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     consistency_score: Mapped[float] = mapped_column(Float, nullable=False)
     prose_score: Mapped[float] = mapped_column(Float, nullable=False)
     character_score: Mapped[float] = mapped_column(Float, nullable=False)
     plot_score: Mapped[float] = mapped_column(Float, nullable=False)
+    pacing_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    dialogue_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    emotional_impact_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    outline_adherence_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    raw_scores: Mapped[dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
+    weighted_scores: Mapped[dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
+    evaluator_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
+    prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
+    blocking_reasons: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    recommended_action: Mapped[str] = mapped_column(
+        String(32), default="human_review", nullable=False
+    )
+    passed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    provider: Mapped[str] = mapped_column(String(100), default="legacy", nullable=False)
+    model: Mapped[str] = mapped_column(String(200), default="legacy", nullable=False)
+    config_version: Mapped[str] = mapped_column(String(50), default="legacy", nullable=False)
     issues: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
     suggestions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -386,6 +455,130 @@ class Evaluation(EntityBase):
 
     project: Mapped[Project] = relationship(back_populates="evaluations")
     chapter: Mapped[Chapter] = relationship(back_populates="evaluations")
+    issue_records: Mapped[list[EvaluationIssue]] = relationship(
+        back_populates="evaluation",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="EvaluationIssue.id",
+    )
+    conflicts: Mapped[list[Conflict]] = relationship(
+        back_populates="evaluation",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="Conflict.id",
+    )
+
+
+class EvaluationIssue(EntityBase):
+    """One normalized issue produced by a mechanical or LLM evaluator."""
+
+    __tablename__ = "evaluation_issues"
+    __table_args__ = (
+        CheckConstraint(
+            "score_penalty >= 0 AND score_penalty <= 10",
+            name="evaluation_issue_penalty_range",
+        ),
+    )
+
+    evaluation_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluations.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    source: Mapped[str] = mapped_column(String(50), nullable=False)
+    code: Mapped[str] = mapped_column(String(100), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
+    severity: Mapped[ConflictSeverity] = mapped_column(
+        SQLAlchemyEnum(
+            ConflictSeverity,
+            name="issue_severity",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    suggestion: Mapped[str | None] = mapped_column(Text, nullable=True)
+    score_penalty: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+
+    evaluation: Mapped[Evaluation] = relationship(back_populates="issue_records")
+
+
+class Conflict(EntityBase):
+    """Persisted, explainable consistency conflict for one evaluation."""
+
+    __tablename__ = "consistency_conflicts"
+    __table_args__ = (
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="conflict_confidence_range"),
+    )
+
+    evaluation_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluations.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    chapter_id: Mapped[int] = mapped_column(
+        ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    conflict_type: Mapped[ConflictType] = mapped_column(
+        SQLAlchemyEnum(
+            ConflictType,
+            name="conflict_type",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    severity: Mapped[ConflictSeverity] = mapped_column(
+        SQLAlchemyEnum(
+            ConflictSeverity,
+            name="conflict_severity",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    new_evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    existing_evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+    existing_fact_id: Mapped[int | None] = mapped_column(
+        ForeignKey("facts.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    suggested_resolution: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    rule_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[ConflictStatus] = mapped_column(
+        SQLAlchemyEnum(
+            ConflictStatus,
+            name="conflict_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=ConflictStatus.OPEN,
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    evaluation: Mapped[Evaluation] = relationship(back_populates="conflicts")
+    project: Mapped[Project] = relationship(back_populates="conflicts")
+    chapter: Mapped[Chapter] = relationship(back_populates="conflicts")
+    existing_fact: Mapped[Fact | None] = relationship(back_populates="referenced_conflicts")
 
 
 class Revision(EntityBase):

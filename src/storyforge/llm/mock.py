@@ -45,6 +45,7 @@ class MockLLMProvider:
         self._failures = deque(failures)
         self._model = model
         self.call_count = 0
+        self.requests: list[PromptRequest] = []
 
     def register_response(
         self,
@@ -65,6 +66,7 @@ class MockLLMProvider:
     ) -> LLMResponse[ResponseT]:
         """Validate and return the configured response for ``response_model``."""
         self.call_count += 1
+        self.requests.append(request)
         failure = self._failures.popleft() if self._failures else None
         if failure is MockFailure.TIMEOUT:
             raise LLMTimeoutError("Mock LLM request timed out", attempts=1)

@@ -27,3 +27,7 @@ class ContextBuildError(StoryForgeError):
 
 class ChapterGenerationError(StoryForgeError):
     """Raised when chapter drafting or fact extraction fails."""
+
+
+class EvaluationError(StoryForgeError):
+    """Raised when a chapter evaluation cannot be completed safely."""

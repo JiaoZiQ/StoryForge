@@ -1,56 +1,82 @@
 # 数据模型
 
-所有主键沿用 Milestone 1 的自增整数。SQLite 是默认开发数据库；PostgreSQL 使用同一 SQLAlchemy metadata。
+主键沿用 Milestone 1 的自增整数。SQLite 是默认开发数据库；PostgreSQL 使用同一 SQLAlchemy metadata。
 
-## M3 相关表
-
-### `projects`
-
-保留标题、类型、前提、目标章节数与目标字数，新增：
-
-- `language`、`tone`、`audience`
-- `logline`、`themes`
-- `world_summary`、`central_conflict`、`ending_direction`、`style_guide`
-- 状态：`draft → planning → planned → generating → completed`，失败进入 `failed`
-
-`active` 与 `archived` 为此前兼容状态，M3 用例不会写入它们。
-
-### `characters`
-
-规划输出保存姓名、角色、描述、目标、说话风格、当前状态与作者秘密。`personality_traits` 保存结构化性格列表；旧的 `personality` 文本字段保留兼容。
-
-### `locations` 与 `story_rules`
-
-地点保存描述和 JSON 规则列表；世界/叙事规则保存分类、语句、来源 Prompt 版本与启用状态。
+## M4 变化
 
 ### `chapters`
 
-- `objective`：当前章目标。
-- `outline`：可读概要。
-- `outline_metadata`：经 `ChapterOutlineContext` 验证的结构化计划，包括关键事件、参与人物、地点、必须事实、禁止泄漏、伏笔 setup/payoff 与结尾钩子。
-- `content`、`summary`、`version`。
-- `generation_metadata`：经 `GenerationMetadata` 验证的 provider、model、Prompt 版本、调用次数、耗时和时间戳。
-- M3 状态：`planned → generating → extracting_facts → generated`；写作失败为 `failed`，事实失败为 `fact_extraction_failed`。
+M4 使用状态：
 
-### `chapter_versions`
+```text
+generated → evaluating → evaluated_passed
+                       ↘ evaluated_needs_revision
+                       ↘ evaluation_failed
+```
 
-每次成功写出正文后立即创建不可变快照，保存章节 ID、版本号、标题、完整正文、摘要和生成元数据。`(chapter_id, version)` 唯一；重新生成不会覆盖旧正文。
+`score` 保存最新完整评估的 0–10 最终分。旧 Evaluation 不因章节状态变化或新尝试失败而删除。
 
-### `facts`
+### `evaluations`
 
-事实关联项目与来源章节，保存 subject/predicate/object、`fact_type`、置信度、原文引句和有效章节区间。ContextBuilder 还会用来源章节号阻止未来事实泄漏。
+在旧评分字段基础上增加：
 
-### `foreshadowings`
+- `(chapter_id, evaluation_version)` 唯一；版本从 1 递增。
+- `status`：`completed` 或 `partial_failed`。
+- `mechanical_score`、`critic_score`、`consistency_score`、`overall_score`。
+- `pacing_score`、`dialogue_score`、`emotional_impact_score`、`outline_adherence_score`，并保留 prose/plot/character。
+- `raw_scores`、`weighted_scores`，用于审计权重前后结果。
+- `evaluator_versions`、`prompt_versions`、`config_version`。
+- `blocking_reasons`、`recommended_action`、`passed`。
+- `provider`、`model`。
 
-保存 setup、预期 payoff、实际 payoff、描述、重要性和状态。计划生成时为 `planned`；setup 章节生成后为 `open`；提取到 payoff 后为 `resolved`。
+旧 M1 评分列的 0–100 数据库约束为兼容已有数据保留；M4 入口和 service 对 M4 分数使用 Pydantic 0–10 约束。
 
-## JSON 约束
+### `evaluation_issues`
 
-JSON 只用于适合整体读写的小型结构：字符串列表、章节计划元数据与生成元数据。写入这些字段的数据均先经过对应 Pydantic v2 模型验证，不把任意未验证 dict 作为业务输入。
+一行保存一个机械或 Critic 问题：来源、稳定 code、分类、severity、描述、短 evidence、建议、扣分和小型 metadata。它与 Evaluation 级联删除，但正常业务不会覆盖或删除历史 Evaluation。
+
+### `consistency_conflicts`
+
+保存：Evaluation、项目、章节、冲突类型、severity、subject、双方 evidence、可选历史 fact ID、建议解决方案、置信度、规则 code、状态和时间戳。
+
+状态只有一套：
+
+```text
+open | ignored | resolved | false_positive
+```
+
+恢复为 `open` 会清空 `resolved_at`；其他状态记录处理时间。
+
+### `characters.knowledge`
+
+人物知识边界使用 JSON 字符串列表，和作者侧 `secrets` 分离。规则引擎只有在 secret 未 reveal、人物不在知识列表、历史中也无获得事件时才报告知识泄漏。这是保守的一版关系表示，不是完整知识图谱。
+
+### `story_rules.structured_metadata`
+
+新增向后兼容 JSON 字段，用于机械匹配，例如：
+
+```json
+{
+  "location": "city",
+  "forbidden_predicates": ["uses_fire"],
+  "allows_resurrection": false
+}
+```
+
+自由文本 `statement` 仍保留；没有结构化 metadata 的规则不会被伪装成确定性机器判断。
+
+## 既有 M3 表
+
+- `projects`：brief、规划结果、目标与状态。
+- `characters`、`locations`、`story_rules`：计划世界与人物。
+- `chapters`、`chapter_versions`：当前正文与不可变完整版本快照。
+- `facts`：subject/predicate/object、来源章节、有效区间、置信度和原文引句。
+- `foreshadowings`：setup、预期/实际 payoff 和状态。
 
 ## 迁移
 
 - `3d5c121d94ea`：M1 初始领域表。
-- `b550a962dc62`：M3 字段、生成状态和 `chapter_versions`。
+- `b550a962dc62`：M3 规划/生成字段、状态和 `chapter_versions`。
+- `ad6fd0f94186`：M4 Evaluation 明细、EvaluationIssue、Conflict、章节评估状态、人物知识和 StoryRule metadata。
 
-第二个迁移没有修改旧迁移，并支持从空库升级到 head、`alembic check` 与降级到 base。
+M4 migration 不修改旧 migration。它支持空库 upgrade head，也会为已有 M3 Evaluation 按章、按 ID 回填稳定 `evaluation_version`，并可降级到 base。

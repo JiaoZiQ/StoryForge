@@ -1,14 +1,23 @@
 """Typed repositories for each StoryForge domain entity."""
 
-from sqlalchemy import select
+from collections.abc import Iterable
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from storyforge.enums import ForeshadowingStatus
+from storyforge.enums import (
+    ConflictSeverity,
+    ConflictStatus,
+    ConflictType,
+    ForeshadowingStatus,
+)
 from storyforge.models import (
     Chapter,
     ChapterVersion,
     Character,
+    Conflict,
     Evaluation,
+    EvaluationIssue,
     Fact,
     Foreshadowing,
     Location,
@@ -150,6 +159,67 @@ class EvaluationRepository(Repository[Evaluation]):
 
     def __init__(self, session: Session) -> None:
         super().__init__(session, Evaluation)
+
+    def next_version(self, chapter_id: int) -> int:
+        """Return the next immutable evaluation version for a chapter."""
+        current = self.session.scalar(
+            select(func.max(Evaluation.evaluation_version)).where(
+                Evaluation.chapter_id == chapter_id
+            )
+        )
+        return (current or 0) + 1
+
+    def list_for_chapter(self, chapter_id: int) -> list[Evaluation]:
+        """Return a chapter's evaluation history in version order."""
+        statement = (
+            select(Evaluation)
+            .where(Evaluation.chapter_id == chapter_id)
+            .order_by(Evaluation.evaluation_version)
+        )
+        return list(self.session.scalars(statement))
+
+
+class EvaluationIssueRepository(Repository[EvaluationIssue]):
+    """Persistence operations for normalized evaluation issues."""
+
+    def __init__(self, session: Session) -> None:
+        super().__init__(session, EvaluationIssue)
+
+    def add_many(self, issues: Iterable[EvaluationIssue]) -> None:
+        """Stage normalized issues in the caller-owned transaction."""
+        self.session.add_all(issues)
+
+
+class ConflictRepository(Repository[Conflict]):
+    """Persistence and filtering for consistency conflicts."""
+
+    def __init__(self, session: Session) -> None:
+        super().__init__(session, Conflict)
+
+    def add_many(self, conflicts: Iterable[Conflict]) -> None:
+        """Stage conflicts in the caller-owned transaction."""
+        self.session.add_all(conflicts)
+
+    def list_for_project(
+        self,
+        project_id: int,
+        *,
+        chapter_id: int | None = None,
+        severity: ConflictSeverity | None = None,
+        conflict_type: ConflictType | None = None,
+        status: ConflictStatus | None = None,
+    ) -> list[Conflict]:
+        """Return stable, optionally filtered conflict records."""
+        statement = select(Conflict).where(Conflict.project_id == project_id)
+        if chapter_id is not None:
+            statement = statement.where(Conflict.chapter_id == chapter_id)
+        if severity is not None:
+            statement = statement.where(Conflict.severity == severity)
+        if conflict_type is not None:
+            statement = statement.where(Conflict.conflict_type == conflict_type)
+        if status is not None:
+            statement = statement.where(Conflict.status == status)
+        return list(self.session.scalars(statement.order_by(Conflict.id)))
 
 
 class RevisionRepository(Repository[Revision]):
