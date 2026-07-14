@@ -3,6 +3,7 @@
 import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from hashlib import sha256
 
 from storyforge.consistency.models import FactEvidence
 
@@ -120,3 +121,14 @@ class FactNormalizer:
             object=self.normalize_object(fact.object),
             raw=fact,
         )
+
+    def identity_hash(self, subject: str, predicate: str, object_value: str) -> str:
+        """Return a stable exact-normalized identity for persistence idempotency."""
+        payload = "\x1f".join(
+            (
+                self.normalize_subject(subject),
+                self.normalize_predicate(predicate),
+                self.normalize_object(object_value),
+            )
+        )
+        return sha256(payload.encode("utf-8")).hexdigest()

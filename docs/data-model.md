@@ -2,6 +2,67 @@
 
 主键沿用 Milestone 1 的自增整数。SQLite 是默认开发数据库；PostgreSQL 使用同一 SQLAlchemy metadata。
 
+## M6 变化
+
+- `projects.status` 增加 `created`，API 新建项目以此状态开始；新增非空 `additional_requirements`，旧数据回填空字符串。
+- `evaluations` 增加 `mechanical_metrics` 与 `critic_dimensions` JSON，详情 API 可审计机械指标和 Critic 各维度理由，旧记录回填空对象。
+- `consistency_conflicts` 增加可空 `resolution_note`。非 open 状态记录 `resolved_at`；重新打开清空处理时间。
+- 没有为 API 复制 Chapter、Version、Evaluation、Conflict、Fact 或 Workflow 模型；HTTP/CLI DTO 只是现有持久化模型的受限投影。
+- 列表响应不持久化分页数据；repository 在数据库中执行 count 和 limit/offset。
+
+公共 Fact 投影只允许 `accepted`。`candidate`、`rejected` 与 `superseded` 仍保存在同一表供工作流内部审计，但普通 API/CLI 无权按状态读取。`valid_at_chapter=N` 还要求来源 chapter `< N`，防止当前或未来章节事实泄漏。
+
+## M5 变化
+
+### `chapters` 与 `chapter_versions`
+
+`chapters` 是逻辑章节，保留当前可展示正文以兼容 M1–M4，并新增 `current_version_id`、`accepted_version_id` 指针。工作流状态为：
+
+```text
+planned → workflow_running → drafting → evaluating → revising
+                                            ├→ accepted
+                                            ├→ needs_review
+                                            └→ workflow_failed
+```
+
+`chapter_versions` 是不可变正文历史；同章 `(chapter_id, version)` 唯一。新增：
+
+- `status`：`draft | evaluated | revision | accepted | rejected | superseded | needs_review`。
+- `source`、`parent_version_id`、`workflow_run_id`。
+- `word_count`、`provider`、`model`、`prompt_versions`。
+- candidate 人物/伏笔更新、`idempotency_key`、`accepted_at`。
+
+新生成和每轮修订都创建新行。接受版本 2 后，版本 1 保留；旧 accepted 才标为 superseded，未接受的竞争版本标为 rejected。Evaluation 和 Conflict 均绑定 `chapter_version_id`。
+
+### `facts`
+
+选择在现有 Fact 上增加版本隔离，而不是复制 CandidateFact 表：
+
+- `chapter_version_id` 非空，`workflow_run_id` 可空。
+- `status`：`candidate | accepted | rejected | superseded`。
+- `normalized_hash` 由保守 FactNormalizer 生成。
+- `(chapter_version_id, normalized_hash)` 唯一，约束恢复重放不重复。
+
+FactRepository 的长期上下文查询强制 `status=accepted`。接受新版本时，其 candidate Fact 与人物/伏笔更新在同一事务提升；旧 accepted Fact superseded，其他 candidate rejected。人工复核不会提升任何候选事实。
+
+### `workflow_runs` 与 `workflow_events`
+
+WorkflowRun 新增 workflow type、operation、唯一 `thread_id`、original/current/best/accepted version 指针、revision attempt/limit、node history、blocking reasons、error code、Prompt 版本和更新时间。状态集中为：
+
+```text
+pending | running | paused | completed | completed_needs_review | failed | cancelled
+```
+
+WorkflowEvent 记录 `node_started`、`node_completed`、`node_failed`、`route_selected`、`version_created`、`evaluation_created`、`revision_rejected`、`version_accepted`、`workflow_completed`，包括 attempt、duration、版本/评估 ID 和脱敏错误码，不保存正文。
+
+### `version_comparisons` 与 `revisions`
+
+VersionComparison 保存 old/new version、各维度分差、resolved/unresolved/new issue codes、decision、confidence 和理由；同一工作流的新版本只允许一个比较结果。Revision 关联 source/new version 与 WorkflowRun，并保存结构化 brief、Prompt 版本、比较前后分和接受状态。
+
+### Evaluation 与 Conflict
+
+Evaluation 新增 `chapter_version_id`、`workflow_run_id` 和唯一可空 `idempotency_key`。Conflict 新增非空 `chapter_version_id`。历史记录不会因后续修订或工作流失败而改写。
+
 ## M4 变化
 
 ### `chapters`
@@ -69,8 +130,8 @@ open | ignored | resolved | false_positive
 
 - `projects`：brief、规划结果、目标与状态。
 - `characters`、`locations`、`story_rules`：计划世界与人物。
-- `chapters`、`chapter_versions`：当前正文与不可变完整版本快照。
-- `facts`：subject/predicate/object、来源章节、有效区间、置信度和原文引句。
+- `chapters`、`chapter_versions`：M5 在既有快照表上扩展，没有创建第二套版本表。
+- `facts`：subject/predicate/object、来源章节、有效区间、置信度和原文引句；M5 增加状态/版本隔离。
 - `foreshadowings`：setup、预期/实际 payoff 和状态。
 
 ## 迁移
@@ -78,5 +139,7 @@ open | ignored | resolved | false_positive
 - `3d5c121d94ea`：M1 初始领域表。
 - `b550a962dc62`：M3 规划/生成字段、状态和 `chapter_versions`。
 - `ad6fd0f94186`：M4 Evaluation 明细、EvaluationIssue、Conflict、章节评估状态、人物知识和 StoryRule metadata。
+- `69c75316dd7e`：M5 版本/候选事实/工作流审计/比较字段和表，以及新状态。
+- `f2a6c8d91b04`：M6 项目输入、评估详情、冲突处理备注和 `created` 状态。
 
-M4 migration 不修改旧 migration。它支持空库 upgrade head，也会为已有 M3 Evaluation 按章、按 ID 回填稳定 `evaluation_version`，并可降级到 base。
+M5 migration 不修改旧 migration。它支持空库 upgrade head，也会把已有 M4 Chapter 正文安全迁入首个 accepted ChapterVersion，把已有 Fact/Evaluation/Conflict 关联到该版本并计算事实哈希。测试覆盖从 M4 升级、降级到 M4、全链 downgrade base 和再次 upgrade head。

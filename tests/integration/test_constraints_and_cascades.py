@@ -98,6 +98,8 @@ def test_fact_chapter_range_is_enforced_by_database(session: Session) -> None:
     invalid_fact = Fact(
         project_id=graph.project.id,
         chapter_id=graph.chapter.id,
+        chapter_version_id=graph.chapter_version.id,
+        normalized_hash="invalid-range",
         subject="Mara",
         predicate="location",
         object="Harbor",
@@ -120,6 +122,8 @@ def test_evaluation_score_range_is_enforced_by_database(session: Session) -> Non
     invalid_evaluation = Evaluation(
         project_id=graph.project.id,
         chapter_id=graph.chapter.id,
+        chapter_version_id=graph.chapter_version.id,
+        evaluation_version=2,
         evaluator="invalid-critic",
         overall_score=101,
         consistency_score=80,

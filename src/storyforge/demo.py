@@ -254,8 +254,8 @@ def _dimension(score: float, rationale: str) -> DimensionScore:
     return DimensionScore(score=score, rationale=rationale)
 
 
-def build_critic_provider(scenario: str = "normal") -> MockLLMProvider:
-    """Build deterministic critic output for normal and required failure scenarios."""
+def build_demo_critique(scenario: str = "normal") -> ChapterCritique:
+    """Build one deterministic critic payload for offline workflows and tests."""
     if scenario == "normal":
         critique = ChapterCritique(
             prose=_dimension(8.4, "Clear, restrained imagery supports the viewpoint."),
@@ -378,4 +378,9 @@ def build_critic_provider(scenario: str = "normal") -> MockLLMProvider:
         )
     else:
         raise ValueError(f"Unknown critic mock scenario: {scenario}")
-    return MockLLMProvider({ChapterCritique: critique})
+    return critique
+
+
+def build_critic_provider(scenario: str = "normal") -> MockLLMProvider:
+    """Build deterministic critic output for normal and required failure scenarios."""
+    return MockLLMProvider({ChapterCritique: build_demo_critique(scenario)})

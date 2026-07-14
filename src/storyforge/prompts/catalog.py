@@ -27,6 +27,13 @@ _SYSTEM_PROMPTS = {
         "excerpt from the supplied prose, and revision priorities must reference issue "
         "codes. Never recommend passing when a critical consistency issue exists."
     ),
+    "revision": (
+        "You are StoryForge RevisionAgent. Return only the requested RevisedChapterDraft "
+        "structure. Apply the ordered revision instructions, preserve every declared "
+        "canonical fact, obey forbidden changes, keep the current outline objective, and "
+        "never use future chapter information. Do not introduce a new consistency conflict "
+        "and list every material change in changes_made."
+    ),
 }
 
 

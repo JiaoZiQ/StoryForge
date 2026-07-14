@@ -5,12 +5,40 @@ class StoryForgeError(Exception):
     """Base class for milestone-three application failures."""
 
 
+class ConfigurationError(StoryForgeError):
+    """Raised when application configuration is unsafe or incomplete."""
+
+
 class EntityNotFoundError(StoryForgeError):
     """Raised when a requested project or chapter does not exist."""
 
 
 class InvalidStateError(StoryForgeError):
     """Raised when an operation is not allowed from the persisted state."""
+
+
+class AlreadyExistsError(InvalidStateError):
+    """Raised when an explicitly unique application resource already exists."""
+
+
+class DatabaseConflictError(InvalidStateError):
+    """Raised when persistence constraints reject a concurrent or duplicate write."""
+
+
+class DomainValidationError(StoryForgeError):
+    """Raised when typed input violates a cross-field domain rule."""
+
+
+class WorkflowAlreadyRunningError(InvalidStateError):
+    """Raised when a chapter already has an active durable workflow."""
+
+
+class WorkflowNotResumableError(InvalidStateError):
+    """Raised when a durable workflow cannot be resumed from its current state."""
+
+
+class WorkflowCancelledError(InvalidStateError):
+    """Raised when an operation targets a cancelled workflow."""
 
 
 class PlanningValidationError(StoryForgeError):
@@ -31,3 +59,7 @@ class ChapterGenerationError(StoryForgeError):
 
 class EvaluationError(StoryForgeError):
     """Raised when a chapter evaluation cannot be completed safely."""
+
+
+class WorkflowExecutionError(StoryForgeError):
+    """Raised when a durable chapter workflow cannot continue safely."""

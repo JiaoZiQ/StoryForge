@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum as PythonEnum
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy import (
     JSON,
@@ -25,12 +26,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from storyforge.enums import (
     ChapterStatus,
+    ChapterVersionStatus,
     ConflictSeverity,
     ConflictStatus,
     ConflictType,
     EvaluationStatus,
+    FactStatus,
     ForeshadowingStatus,
     ProjectStatus,
+    WorkflowEventType,
     WorkflowRunStatus,
 )
 from storyforge.models.base import EntityBase, TimestampMixin, utc_now
@@ -61,6 +65,7 @@ class Project(TimestampMixin, EntityBase):
     language: Mapped[str] = mapped_column(String(32), default="zh-CN", nullable=False)
     tone: Mapped[str | None] = mapped_column(String(100), nullable=True)
     audience: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    additional_requirements: Mapped[str] = mapped_column(Text, default="", nullable=False)
     logline: Mapped[str | None] = mapped_column(Text, nullable=True)
     themes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     world_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -76,7 +81,7 @@ class Project(TimestampMixin, EntityBase):
             values_callable=_enum_values,
             length=32,
         ),
-        default=ProjectStatus.DRAFT,
+        default=ProjectStatus.CREATED,
         nullable=False,
     )
 
@@ -223,6 +228,24 @@ class Chapter(TimestampMixin, EntityBase):
     version: Mapped[int] = mapped_column(default=1, nullable=False)
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     generation_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    current_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "chapter_versions.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_chapters_current_version_id_chapter_versions",
+        ),
+        nullable=True,
+    )
+    accepted_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "chapter_versions.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_chapters_accepted_version_id_chapter_versions",
+        ),
+        nullable=True,
+    )
 
     project: Mapped[Project] = relationship(back_populates="chapters")
     facts: Mapped[list[Fact]] = relationship(
@@ -248,9 +271,16 @@ class Chapter(TimestampMixin, EntityBase):
     )
     versions: Mapped[list[ChapterVersion]] = relationship(
         back_populates="chapter",
+        foreign_keys="ChapterVersion.chapter_id",
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="ChapterVersion.version",
+    )
+    current_version: Mapped[ChapterVersion | None] = relationship(
+        foreign_keys=[current_version_id], post_update=True
+    )
+    accepted_version: Mapped[ChapterVersion | None] = relationship(
+        foreign_keys=[accepted_version_id], post_update=True
     )
     workflow_runs: Mapped[list[WorkflowRun]] = relationship(
         back_populates="chapter",
@@ -273,6 +303,9 @@ class Fact(EntityBase):
             "confidence >= 0 AND confidence <= 1",
             name="fact_confidence_range",
         ),
+        UniqueConstraint(
+            "chapter_version_id", "normalized_hash", name="fact_version_normalized_hash"
+        ),
     )
 
     project_id: Mapped[int] = mapped_column(
@@ -289,9 +322,36 @@ class Fact(EntityBase):
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     source_quote: Mapped[str] = mapped_column(Text, nullable=False)
     fact_type: Mapped[str] = mapped_column(String(50), default="event", nullable=False)
+    chapter_version_id: Mapped[int] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    workflow_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "workflow_runs.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_chapter_versions_workflow_run_id_workflow_runs",
+        ),
+        index=True,
+        nullable=True,
+    )
+    status: Mapped[FactStatus] = mapped_column(
+        SQLAlchemyEnum(
+            FactStatus,
+            name="fact_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=FactStatus.ACCEPTED,
+        nullable=False,
+    )
+    normalized_hash: Mapped[str] = mapped_column(String(64), nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="facts")
     chapter: Mapped[Chapter] = relationship(back_populates="facts")
+    chapter_version: Mapped[ChapterVersion] = relationship(back_populates="facts")
     referenced_conflicts: Mapped[list[Conflict]] = relationship(
         back_populates="existing_fact",
         passive_deletes=True,
@@ -344,6 +404,7 @@ class ChapterVersion(EntityBase):
     __tablename__ = "chapter_versions"
     __table_args__ = (
         UniqueConstraint("chapter_id", "version", name="chapter_version_number"),
+        UniqueConstraint("idempotency_key", name="chapter_version_idempotency_key"),
         CheckConstraint("version > 0", name="chapter_snapshot_version_positive"),
     )
 
@@ -355,6 +416,37 @@ class ChapterVersion(EntityBase):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     generation_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    status: Mapped[ChapterVersionStatus] = mapped_column(
+        SQLAlchemyEnum(
+            ChapterVersionStatus,
+            name="chapter_version_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=ChapterVersionStatus.DRAFT,
+        nullable=False,
+    )
+    source: Mapped[str] = mapped_column(String(32), default="generated", nullable=False)
+    parent_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    workflow_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    word_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    provider: Mapped[str] = mapped_column(String(100), default="legacy", nullable=False)
+    model: Mapped[str] = mapped_column(String(200), default="legacy", nullable=False)
+    prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
+    candidate_character_updates: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    candidate_foreshadowing_updates: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
@@ -362,7 +454,19 @@ class ChapterVersion(EntityBase):
         nullable=False,
     )
 
-    chapter: Mapped[Chapter] = relationship(back_populates="versions")
+    chapter: Mapped[Chapter] = relationship(back_populates="versions", foreign_keys=[chapter_id])
+    parent_version: Mapped[ChapterVersion | None] = relationship(
+        remote_side="ChapterVersion.id", foreign_keys=[parent_version_id]
+    )
+    facts: Mapped[list[Fact]] = relationship(
+        back_populates="chapter_version", cascade="all, delete-orphan", passive_deletes=True
+    )
+    evaluations: Mapped[list[Evaluation]] = relationship(
+        back_populates="chapter_version", cascade="all, delete-orphan", passive_deletes=True
+    )
+    conflicts: Mapped[list[Conflict]] = relationship(
+        back_populates="chapter_version", passive_deletes=True
+    )
 
 
 class Evaluation(EntityBase):
@@ -399,6 +503,7 @@ class Evaluation(EntityBase):
             )
         ),
         UniqueConstraint("chapter_id", "evaluation_version", name="evaluation_chapter_version"),
+        UniqueConstraint("idempotency_key", name="evaluation_idempotency_key"),
     )
 
     project_id: Mapped[int] = mapped_column(
@@ -407,6 +512,13 @@ class Evaluation(EntityBase):
     chapter_id: Mapped[int] = mapped_column(
         ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    chapter_version_id: Mapped[int] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    workflow_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
     evaluator: Mapped[str] = mapped_column(String(200), nullable=False)
     evaluation_version: Mapped[int] = mapped_column(default=1, nullable=False)
     status: Mapped[EvaluationStatus] = mapped_column(
@@ -434,6 +546,8 @@ class Evaluation(EntityBase):
     outline_adherence_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     raw_scores: Mapped[dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
     weighted_scores: Mapped[dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
+    mechanical_metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    critic_dimensions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     evaluator_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
     prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
     blocking_reasons: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
@@ -455,6 +569,7 @@ class Evaluation(EntityBase):
 
     project: Mapped[Project] = relationship(back_populates="evaluations")
     chapter: Mapped[Chapter] = relationship(back_populates="evaluations")
+    chapter_version: Mapped[ChapterVersion] = relationship(back_populates="evaluations")
     issue_records: Mapped[list[EvaluationIssue]] = relationship(
         back_populates="evaluation",
         cascade="all, delete-orphan",
@@ -526,6 +641,9 @@ class Conflict(EntityBase):
     chapter_id: Mapped[int] = mapped_column(
         ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    chapter_version_id: Mapped[int] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     conflict_type: Mapped[ConflictType] = mapped_column(
         SQLAlchemyEnum(
             ConflictType,
@@ -570,6 +688,7 @@ class Conflict(EntityBase):
         default=ConflictStatus.OPEN,
         nullable=False,
     )
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )
@@ -578,6 +697,7 @@ class Conflict(EntityBase):
     evaluation: Mapped[Evaluation] = relationship(back_populates="conflicts")
     project: Mapped[Project] = relationship(back_populates="conflicts")
     chapter: Mapped[Chapter] = relationship(back_populates="conflicts")
+    chapter_version: Mapped[ChapterVersion] = relationship(back_populates="conflicts")
     existing_fact: Mapped[Fact | None] = relationship(back_populates="referenced_conflicts")
 
 
@@ -615,6 +735,18 @@ class Revision(EntityBase):
     score_before: Mapped[float] = mapped_column(Float, nullable=False)
     score_after: Mapped[float] = mapped_column(Float, nullable=False)
     accepted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    source_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    new_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    workflow_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(32), default="created", nullable=False)
+    brief: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
@@ -657,6 +789,55 @@ class WorkflowRun(EntityBase):
         nullable=False,
     )
     retry_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    workflow_type: Mapped[str] = mapped_column(
+        String(50), default="chapter_revision", nullable=False
+    )
+    operation: Mapped[str] = mapped_column(String(50), default="generate", nullable=False)
+    thread_id: Mapped[str] = mapped_column(
+        String(64), default=lambda: str(uuid4()), unique=True, nullable=False
+    )
+    original_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "chapter_versions.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_workflow_runs_original_version_id_chapter_versions",
+        ),
+        nullable=True,
+    )
+    current_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "chapter_versions.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_workflow_runs_current_version_id_chapter_versions",
+        ),
+        nullable=True,
+    )
+    best_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "chapter_versions.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_workflow_runs_best_version_id_chapter_versions",
+        ),
+        nullable=True,
+    )
+    accepted_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "chapter_versions.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_workflow_runs_accepted_version_id_chapter_versions",
+        ),
+        nullable=True,
+    )
+    revision_attempt: Mapped[int] = mapped_column(default=0, nullable=False)
+    max_revision_attempts: Mapped[int] = mapped_column(default=2, nullable=False)
+    node_history: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    blocking_reasons: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -665,6 +846,98 @@ class WorkflowRun(EntityBase):
         nullable=False,
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
 
     project: Mapped[Project] = relationship(back_populates="workflow_runs")
     chapter: Mapped[Chapter] = relationship(back_populates="workflow_runs")
+    events: Mapped[list[WorkflowEvent]] = relationship(
+        back_populates="workflow_run",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="WorkflowEvent.id",
+    )
+
+
+class WorkflowEvent(EntityBase):
+    """One small, content-free audit event emitted at a workflow boundary."""
+
+    __tablename__ = "workflow_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "workflow_run_id",
+            "node",
+            "event_type",
+            "attempt",
+            name="workflow_event_idempotency",
+        ),
+        CheckConstraint("attempt >= 0", name="workflow_event_attempt_non_negative"),
+        CheckConstraint("duration_ms >= 0", name="workflow_event_duration_non_negative"),
+    )
+
+    workflow_run_id: Mapped[int] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    node: Mapped[str] = mapped_column(String(100), nullable=False)
+    event_type: Mapped[WorkflowEventType] = mapped_column(
+        SQLAlchemyEnum(
+            WorkflowEventType,
+            name="workflow_event_type",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    attempt: Mapped[int] = mapped_column(default=0, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False)
+    duration_ms: Mapped[int] = mapped_column(default=0, nullable=False)
+    version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    evaluation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("evaluations.id", ondelete="SET NULL"), nullable=True
+    )
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+
+    workflow_run: Mapped[WorkflowRun] = relationship(back_populates="events")
+
+
+class VersionComparison(EntityBase):
+    """Persisted deterministic comparison between two chapter versions."""
+
+    __tablename__ = "version_comparisons"
+    __table_args__ = (
+        UniqueConstraint(
+            "workflow_run_id", "new_version_id", name="version_comparison_workflow_new"
+        ),
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="comparison_confidence_range"),
+    )
+
+    workflow_run_id: Mapped[int] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    old_version_id: Mapped[int] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    new_version_id: Mapped[int] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    dimensions: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list, nullable=False)
+    overall_delta: Mapped[float] = mapped_column(Float, nullable=False)
+    resolved_issue_codes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    unresolved_issue_codes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    newly_introduced_issue_codes: Mapped[list[str]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    decision: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    rationale: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
