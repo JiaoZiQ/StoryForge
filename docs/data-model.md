@@ -2,6 +2,16 @@
 
 主键沿用 Milestone 1 的自增整数。SQLite 是默认开发数据库；PostgreSQL 使用同一 SQLAlchemy metadata。
 
+## M6 变化
+
+- `projects.status` 增加 `created`，API 新建项目以此状态开始；新增非空 `additional_requirements`，旧数据回填空字符串。
+- `evaluations` 增加 `mechanical_metrics` 与 `critic_dimensions` JSON，详情 API 可审计机械指标和 Critic 各维度理由，旧记录回填空对象。
+- `consistency_conflicts` 增加可空 `resolution_note`。非 open 状态记录 `resolved_at`；重新打开清空处理时间。
+- 没有为 API 复制 Chapter、Version、Evaluation、Conflict、Fact 或 Workflow 模型；HTTP/CLI DTO 只是现有持久化模型的受限投影。
+- 列表响应不持久化分页数据；repository 在数据库中执行 count 和 limit/offset。
+
+公共 Fact 投影只允许 `accepted`。`candidate`、`rejected` 与 `superseded` 仍保存在同一表供工作流内部审计，但普通 API/CLI 无权按状态读取。`valid_at_chapter=N` 还要求来源 chapter `< N`，防止当前或未来章节事实泄漏。
+
 ## M5 变化
 
 ### `chapters` 与 `chapter_versions`
@@ -130,5 +140,6 @@ open | ignored | resolved | false_positive
 - `b550a962dc62`：M3 规划/生成字段、状态和 `chapter_versions`。
 - `ad6fd0f94186`：M4 Evaluation 明细、EvaluationIssue、Conflict、章节评估状态、人物知识和 StoryRule metadata。
 - `69c75316dd7e`：M5 版本/候选事实/工作流审计/比较字段和表，以及新状态。
+- `f2a6c8d91b04`：M6 项目输入、评估详情、冲突处理备注和 `created` 状态。
 
 M5 migration 不修改旧 migration。它支持空库 upgrade head，也会把已有 M4 Chapter 正文安全迁入首个 accepted ChapterVersion，把已有 Fact/Evaluation/Conflict 关联到该版本并计算事实哈希。测试覆盖从 M4 升级、降级到 M4、全链 downgrade base 和再次 upgrade head。

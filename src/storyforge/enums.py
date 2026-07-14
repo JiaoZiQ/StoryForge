@@ -6,6 +6,7 @@ from enum import StrEnum
 class ProjectStatus(StrEnum):
     """Lifecycle status for a story project."""
 
+    CREATED = "created"
     DRAFT = "draft"
     PLANNING = "planning"
     PLANNED = "planned"

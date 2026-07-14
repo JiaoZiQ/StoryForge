@@ -25,7 +25,9 @@ from storyforge.evaluation.models import ChapterEvaluationRequest
 from storyforge.exceptions import (
     EntityNotFoundError,
     InvalidStateError,
+    WorkflowAlreadyRunningError,
     WorkflowExecutionError,
+    WorkflowNotResumableError,
 )
 from storyforge.models import Evaluation, WorkflowEvent, WorkflowRun
 from storyforge.repositories import (
@@ -108,6 +110,8 @@ class ChapterWorkflowService:
         }
         try:
             self._invoke(state, thread_id=thread_id, pause_after=request.pause_after)
+        except (EntityNotFoundError, InvalidStateError, ValueError):
+            raise
         except Exception as exc:
             self._mark_failed_by_thread(thread_id, exc)
             raise WorkflowExecutionError("Chapter workflow failed safely") from exc
@@ -120,7 +124,7 @@ class ChapterWorkflowService:
             if run is None:
                 raise EntityNotFoundError(f"Workflow run {workflow_run_id} was not found")
             if run.status is not WorkflowRunStatus.PAUSED:
-                raise InvalidStateError("Only paused workflows can be resumed")
+                raise WorkflowNotResumableError("Only paused workflows can be resumed")
             transition_workflow(run, WorkflowRunStatus.RUNNING)
             run.updated_at = datetime.now(UTC)
             thread_id = run.thread_id
@@ -275,7 +279,9 @@ class ChapterWorkflowService:
                 )
             )
             if active is not None:
-                raise InvalidStateError("Another workflow is already active for this chapter")
+                raise WorkflowAlreadyRunningError(
+                    "Another workflow is already active for this chapter"
+                )
             run = repository.add(
                 WorkflowRun(
                     project_id=project.id,

@@ -34,6 +34,11 @@
 - M5：第四个 Alembic migration `69c75316dd7e`，支持空库和已有 M4 正文/事实/评估安全升级。
 - M5：`run-workflow`、`resume-workflow`、`cancel-workflow`、状态/历史/版本/比较查询和离线 `demo-m5`。
 - M5：一次通过、修订后通过、达到上限、六个暂停恢复点、候选事实隔离、幂等、迁移与无网络 CLI 测试。
+- M6：FastAPI 应用工厂与 lifespan 基础设施，Project/Planning/Chapter/Version/Evaluation/Conflict/Fact/Workflow/Health API，统一错误与请求 ID。
+- M6：数据库分页/过滤/排序、正文默认隐藏、accepted Fact 公共隔离、同步工作流 HTTP 语义和可用 OpenAPI。
+- M6：`storyforge project|plan|chapter|evaluation|conflict|fact|workflow|demo` 分组 CLI、human/JSON 输出和稳定退出码。
+- M6：第五个 Alembic migration `f2a6c8d91b04`，增加 created 项目状态、项目附加要求、评估指标/维度和冲突处理备注。
+- M6：离线 `demo-m6` 与 REST E2E，验证修订后通过、版本/评估/事实无重复、候选/未来事实不可见和日志脱敏。
 
 ### Changed
 
@@ -43,6 +48,7 @@
 - 章节状态增加 `evaluated_passed`、`evaluated_needs_revision` 和 `evaluation_failed`；旧状态保留兼容。
 - README、架构、数据模型、评估、开发、工作流、ADR 与进度文档同步到 Milestone 5。
 - 章节状态增加 workflow/drafting/revising/accepted/needs-review/failed 阶段；旧 M1–M4 状态保持可升级兼容。
+- README、API、CLI、架构、数据模型、评估、开发、工作流、ADR 与进度文档同步到 Milestone 6。
 
 ### Fixed
 

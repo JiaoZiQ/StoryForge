@@ -542,6 +542,8 @@ class EvaluationService:
                     outline_adherence_score=critique.outline_adherence.score,
                     raw_scores=combined.raw_scores,
                     weighted_scores=combined.weighted_scores,
+                    mechanical_metrics=mechanical.metrics.model_dump(mode="json"),
+                    critic_dimensions=_critic_dimensions(critique),
                     evaluator_versions={
                         "mechanical": mechanical.evaluator_version,
                         "consistency": consistency.checker_version,
@@ -607,6 +609,8 @@ class EvaluationService:
                         "consistency": consistency.score,
                     },
                     weighted_scores={},
+                    mechanical_metrics=mechanical.metrics.model_dump(mode="json"),
+                    critic_dimensions={},
                     evaluator_versions={
                         "mechanical": mechanical.evaluator_version,
                         "consistency": consistency.checker_version,
@@ -766,3 +770,20 @@ def _legacy_issues(
             for item in critique.issues
         )
     return result
+
+
+def _critic_dimensions(critique: ChapterCritique) -> dict[str, object]:
+    """Persist score rationales without storing the rendered critic prompt."""
+    return {
+        name: getattr(critique, name).model_dump(mode="json")
+        for name in (
+            "prose",
+            "plot",
+            "character",
+            "pacing",
+            "dialogue",
+            "emotional_impact",
+            "consistency",
+            "outline_adherence",
+        )
+    }

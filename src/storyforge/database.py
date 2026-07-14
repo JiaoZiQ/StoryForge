@@ -76,7 +76,3 @@ def transactional_session(session_factory: SessionFactory) -> Iterator[Session]:
     """Commit atomically on success and roll back automatically on errors."""
     with session_factory.begin() as session:
         yield session
-
-
-engine = create_database_engine()
-SessionLocal = create_session_factory(engine)

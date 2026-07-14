@@ -65,6 +65,7 @@ class Project(TimestampMixin, EntityBase):
     language: Mapped[str] = mapped_column(String(32), default="zh-CN", nullable=False)
     tone: Mapped[str | None] = mapped_column(String(100), nullable=True)
     audience: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    additional_requirements: Mapped[str] = mapped_column(Text, default="", nullable=False)
     logline: Mapped[str | None] = mapped_column(Text, nullable=True)
     themes: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     world_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -80,7 +81,7 @@ class Project(TimestampMixin, EntityBase):
             values_callable=_enum_values,
             length=32,
         ),
-        default=ProjectStatus.DRAFT,
+        default=ProjectStatus.CREATED,
         nullable=False,
     )
 
@@ -545,6 +546,8 @@ class Evaluation(EntityBase):
     outline_adherence_score: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     raw_scores: Mapped[dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
     weighted_scores: Mapped[dict[str, float]] = mapped_column(JSON, default=dict, nullable=False)
+    mechanical_metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    critic_dimensions: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     evaluator_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
     prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, default=dict, nullable=False)
     blocking_reasons: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
@@ -685,6 +688,7 @@ class Conflict(EntityBase):
         default=ConflictStatus.OPEN,
         nullable=False,
     )
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )

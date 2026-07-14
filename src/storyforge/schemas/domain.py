@@ -45,7 +45,8 @@ class ProjectCreate(RequestModel):
     language: str = Field(default="zh-CN", min_length=2, max_length=32)
     tone: CategoryText | None = None
     audience: CategoryText | None = None
-    status: ProjectStatus = ProjectStatus.DRAFT
+    additional_requirements: str = Field(default="", max_length=10_000)
+    status: ProjectStatus = ProjectStatus.CREATED
 
 
 class ProjectUpdate(RequestModel):
@@ -59,6 +60,7 @@ class ProjectUpdate(RequestModel):
     language: str | None = Field(default=None, min_length=2, max_length=32)
     tone: CategoryText | None = None
     audience: CategoryText | None = None
+    additional_requirements: str | None = Field(default=None, max_length=10_000)
     status: ProjectStatus | None = None
 
 
@@ -323,6 +325,8 @@ class EvaluationCreate(RequestModel):
     outline_adherence_score: M4Score = 0
     raw_scores: dict[str, float] = Field(default_factory=dict)
     weighted_scores: dict[str, float] = Field(default_factory=dict)
+    mechanical_metrics: dict[str, object] = Field(default_factory=dict)
+    critic_dimensions: dict[str, object] = Field(default_factory=dict)
     evaluator_versions: dict[str, str] = Field(default_factory=dict)
     prompt_versions: dict[str, str] = Field(default_factory=dict)
     blocking_reasons: list[str] = Field(default_factory=list)
@@ -402,12 +406,14 @@ class ConflictRead(ORMResponseModel):
     status: ConflictStatus
     created_at: datetime
     resolved_at: datetime | None = None
+    resolution_note: str | None = None
 
 
 class ConflictStatusUpdate(RequestModel):
     """Only mutable field exposed for a consistency conflict."""
 
     status: ConflictStatus
+    resolution_note: str | None = Field(default=None, max_length=2_000)
 
 
 class RevisionCreate(RequestModel):

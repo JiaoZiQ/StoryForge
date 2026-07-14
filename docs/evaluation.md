@@ -1,5 +1,13 @@
 # 章节评估
 
+## M6 查询边界
+
+M6 没有复制或改变评估算法，而是通过 Application Service 将已有链路稳定暴露给 REST API 和 CLI。`POST /api/v1/projects/{project_id}/chapters/{chapter_number}/evaluate` 仍调用同一个 `EvaluationService`；历史列表和详情从数据库读取不可变 Evaluation 版本。
+
+评估列表返回分数、状态、版本和阻断摘要；详情额外返回 `raw_scores`、`weighted_scores`、Mechanical metrics、Critic dimensions、evaluator/prompt versions、标准化 issue 和关联 conflict。章节正文、完整 Prompt 和 provider 原始响应不属于 Evaluation API 响应。分页、severity/type/status 过滤由 repository 查询完成。
+
+工作流中的 Evaluation 继续绑定具体 ChapterVersion。同步 API 返回完整工作流终态不代表绕过门禁：critical 封顶、accepted Fact 提升和版本接受仍由 M4/M5 Service 执行。
+
 ## MechanicalEvaluator
 
 `MechanicalEvaluationConfig` 集中保存阈值、AI 套话、禁用表达和稳定 code 对应扣分。评分从 10 开始统一扣分并限制到 0–10，规则函数本身不分散计算最终分。
@@ -56,6 +64,8 @@
 每次尝试新增 Evaluation 版本，记录 Mechanical/Consistency/Scoring 版本、Critic provider/model、Prompt system/user 版本、配置版本和时间戳。Conflict 和 Issue 关联到具体 Evaluation，因此后续规则调整不会改写历史判断。
 
 M5 起，每条 Evaluation 和 Conflict 还关联具体 ChapterVersion；工作流重放使用 Evaluation.idempotency_key 返回已有结果，不能静默新增重复版本。
+
+M6 migration 为历史与新 Evaluation 增加 `mechanical_metrics` 和 `critic_dimensions` 明细 JSON；旧记录升级后使用空对象回填，不改写既有分数、issue 或 conflict。Conflict 增加可选 `resolution_note`，状态变更仍受集中转换规则约束。
 
 ## RevisionBriefBuilder
 

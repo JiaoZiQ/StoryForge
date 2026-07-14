@@ -13,7 +13,11 @@ from storyforge.exceptions import (
     PlanningValidationError,
 )
 from storyforge.models import Chapter, Character, Foreshadowing, Location, StoryRule
-from storyforge.repositories import ChapterRepository, ProjectRepository
+from storyforge.repositories import (
+    ChapterRepository,
+    ProjectRepository,
+    WorkflowRunRepository,
+)
 from storyforge.schemas.planning import NovelPlan, PlanningRequest
 
 
@@ -45,6 +49,8 @@ class PlanningService:
             project = ProjectRepository(session).get(project_id)
             if project is None:
                 raise EntityNotFoundError(f"Project {project_id} was not found")
+            if WorkflowRunRepository(session).active_for_project(project_id) is not None:
+                raise InvalidStateError("A project with an active workflow cannot be replanned")
             chapters = ChapterRepository(session).list_for_project(project_id)
             has_plan = bool(chapters or project.characters or project.locations)
             has_content = any(chapter.content.strip() for chapter in chapters)

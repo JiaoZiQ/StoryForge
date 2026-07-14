@@ -6,7 +6,7 @@
 - uv
 - PowerShell 示例命令
 
-默认开发、测试与 M5 演示不需要 Docker、外部数据库、API Key 或公网。
+默认开发、测试与 M6 演示不需要 Docker、外部数据库、API Key 或公网。
 
 ## 安装
 
@@ -66,6 +66,37 @@ uv run pytest tests/integration/test_milestone5_workflow.py -q
 uv run pytest tests/integration/test_milestone5_migration.py -q
 uv run pytest tests/integration/test_milestone5_cli.py -q
 ```
+
+M6 相关测试：
+
+```powershell
+uv run pytest tests/integration/test_milestone6_api.py -q
+uv run pytest tests/integration/test_milestone6_cli.py -q
+uv run pytest tests/integration/test_milestone6_migration.py -q
+uv run pytest tests/unit/test_milestone6_settings.py -q
+```
+
+## M6 API 与 CLI 调试
+
+```powershell
+$env:STORYFORGE_DATABASE_URL="sqlite:///./debug-m6.sqlite3"
+$env:STORYFORGE_ENVIRONMENT="development"
+$env:STORYFORGE_LLM_PROVIDER="mock"
+$env:DATABASE_URL=$env:STORYFORGE_DATABASE_URL
+uv run alembic upgrade head
+uv run uvicorn storyforge.api.app:create_app --factory --reload
+```
+
+另一终端可访问 `/health`、`/api/v1/ready`、`/docs` 和 `/openapi.json`。migration 由命令显式执行，应用启动不会擅自升级数据库。
+
+```powershell
+uv run storyforge demo-m6 --reset --output json
+uv run storyforge project list --database .\debug-m6.sqlite3 --output json
+uv run storyforge chapter list --database .\debug-m6.sqlite3 --project-id 1
+uv run storyforge workflow events --database .\debug-m6.sqlite3 --workflow-run-id 1
+```
+
+所有新 CLI 子命令直接复用 Application Service。默认不显示正文；只有 chapter show 的 `--include-content` 会显示。JSON 输出不能混入进度文本。
 
 ## 离线调试
 

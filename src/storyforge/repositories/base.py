@@ -1,11 +1,20 @@
 """Generic SQLAlchemy repository with caller-owned transactions."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
-from sqlalchemy import inspect, select
+from sqlalchemy import Select, func, inspect, select
 from sqlalchemy.orm import Session
 
 from storyforge.models.base import EntityBase
+
+
+@dataclass(frozen=True, slots=True)
+class PageSlice[ItemT]:
+    """One database-backed page plus its unpaginated item count."""
+
+    items: list[ItemT]
+    total_items: int
 
 
 class Repository[ModelT: EntityBase]:
@@ -34,6 +43,23 @@ class Repository[ModelT: EntityBase]:
             raise ValueError("limit must be positive")
         statement = select(self.model_type).order_by(self.model_type.id).offset(offset).limit(limit)
         return list(self.session.scalars(statement))
+
+    def paginate(
+        self,
+        statement: Select[tuple[ModelT]],
+        *,
+        page: int,
+        page_size: int,
+    ) -> PageSlice[ModelT]:
+        """Execute COUNT and LIMIT/OFFSET in the database."""
+        if page <= 0 or page_size <= 0:
+            raise ValueError("page and page_size must be positive")
+        count_statement = select(func.count()).select_from(statement.order_by(None).subquery())
+        total = self.session.scalar(count_statement) or 0
+        items = list(
+            self.session.scalars(statement.offset((page - 1) * page_size).limit(page_size))
+        )
+        return PageSlice(items=items, total_items=total)
 
     def update(self, entity: ModelT, changes: Mapping[str, object]) -> ModelT:
         """Apply scalar column changes and flush without committing."""

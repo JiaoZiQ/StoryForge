@@ -46,10 +46,10 @@
 - 候选事实按版本隔离，接受事务才提升正式事实；恢复由数据库唯一键保证幂等。
 - WorkflowRun/WorkflowEvent 审计和 SQLite + Mock `demo-m5` 三场景演示。
 
-## Milestone 6：完整 FastAPI 与 CLI（未开始）
+## Milestone 6：完整 FastAPI 与 CLI（已完成）
 
-- 完整 REST API、统一异常映射和 OpenAPI。
-- 生产级 CLI、完整 demo 与 API/CLI 集成测试。
+- 完整 REST API、Application Service、依赖注入、统一异常映射、请求 ID、分页和 OpenAPI。
+- 分组 CLI、`demo-m6`、API/CLI/迁移集成测试，以及 accepted Fact/版本数据隔离。
 
 ## Milestone 7：Docker 与完整文档（未开始）
 

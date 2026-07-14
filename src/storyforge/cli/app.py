@@ -11,6 +11,7 @@ from typing import Any, cast
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 
 from storyforge.agents import (
     CriticAgent,
@@ -19,6 +20,7 @@ from storyforge.agents import (
     RevisionAgent,
     WriterAgent,
 )
+from storyforge.cli.m6 import configure_demo_m6_alias, configure_m6_commands
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.demo import (
@@ -30,7 +32,17 @@ from storyforge.demo import (
 from storyforge.enums import ConflictSeverity, ConflictStatus, ConflictType, FactStatus
 from storyforge.evaluation import EvaluationScorer, MechanicalEvaluator
 from storyforge.evaluation.models import ChapterCritique, ChapterEvaluationRequest
-from storyforge.exceptions import StoryForgeError
+from storyforge.exceptions import (
+    AgentExecutionError,
+    ChapterGenerationError,
+    ConfigurationError,
+    EntityNotFoundError,
+    EvaluationError,
+    InvalidStateError,
+    StoryForgeError,
+    WorkflowExecutionError,
+)
+from storyforge.llm.exceptions import LLMError
 from storyforge.m5_demo import build_m5_provider
 from storyforge.models import (
     ChapterVersion,
@@ -64,6 +76,17 @@ from storyforge.services import (
 from storyforge.workflows import ChapterWorkflowRequest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_GROUPED_COMMANDS = {
+    "project",
+    "plan",
+    "chapter",
+    "evaluation",
+    "conflict",
+    "fact",
+    "workflow",
+    "demo",
+    "demo-m6",
+}
 
 
 def _database_url(database: str) -> str:
@@ -987,7 +1010,7 @@ def _parser() -> argparse.ArgumentParser:
 
     plan = commands.add_parser("plan", help="Plan a project with the offline mock")
     plan.add_argument("--database", default="storyforge.db")
-    plan.add_argument("--project-id", type=int, required=True)
+    plan.add_argument("--project-id", type=int)
     plan.add_argument("--replace-existing", action="store_true")
     plan.set_defaults(handler=_plan)
 
@@ -1136,6 +1159,8 @@ def _parser() -> argparse.ArgumentParser:
     demo_m5.add_argument("--checkpoint")
     demo_m5.add_argument("--reset", action="store_true")
     demo_m5.set_defaults(handler=_demo_m5)
+    configure_m6_commands(commands, plan)
+    configure_demo_m6_alias(commands)
     return parser
 
 
@@ -1144,8 +1169,61 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         payload = args.handler(args)
+    except EntityNotFoundError as exc:
+        _print_cli_error("resource_not_found", str(exc))
+        return 3
+    except InvalidStateError as exc:
+        _print_cli_error("state_conflict", str(exc))
+        return 4 if args.command in _GROUPED_COMMANDS else 2
+    except (
+        AgentExecutionError,
+        ChapterGenerationError,
+        ConfigurationError,
+        EvaluationError,
+        WorkflowExecutionError,
+        LLMError,
+    ):
+        _print_cli_error(
+            "provider_unavailable", "The configured provider could not complete the operation"
+        )
+        return 5
+    except SQLAlchemyError:
+        _print_cli_error("database_error", "The database operation could not be completed")
+        return 6
     except (StoryForgeError, ValueError) as exc:
-        print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        _print_cli_error("validation_error", str(exc))
         return 2
-    _print(payload)
+    except Exception:
+        _print_cli_error("internal_error", "An unexpected internal error occurred")
+        return 1
+    if getattr(args, "output", "json") == "human":
+        _print_human(payload)
+    else:
+        _print(payload)
     return 0
+
+
+def _print_cli_error(code: str, message: str) -> None:
+    print(
+        json.dumps({"error": code, "message": message}, ensure_ascii=False),
+        file=sys.stderr,
+    )
+
+
+def _print_human(payload: object, *, indent: int = 0) -> None:
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            if isinstance(value, dict):
+                print(f"{' ' * indent}{key}")
+                _print_human(value, indent=indent + 2)
+            elif isinstance(value, list):
+                print(f"{' ' * indent}{key}: {len(value)} item(s)")
+                for item in value:
+                    _print_human(item, indent=indent + 2)
+            else:
+                print(f"{' ' * indent}{key}: {value}")
+    elif isinstance(payload, list):
+        for item in payload:
+            _print_human(item, indent=indent)
+    else:
+        print(f"{' ' * indent}{payload}")

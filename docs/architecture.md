@@ -1,12 +1,14 @@
 # StoryForge 架构
 
-StoryForge 采用 Python 模块化单体和单向依赖，当前实现到 Milestone 5。
+StoryForge 采用 Python 模块化单体和单向依赖，当前实现到 Milestone 6。
 
 ```mermaid
 flowchart LR
-    CLI["M3/M4/M5 CLI"] --> Workflow["ChapterWorkflowService / LangGraph"]
-    API["Health-only API"]
-    Workflow --> Services["Existing application services"]
+    CLI["Grouped CLI"] --> Application["Application Services"]
+    API["FastAPI Routes"] --> Application
+    Application --> Workflow["ChapterWorkflowService / LangGraph"]
+    Application --> Services["Domain Services"]
+    Workflow --> Services
     Workflow --> Revision["RevisionBrief / RevisionAgent / Acceptance"]
     Workflow --> Checkpoint["SQLite checkpointer"]
     Services --> Agents["Planner / Writer / FactExtractor / Critic / Revision"]
@@ -22,8 +24,9 @@ flowchart LR
 
 ## 模块职责
 
-- `api`：只负责 HTTP；业务路由延后到 M6，当前仍只有 health。
-- `cli`：参数和输出适配，不实现评估或工作流规则。
+- `api`：应用工厂、lifespan、依赖注入、HTTP 路由、中间件和异常映射；不含领域规则或 SQL。
+- `application`：供 API/CLI 共用的用例边界，返回 Pydantic DTO，并协调已有 domain service/repository。
+- `cli`：参数、human/JSON 输出和退出码适配，不实现评估或工作流规则，也不经 HTTP 绕行。
 - `services`：应用用例、状态转换、事务编排和失败恢复。LangGraph 节点只调用这些服务，不复制 M3/M4 逻辑。
 - `agents`：单一 LLM 职责，不访问数据库。`CriticAgent` 只做文学评审。
 - `evaluation`：机械评估模型/配置、MechanicalEvaluator 和最终评分合并。
@@ -34,6 +37,23 @@ flowchart LR
 - `repositories`：SQLAlchemy 查询与持久化隔离，不自行 commit。
 - `models`：持久化模型；`schemas`：跨边界 Pydantic v2 结构。
 - `workflows`：可序列化状态、公开请求/状态模型和集中状态转换；不保存 ORM/session/provider。
+
+## M6 接口边界与依赖注入
+
+`create_app(settings)` 只构建 ASGI 应用。数据库 engine/session factory 在 lifespan 启动时创建并在关闭时 dispose；模块导入不连接数据库，也不自动执行 migration。测试显式传入 `Settings(environment="test", ...)`。
+
+```text
+FastAPI route / grouped CLI
+  → Project|Planning|Chapter|Evaluation|Workflow ApplicationService
+  → existing Domain Service or typed Repository
+  → SQLAlchemy / LLMProvider
+```
+
+Provider、PromptRegistry、ContextBuilder、EvaluationService 和 ChapterWorkflowService 由 `DomainServiceFactory` 按操作构造。Mock 与 OpenAI-compatible 共用相同接口；生产配置缺失时失败，不会静默回退 Mock。工作流 HTTP 入口保持当前同步语义并返回 201，不伪装 202 后台任务。
+
+请求 ID 中间件只记录 method、path、status、duration 和 request ID。异常处理器将领域/配置/provider/数据库错误映射为稳定响应，永不返回 traceback、原始 SQL 错误、连接 URL、正文、Prompt 或密钥。
+
+列表查询由 repository 执行 COUNT/LIMIT/OFFSET，排序字段使用白名单。Chapter/Version 默认省略正文；Fact 公共查询强制 accepted 状态，并在 `valid_at_chapter` 查询中同时限制来源章节和有效区间。
 
 ## M4 调用路径
 
@@ -88,4 +108,4 @@ checkpoint 与领域数据库分离：LangGraph SQLite 文件使用 `thread_id` 
 - 未接受版本事实永远不进入 ContextBuilder；接受版本与事实提升在同一事务。
 - 新版本更差时不会覆盖 WorkflowRun.best_version_id。
 
-设计取舍见 [decisions/0003-m4-rule-evaluation-history.md](decisions/0003-m4-rule-evaluation-history.md) 和 [decisions/0004-m5-durable-revision-workflow.md](decisions/0004-m5-durable-revision-workflow.md)。
+设计取舍见 [decisions/0003-m4-rule-evaluation-history.md](decisions/0003-m4-rule-evaluation-history.md)、[decisions/0004-m5-durable-revision-workflow.md](decisions/0004-m5-durable-revision-workflow.md) 和 [decisions/0005-m6-application-interfaces.md](decisions/0005-m6-application-interfaces.md)。
