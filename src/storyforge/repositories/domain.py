@@ -9,6 +9,7 @@ from storyforge.enums import (
     ConflictSeverity,
     ConflictStatus,
     ConflictType,
+    FactStatus,
     ForeshadowingStatus,
 )
 from storyforge.models import (
@@ -24,6 +25,8 @@ from storyforge.models import (
     Project,
     Revision,
     StoryRule,
+    VersionComparison,
+    WorkflowEvent,
     WorkflowRun,
 )
 from storyforge.repositories.base import Repository
@@ -118,6 +121,7 @@ class FactRepository(Repository[Fact]):
             .join(Chapter, Fact.chapter_id == Chapter.id)
             .where(
                 Fact.project_id == project_id,
+                Fact.status == FactStatus.ACCEPTED,
                 Chapter.chapter_number < chapter_number,
                 Fact.valid_from_chapter <= chapter_number,
                 (Fact.valid_to_chapter.is_(None)) | (Fact.valid_to_chapter >= chapter_number),
@@ -125,6 +129,15 @@ class FactRepository(Repository[Fact]):
             .order_by(Fact.confidence.desc(), Fact.id)
         )
         return list(self.session.scalars(statement))
+
+    def list_for_version(
+        self, chapter_version_id: int, *, status: FactStatus | None = None
+    ) -> list[Fact]:
+        """Return version-scoped facts without silently promoting candidates."""
+        statement = select(Fact).where(Fact.chapter_version_id == chapter_version_id)
+        if status is not None:
+            statement = statement.where(Fact.status == status)
+        return list(self.session.scalars(statement.order_by(Fact.id)))
 
 
 class ForeshadowingRepository(Repository[Foreshadowing]):
@@ -153,6 +166,29 @@ class ChapterVersionRepository(Repository[ChapterVersion]):
     def __init__(self, session: Session) -> None:
         super().__init__(session, ChapterVersion)
 
+    def next_version(self, chapter_id: int) -> int:
+        """Return the next immutable text version number for a chapter."""
+        current = self.session.scalar(
+            select(func.max(ChapterVersion.version)).where(ChapterVersion.chapter_id == chapter_id)
+        )
+        return (current or 0) + 1
+
+    def get_by_idempotency_key(self, key: str) -> ChapterVersion | None:
+        """Return a previously created version for node replay."""
+        return self.session.scalar(
+            select(ChapterVersion).where(ChapterVersion.idempotency_key == key)
+        )
+
+    def list_for_chapter(self, chapter_id: int) -> list[ChapterVersion]:
+        """Return all immutable versions in numeric order."""
+        return list(
+            self.session.scalars(
+                select(ChapterVersion)
+                .where(ChapterVersion.chapter_id == chapter_id)
+                .order_by(ChapterVersion.version)
+            )
+        )
+
 
 class EvaluationRepository(Repository[Evaluation]):
     """Persistence operations for evaluations."""
@@ -177,6 +213,19 @@ class EvaluationRepository(Repository[Evaluation]):
             .order_by(Evaluation.evaluation_version)
         )
         return list(self.session.scalars(statement))
+
+    def get_by_idempotency_key(self, key: str) -> Evaluation | None:
+        """Return an evaluation already persisted for an idempotent node replay."""
+        return self.session.scalar(select(Evaluation).where(Evaluation.idempotency_key == key))
+
+    def latest_for_version(self, chapter_version_id: int) -> Evaluation | None:
+        """Return the most recent complete attempt for a concrete text version."""
+        return self.session.scalar(
+            select(Evaluation)
+            .where(Evaluation.chapter_version_id == chapter_version_id)
+            .order_by(Evaluation.evaluation_version.desc())
+            .limit(1)
+        )
 
 
 class EvaluationIssueRepository(Repository[EvaluationIssue]):
@@ -234,3 +283,52 @@ class WorkflowRunRepository(Repository[WorkflowRun]):
 
     def __init__(self, session: Session) -> None:
         super().__init__(session, WorkflowRun)
+
+    def get_by_thread_id(self, thread_id: str) -> WorkflowRun | None:
+        """Return the durable run associated with one LangGraph thread."""
+        return self.session.scalar(select(WorkflowRun).where(WorkflowRun.thread_id == thread_id))
+
+
+class WorkflowEventRepository(Repository[WorkflowEvent]):
+    """Persistence operations for content-free workflow audit events."""
+
+    def __init__(self, session: Session) -> None:
+        super().__init__(session, WorkflowEvent)
+
+    def list_for_run(self, workflow_run_id: int) -> list[WorkflowEvent]:
+        """Return audit events in creation order."""
+        return list(
+            self.session.scalars(
+                select(WorkflowEvent)
+                .where(WorkflowEvent.workflow_run_id == workflow_run_id)
+                .order_by(WorkflowEvent.id)
+            )
+        )
+
+
+class VersionComparisonRepository(Repository[VersionComparison]):
+    """Persistence operations for deterministic version comparisons."""
+
+    def __init__(self, session: Session) -> None:
+        super().__init__(session, VersionComparison)
+
+    def get_for_new_version(
+        self, workflow_run_id: int, new_version_id: int
+    ) -> VersionComparison | None:
+        """Return a comparison already created for node replay."""
+        return self.session.scalar(
+            select(VersionComparison).where(
+                VersionComparison.workflow_run_id == workflow_run_id,
+                VersionComparison.new_version_id == new_version_id,
+            )
+        )
+
+    def list_for_run(self, workflow_run_id: int) -> list[VersionComparison]:
+        """Return comparisons in persisted order."""
+        return list(
+            self.session.scalars(
+                select(VersionComparison)
+                .where(VersionComparison.workflow_run_id == workflow_run_id)
+                .order_by(VersionComparison.id)
+            )
+        )

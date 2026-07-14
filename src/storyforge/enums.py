@@ -33,6 +33,10 @@ class ChapterStatus(StrEnum):
     NEEDS_REVISION = "needs_revision"
     ACCEPTED = "accepted"
     NEEDS_HUMAN_REVIEW = "needs_human_review"
+    WORKFLOW_RUNNING = "workflow_running"
+    DRAFTING = "drafting"
+    REVISING = "revising"
+    WORKFLOW_FAILED = "workflow_failed"
 
 
 class ForeshadowingStatus(StrEnum):
@@ -52,6 +56,45 @@ class WorkflowRunStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     NEEDS_HUMAN_REVIEW = "needs_human_review"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    COMPLETED_NEEDS_REVIEW = "completed_needs_review"
+    CANCELLED = "cancelled"
+
+
+class ChapterVersionStatus(StrEnum):
+    """Lifecycle of an immutable chapter text version."""
+
+    DRAFT = "draft"
+    EVALUATED = "evaluated"
+    REVISION = "revision"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+    NEEDS_REVIEW = "needs_review"
+
+
+class FactStatus(StrEnum):
+    """Promotion state for version-scoped extracted facts."""
+
+    CANDIDATE = "candidate"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+
+
+class WorkflowEventType(StrEnum):
+    """Auditable workflow event types."""
+
+    NODE_STARTED = "node_started"
+    NODE_COMPLETED = "node_completed"
+    NODE_FAILED = "node_failed"
+    ROUTE_SELECTED = "route_selected"
+    VERSION_CREATED = "version_created"
+    EVALUATION_CREATED = "evaluation_created"
+    REVISION_REJECTED = "revision_rejected"
+    VERSION_ACCEPTED = "version_accepted"
+    WORKFLOW_COMPLETED = "workflow_completed"
 
 
 class ConflictType(StrEnum):

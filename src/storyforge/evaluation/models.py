@@ -170,6 +170,9 @@ class ChapterEvaluationRequest(RequestModel):
 
     project_id: EntityId
     chapter_number: PositiveInt
+    chapter_version_id: EntityId | None = None
+    workflow_run_id: EntityId | None = None
+    idempotency_key: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class ChapterEvaluationResult(RequestModel):
@@ -178,6 +181,7 @@ class ChapterEvaluationResult(RequestModel):
     evaluation_id: EntityId
     project_id: EntityId
     chapter_id: EntityId
+    chapter_version_id: EntityId
     chapter_number: PositiveInt
     evaluation_version: PositiveInt
     status: EvaluationStatus

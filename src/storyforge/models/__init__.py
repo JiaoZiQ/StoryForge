@@ -14,6 +14,8 @@ from storyforge.models.entities import (
     Project,
     Revision,
     StoryRule,
+    VersionComparison,
+    WorkflowEvent,
     WorkflowRun,
 )
 
@@ -33,5 +35,7 @@ __all__ = [
     "Revision",
     "StoryRule",
     "TimestampMixin",
+    "VersionComparison",
+    "WorkflowEvent",
     "WorkflowRun",
 ]

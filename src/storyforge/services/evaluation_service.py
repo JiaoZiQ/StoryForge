@@ -27,10 +27,12 @@ from storyforge.consistency.models import (
 from storyforge.database import SessionFactory
 from storyforge.enums import (
     ChapterStatus,
+    ChapterVersionStatus,
     ConflictSeverity,
     ConflictStatus,
     ConflictType,
     EvaluationStatus,
+    FactStatus,
     ForeshadowingStatus,
 )
 from storyforge.evaluation import EvaluationScorer, MechanicalEvaluator
@@ -53,6 +55,7 @@ from storyforge.exceptions import (
 )
 from storyforge.models import (
     Chapter,
+    ChapterVersion,
     Conflict,
     Evaluation,
     EvaluationIssue,
@@ -61,6 +64,7 @@ from storyforge.models import (
 )
 from storyforge.repositories import (
     ChapterRepository,
+    ChapterVersionRepository,
     CharacterRepository,
     ConflictRepository,
     EvaluationIssueRepository,
@@ -79,6 +83,9 @@ _EVALUATABLE_STATUSES = {
     ChapterStatus.EVALUATION_FAILED,
     ChapterStatus.ACCEPTED,
     ChapterStatus.NEEDS_REVISION,
+    ChapterStatus.WORKFLOW_RUNNING,
+    ChapterStatus.DRAFTING,
+    ChapterStatus.REVISING,
 }
 
 
@@ -87,6 +94,9 @@ class _LoadedEvaluationContext:
     project_id: int
     chapter_id: int
     chapter_number: int
+    chapter_version_id: int
+    workflow_run_id: int | None
+    idempotency_key: str | None
     target_words: int
     language: str
     genre: str
@@ -121,6 +131,9 @@ class EvaluationService:
 
     def evaluate(self, request: ChapterEvaluationRequest) -> ChapterEvaluationResult:
         """Evaluate one fact-extracted chapter without replacing prior attempts."""
+        existing = self._existing_result(request)
+        if existing is not None:
+            return existing
         loaded = self._load_context(request)
         self._mark_evaluating(loaded)
         try:
@@ -253,14 +266,25 @@ class EvaluationService:
             if project is None or chapter is None:
                 raise EntityNotFoundError("Project chapter was not found")
             if not chapter.content.strip():
-                raise InvalidStateError("Only chapters with generated content can be evaluated")
+                if request.chapter_version_id is None:
+                    raise InvalidStateError("Only chapters with generated content can be evaluated")
             if chapter.status not in _EVALUATABLE_STATUSES:
                 if chapter.status is ChapterStatus.FACT_EXTRACTION_FAILED:
                     raise InvalidStateError("Fact extraction must succeed before evaluation")
                 raise InvalidStateError(f"Chapter cannot be evaluated from status {chapter.status}")
 
+            version = self._resolve_version(session, chapter, request.chapter_version_id)
+            if not version.content.strip():
+                raise InvalidStateError("Only non-empty chapter versions can be evaluated")
             current_facts = list(
-                session.scalars(select(Fact).where(Fact.chapter_id == chapter.id).order_by(Fact.id))
+                session.scalars(
+                    select(Fact)
+                    .where(
+                        Fact.chapter_version_id == version.id,
+                        Fact.status.in_((FactStatus.CANDIDATE, FactStatus.ACCEPTED)),
+                    )
+                    .order_by(Fact.id)
+                )
             )
             historical_facts = FactRepository(session).list_known_before(
                 project.id, chapter.chapter_number
@@ -305,7 +329,7 @@ class EvaluationService:
                 project_id=project.id,
                 chapter_id=chapter.id,
                 chapter_number=chapter.chapter_number,
-                content=chapter.content,
+                content=version.content,
                 new_facts=fact_evidence,
                 historical_facts=historical_evidence,
                 characters=character_evidence,
@@ -365,12 +389,15 @@ class EvaluationService:
                 project_id=project.id,
                 chapter_id=chapter.id,
                 chapter_number=chapter.chapter_number,
+                chapter_version_id=version.id,
+                workflow_run_id=request.workflow_run_id,
+                idempotency_key=request.idempotency_key,
                 target_words=project.target_words_per_chapter,
                 language=project.language,
                 genre=project.genre,
                 premise=project.premise,
-                content=chapter.content,
-                summary=chapter.summary or "",
+                content=version.content,
+                summary=version.summary,
                 previous_status=chapter.status,
                 consistency_request=consistency_request,
                 critic_characters=critic_characters,
@@ -381,6 +408,40 @@ class EvaluationService:
                 ),
                 outline_metadata=dict(chapter.outline_metadata),
             )
+
+    def _existing_result(self, request: ChapterEvaluationRequest) -> ChapterEvaluationResult | None:
+        if request.idempotency_key is None:
+            return None
+        with self._session_factory() as session:
+            evaluation = EvaluationRepository(session).get_by_idempotency_key(
+                request.idempotency_key
+            )
+            if evaluation is None:
+                return None
+            chapter = ChapterRepository(session).get(evaluation.chapter_id)
+            if chapter is None:
+                raise EntityNotFoundError("Evaluation chapter was not found")
+            return self._to_result(evaluation, chapter.chapter_number)
+
+    @staticmethod
+    def _resolve_version(
+        session: Session, chapter: Chapter, requested_version_id: int | None
+    ) -> ChapterVersion:
+        version = None
+        if requested_version_id is not None:
+            version = ChapterVersionRepository(session).get(requested_version_id)
+        elif chapter.current_version_id is not None:
+            version = ChapterVersionRepository(session).get(chapter.current_version_id)
+        if version is None:
+            version = session.scalar(
+                select(ChapterVersion).where(
+                    ChapterVersion.chapter_id == chapter.id,
+                    ChapterVersion.version == chapter.version,
+                )
+            )
+        if version is None or version.chapter_id != chapter.id:
+            raise InvalidStateError("A concrete chapter version is required for evaluation")
+        return version
 
     def _mark_evaluating(self, loaded: _LoadedEvaluationContext) -> None:
         with self._session_factory.begin() as session:
@@ -462,6 +523,9 @@ class EvaluationService:
                 Evaluation(
                     project_id=loaded.project_id,
                     chapter_id=loaded.chapter_id,
+                    chapter_version_id=loaded.chapter_version_id,
+                    workflow_run_id=loaded.workflow_run_id,
+                    idempotency_key=loaded.idempotency_key,
                     evaluator="milestone-4",
                     evaluation_version=repository.next_version(loaded.chapter_id),
                     status=EvaluationStatus.COMPLETED,
@@ -499,6 +563,9 @@ class EvaluationService:
             session.flush()
             session.expire(evaluation, ["issue_records", "conflicts"])
             chapter.score = combined.final_score
+            version = ChapterVersionRepository(session).get(loaded.chapter_version_id)
+            if version is not None:
+                version.status = ChapterVersionStatus.EVALUATED
             chapter.status = (
                 ChapterStatus.EVALUATED_PASSED
                 if combined.passed
@@ -522,6 +589,9 @@ class EvaluationService:
                 Evaluation(
                     project_id=loaded.project_id,
                     chapter_id=loaded.chapter_id,
+                    chapter_version_id=loaded.chapter_version_id,
+                    workflow_run_id=loaded.workflow_run_id,
+                    idempotency_key=loaded.idempotency_key,
                     evaluator="milestone-4",
                     evaluation_version=repository.next_version(loaded.chapter_id),
                     status=EvaluationStatus.PARTIAL_FAILED,
@@ -554,6 +624,9 @@ class EvaluationService:
             )
             self._add_issues(session, evaluation.id, mechanical, None)
             self._add_conflicts(session, evaluation.id, loaded, consistency)
+            version = ChapterVersionRepository(session).get(loaded.chapter_version_id)
+            if version is not None:
+                version.status = ChapterVersionStatus.EVALUATED
             chapter.status = ChapterStatus.EVALUATION_FAILED
 
     @staticmethod
@@ -608,6 +681,7 @@ class EvaluationService:
                 evaluation_id=evaluation_id,
                 project_id=loaded.project_id,
                 chapter_id=loaded.chapter_id,
+                chapter_version_id=loaded.chapter_version_id,
                 conflict_type=item.conflict_type,
                 severity=item.severity,
                 subject=item.subject,
@@ -629,6 +703,7 @@ class EvaluationService:
             evaluation_id=evaluation.id,
             project_id=evaluation.project_id,
             chapter_id=evaluation.chapter_id,
+            chapter_version_id=evaluation.chapter_version_id,
             chapter_number=chapter_number,
             evaluation_version=evaluation.evaluation_version,
             status=evaluation.status,

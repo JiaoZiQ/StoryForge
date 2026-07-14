@@ -39,7 +39,7 @@ class MockLLMProvider:
         failures: Iterable[MockFailure] = (),
         model: str = "storyforge-deterministic-mock",
     ) -> None:
-        self._responses: dict[type[BaseModel], dict[str, object]] = {}
+        self._responses: dict[type[BaseModel], deque[dict[str, object]]] = {}
         for response_model, payload in (responses or {}).items():
             self.register_response(response_model, payload)
         self._failures = deque(failures)
@@ -57,7 +57,29 @@ class MockLLMProvider:
             data = payload.model_dump(mode="python")
         else:
             data = dict(payload)
-        self._responses[response_model] = deepcopy(data)
+        self._responses[response_model] = deque([deepcopy(data)])
+
+    def register_responses(
+        self,
+        response_model: type[BaseModel],
+        payloads: Iterable[MockPayload],
+    ) -> None:
+        """Register a deterministic sequence, reusing its final item thereafter."""
+        items: deque[dict[str, object]] = deque()
+        for payload in payloads:
+            data = (
+                payload.model_dump(mode="python")
+                if isinstance(payload, BaseModel)
+                else dict(payload)
+            )
+            items.append(deepcopy(data))
+        if not items:
+            raise ValueError("At least one mock response is required")
+        self._responses[response_model] = items
+
+    def queue_failures(self, failures: Iterable[MockFailure]) -> None:
+        """Append deterministic failures for subsequent calls in test/demo order."""
+        self._failures.extend(failures)
 
     def generate(
         self,
@@ -81,12 +103,13 @@ class MockLLMProvider:
             raise LLMServiceError("Mock LLM call failed", attempts=1)
 
         configured = self._responses.get(response_model)
-        if configured is None:
+        if not configured:
             raise LLMConfigurationError(
                 f"No deterministic response registered for {response_model.__name__}"
             )
         try:
-            output = response_model.model_validate(deepcopy(configured))
+            payload = configured.popleft() if len(configured) > 1 else configured[0]
+            output = response_model.model_validate(deepcopy(payload))
         except ValidationError as exc:
             raise LLMInvalidResponseError(
                 "Mock LLM response failed schema validation",

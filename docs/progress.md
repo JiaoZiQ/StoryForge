@@ -23,10 +23,34 @@
 - 未来事实/作者秘密隔离与正文/敏感信息日志检查。
 - 161 项测试全部通过；当前总覆盖率 95.64%。
 
+## Milestone 5：LangGraph 自动修订闭环
+
+状态：已完成实现并通过全量测试。
+
+已完成：
+
+- 强类型 LangGraph StateGraph、条件路由、最大修订次数和最佳版本追踪。
+- 规则式 RevisionBriefBuilder、结构化 RevisionAgent 和规则优先 AcceptanceEvaluator。
+- Chapter/ChapterVersion 指针与不可变版本历史；Evaluation/Conflict 绑定具体版本。
+- Fact candidate/accepted/rejected/superseded 状态、版本哈希唯一键和接受事务。
+- SQLite checkpoint、六个主要暂停/恢复点、completed/cancelled 恢复保护和节点幂等。
+- WorkflowRun 扩展、WorkflowEvent 审计和 VersionComparison 持久化。
+- 第四个 Alembic migration `69c75316dd7e`，覆盖空库与已有 M4 数据升级/降级。
+- 工作流 run/resume/cancel/status/history、版本/比较 CLI 和离线 `demo-m5`。
+- 一次通过、修订后通过、达到最大次数、先保留最佳、候选事实隔离、恢复无重复和无网络测试。
+
+2026-07-14 实现验收结果：
+
+- Python 3.12.12；Ruff 和 strict mypy 通过。
+- pytest 189 项全部通过，总覆盖率 92.42%。
+- `demo-m5`：Scenario A v1 一次通过，8.46；Scenario B 的 critical 人物状态冲突使初始分封顶 5.0，修订后升至 8.46 并接受 v2；Scenario C 两轮仍为 5.97，保留 v1 并进入 `completed_needs_review`。
+- checkpoint 在 `evaluate_draft` 后恢复：记录从 1 个版本/评估/事实正常增长到 2 个版本/评估/事实，重复数均为 0。
+- 数据库反查 accepted facts 可进入下一章上下文，rejected facts 为 0 条可检索；未来事实、checkpoint 正文和密钥命中均为 0。
+
 明确未实现：
 
-- Milestone 5：LangGraph、RevisionAgent、AcceptanceEvaluator、自动重写和多轮修订。
-- Milestone 6：完整评估 REST API 和生产级统一 CLI/API 异常映射。
+- Milestone 6：完整业务 REST API、统一 HTTP 异常映射和生产级 CLI/provider 配置。
+- 异步任务队列、多章节并行、复杂人工审批前端和全书级审稿。
 - Neo4j、pgvector、Redis、Celery、前端、PDF/ePub、TTS 和图片生成。
 
 M4 验收命令：
@@ -52,4 +76,4 @@ uv run storyforge demo-m4 --database .\storyforge-m4-demo.sqlite3 --reset
 - 冲突章保存 1 个 high 事实矛盾和 1 个 critical 死亡人物行动；critical 使最终分严格封顶为 5.0。
 - 数据库反查：2 条 completed Evaluation、3 条 EvaluationIssue、2 条 Conflict，原始分、权重分、evaluator version、prompt version 均存在，provider 均为 mock。
 - README 的创建/规划/生成/评估、评估历史、冲突过滤/状态更新、M3/M4 demo 和真实 Uvicorn `/health` 命令均执行成功。
-- 网络阻断、未来事实、作者秘密和日志正文隔离由集成测试验证。Milestone 5 未开始。
+- 网络阻断、未来事实、作者秘密和日志正文隔离由集成测试验证。该段为 M4 历史验收记录。

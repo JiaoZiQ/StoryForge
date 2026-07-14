@@ -38,10 +38,13 @@
 - EvaluationService 的版本历史、事务边界和 `partial_failed` 策略。
 - SQLite + Mock 的 `demo-m4` 及评估/冲突 CLI。
 
-## Milestone 5：LangGraph 修订闭环（未开始）
+## Milestone 5：LangGraph 修订闭环（已完成）
 
-- 状态、条件路由、checkpoint 和失败恢复。
-- RevisionAgent、AcceptanceEvaluator、最大修订次数与人工复核退出路径。
+- 强类型 StateGraph、条件路由、SQLite checkpoint、显式暂停/恢复和协作式取消。
+- RevisionBriefBuilder、RevisionAgent、AcceptanceEvaluator、多轮修订和最大次数人工复核退出路径。
+- 不可变 ChapterVersion、最佳版本追踪、版本比较和接受/拒绝历史。
+- 候选事实按版本隔离，接受事务才提升正式事实；恢复由数据库唯一键保证幂等。
+- WorkflowRun/WorkflowEvent 审计和 SQLite + Mock `demo-m5` 三场景演示。
 
 ## Milestone 6：完整 FastAPI 与 CLI（未开始）
 

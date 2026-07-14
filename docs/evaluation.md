@@ -54,3 +54,28 @@
 ## 版本与可追溯性
 
 每次尝试新增 Evaluation 版本，记录 Mechanical/Consistency/Scoring 版本、Critic provider/model、Prompt system/user 版本、配置版本和时间戳。Conflict 和 Issue 关联到具体 Evaluation，因此后续规则调整不会改写历史判断。
+
+M5 起，每条 Evaluation 和 Conflict 还关联具体 ChapterVersion；工作流重放使用 Evaluation.idempotency_key 返回已有结果，不能静默新增重复版本。
+
+## RevisionBriefBuilder
+
+RevisionBriefBuilder 以规则排序问题：critical consistency、high consistency、forbidden reveal、outline、character、plot、pacing、prose、mechanical。每轮只选择 3–5 个主要任务，并显式带入 must-preserve accepted facts、forbidden changes、目标字数范围和验收条件。
+
+首轮策略为 `targeted_repair`；上一轮没有改善时切换 `structural_rewrite`，后续有改善但仍需修订时使用 `alternative_approach`。Builder 不调用 LLM，顺序和输出完全确定。
+
+## RevisionAgent
+
+RevisionAgent 通过 `revision.system`/`revision.user` v1 Prompt 接收当前来源版本与结构化 brief，只返回 `RevisedChapterDraft`。输出必须有完整正文、摘要和非空 `changes_made`。Agent 不访问数据库，不覆盖旧版本，也不接收未来章节或未接受事实。
+
+## AcceptanceEvaluator
+
+版本比较规则优先，不只看 overall score：
+
+- 比较 Final、Consistency 和 Outline 三个维度。
+- 比较 critical/high 数和 blocking reasons。
+- 计算 resolved、unresolved 和 newly introduced issue codes。
+- 新增 critical 时禁止接受；新版本满足全部门禁且没有未解决的 high/critical brief 任务时 `accept_new`。
+- 提升达到最小阈值但仍阻断时 `keep_old_retry`；变差或无明显提升时保留旧最佳版本并调整策略。
+- 达到最大轮次返回 `human_review`。
+
+VersionComparison 保存完整维度、分差、问题变化、decision、confidence 和理由，便于复盘每次接受/拒绝。

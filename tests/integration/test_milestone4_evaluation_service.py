@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from storyforge.agents import CriticAgent, FactExtractorAgent, PlannerAgent, WriterAgent
 from storyforge.consistency import ConsistencyChecker
+from storyforge.consistency.normalizer import FactNormalizer
 from storyforge.consistency.rules import RULE_FUTURE_FACT
 from storyforge.database import SessionFactory, create_session_factory
 from storyforge.demo import (
@@ -17,6 +18,7 @@ from storyforge.demo import (
 )
 from storyforge.enums import (
     ChapterStatus,
+    ChapterVersionStatus,
     ConflictSeverity,
     ConflictStatus,
     EvaluationStatus,
@@ -25,7 +27,7 @@ from storyforge.evaluation import EvaluationScorer, MechanicalEvaluator
 from storyforge.evaluation.models import ChapterCritique, ChapterEvaluationRequest
 from storyforge.exceptions import EntityNotFoundError, EvaluationError, InvalidStateError
 from storyforge.llm import MockFailure, MockLLMProvider
-from storyforge.models import Conflict, Evaluation, EvaluationIssue, Fact, Project
+from storyforge.models import ChapterVersion, Conflict, Evaluation, EvaluationIssue, Fact, Project
 from storyforge.prompts import build_prompt_registry
 from storyforge.repositories import ChapterRepository
 from storyforge.schemas.domain import ProjectCreate
@@ -291,10 +293,27 @@ def test_future_facts_secrets_and_content_are_not_logged_or_sent(
     with factory.begin() as session:
         chapter3 = ChapterRepository(session).get_by_number(project.id, 3)
         assert chapter3 is not None
+        future_version = ChapterVersion(
+            chapter_id=chapter3.id,
+            version=1,
+            title=chapter3.title,
+            content="FUTURE_ONLY_SECRET",
+            summary="future",
+            status=ChapterVersionStatus.ACCEPTED,
+            source="test",
+        )
+        session.add(future_version)
+        session.flush()
+        chapter3.current_version_id = future_version.id
+        chapter3.accepted_version_id = future_version.id
         session.add(
             Fact(
                 project_id=project.id,
                 chapter_id=chapter3.id,
+                chapter_version_id=future_version.id,
+                normalized_hash=FactNormalizer().identity_hash(
+                    "future", "knows", "FUTURE_ONLY_SECRET"
+                ),
                 subject="future",
                 predicate="knows",
                 object="FUTURE_ONLY_SECRET",

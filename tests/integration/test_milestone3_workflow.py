@@ -4,9 +4,10 @@ import pytest
 from sqlalchemy import Engine, select
 
 from storyforge.agents import FactExtractorAgent, PlannerAgent, WriterAgent
+from storyforge.consistency.normalizer import FactNormalizer
 from storyforge.database import create_session_factory
 from storyforge.demo import build_demo_provider
-from storyforge.enums import ChapterStatus, ProjectStatus
+from storyforge.enums import ChapterStatus, ChapterVersionStatus, ProjectStatus
 from storyforge.exceptions import (
     ChapterGenerationError,
     InvalidStateError,
@@ -99,10 +100,25 @@ def test_context_excludes_future_sources_and_applies_budget(db_engine: Engine) -
     with factory.begin() as session:  # type: ignore[attr-defined]
         future = ChapterRepository(session).get_by_number(project.id, 3)
         assert future is not None
+        future_version = ChapterVersion(
+            chapter_id=future.id,
+            version=1,
+            title=future.title,
+            content="未来章节才会出现的句子。",
+            summary="未来摘要",
+            status=ChapterVersionStatus.ACCEPTED,
+            source="test",
+        )
+        session.add(future_version)
+        session.flush()
+        future.current_version_id = future_version.id
+        future.accepted_version_id = future_version.id
         session.add(
             Fact(
                 project_id=project.id,
                 chapter_id=future.id,
+                chapter_version_id=future_version.id,
+                normalized_hash=FactNormalizer().identity_hash("林舟", "得知", "最终真相"),
                 subject="林舟",
                 predicate="得知",
                 object="最终真相",

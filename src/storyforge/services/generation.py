@@ -2,13 +2,20 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from storyforge.agents import FactExtractorAgent, WriterAgent
+from storyforge.consistency.normalizer import FactNormalizer
 from storyforge.database import SessionFactory
-from storyforge.enums import ChapterStatus, ForeshadowingStatus, ProjectStatus
+from storyforge.enums import (
+    ChapterStatus,
+    ChapterVersionStatus,
+    FactStatus,
+    ForeshadowingStatus,
+    ProjectStatus,
+)
 from storyforge.exceptions import (
     AgentExecutionError,
     ChapterGenerationError,
@@ -168,23 +175,29 @@ class ChapterGenerationService:
             if chapter is None:
                 raise EntityNotFoundError("Chapter disappeared while saving its draft")
             version = chapter.version + 1 if chapter.content.strip() else chapter.version
-            session.execute(delete(Fact).where(Fact.chapter_id == chapter.id))
             chapter.version = version
             chapter.title = draft.title
             chapter.content = draft.content
             chapter.summary = draft.summary
             chapter.status = ChapterStatus.EXTRACTING_FACTS
             chapter.generation_metadata = metadata.model_dump(mode="json")
-            session.add(
-                ChapterVersion(
-                    chapter_id=chapter.id,
-                    version=version,
-                    title=draft.title,
-                    content=draft.content,
-                    summary=draft.summary,
-                    generation_metadata=metadata.model_dump(mode="json"),
-                )
+            snapshot = ChapterVersion(
+                chapter_id=chapter.id,
+                version=version,
+                title=draft.title,
+                content=draft.content,
+                summary=draft.summary,
+                generation_metadata=metadata.model_dump(mode="json"),
+                status=ChapterVersionStatus.DRAFT,
+                source="generated",
+                word_count=len(draft.content.split()),
+                provider=metadata.provider,
+                model=metadata.model,
+                prompt_versions=metadata.prompt_versions,
             )
+            session.add(snapshot)
+            session.flush()
+            chapter.current_version_id = snapshot.id
         return version
 
     def _persist_extraction(
@@ -202,6 +215,23 @@ class ChapterGenerationService:
             )
             if project is None or chapter is None:
                 raise EntityNotFoundError("Project or chapter disappeared during extraction")
+            snapshot = session.scalar(
+                select(ChapterVersion).where(
+                    ChapterVersion.chapter_id == chapter.id,
+                    ChapterVersion.version == version,
+                )
+            )
+            if snapshot is None:
+                raise ChapterGenerationError("Chapter version disappeared during extraction")
+            for previous_fact in session.scalars(
+                select(Fact).where(
+                    Fact.chapter_id == chapter.id,
+                    Fact.status == FactStatus.ACCEPTED,
+                    Fact.chapter_version_id != snapshot.id,
+                )
+            ):
+                previous_fact.status = FactStatus.SUPERSEDED
+            normalizer = FactNormalizer()
             session.add_all(
                 Fact(
                     project_id=request.project_id,
@@ -214,6 +244,11 @@ class ChapterGenerationService:
                     source_quote=item.source_quote,
                     valid_from_chapter=item.valid_from_chapter,
                     valid_to_chapter=item.valid_to_chapter,
+                    chapter_version_id=snapshot.id,
+                    status=FactStatus.ACCEPTED,
+                    normalized_hash=normalizer.identity_hash(
+                        item.subject, item.predicate, item.object
+                    ),
                 )
                 for item in extraction.facts
             )
@@ -229,14 +264,10 @@ class ChapterGenerationService:
                 item.status = ForeshadowingStatus.OPEN
             chapter.status = ChapterStatus.GENERATED
             chapter.generation_metadata = metadata.model_dump(mode="json")
-            snapshot = session.scalar(
-                select(ChapterVersion).where(
-                    ChapterVersion.chapter_id == chapter.id,
-                    ChapterVersion.version == version,
-                )
-            )
-            if snapshot is not None:
-                snapshot.generation_metadata = metadata.model_dump(mode="json")
+            snapshot.generation_metadata = metadata.model_dump(mode="json")
+            snapshot.status = ChapterVersionStatus.ACCEPTED
+            snapshot.accepted_at = datetime.now(UTC)
+            chapter.accepted_version_id = snapshot.id
             chapters = ChapterRepository(session).list_for_project(request.project_id)
             project.status = (
                 ProjectStatus.COMPLETED

@@ -14,6 +14,8 @@ from storyforge.repositories.domain import (
     ProjectRepository,
     RevisionRepository,
     StoryRuleRepository,
+    VersionComparisonRepository,
+    WorkflowEventRepository,
     WorkflowRunRepository,
 )
 
@@ -31,5 +33,7 @@ __all__ = [
     "Repository",
     "RevisionRepository",
     "StoryRuleRepository",
+    "VersionComparisonRepository",
+    "WorkflowEventRepository",
     "WorkflowRunRepository",
 ]

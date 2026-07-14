@@ -4,9 +4,16 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from storyforge.enums import ChapterStatus, ForeshadowingStatus, WorkflowRunStatus
+from storyforge.consistency.normalizer import FactNormalizer
+from storyforge.enums import (
+    ChapterStatus,
+    ChapterVersionStatus,
+    ForeshadowingStatus,
+    WorkflowRunStatus,
+)
 from storyforge.models import (
     Chapter,
+    ChapterVersion,
     Character,
     Evaluation,
     Fact,
@@ -25,6 +32,7 @@ class StoryGraph:
 
     project: Project
     chapter: Chapter
+    chapter_version: ChapterVersion
     character: Character
     location: Location
     story_rule: StoryRule
@@ -70,6 +78,22 @@ def create_story_graph(session: Session) -> StoryGraph:
     chapter = make_chapter(project.id)
     session.add(chapter)
     session.flush()
+    chapter_version = ChapterVersion(
+        chapter_id=chapter.id,
+        version=1,
+        title=chapter.title,
+        content=chapter.content,
+        summary=chapter.summary or "",
+        status=ChapterVersionStatus.ACCEPTED,
+        source="test",
+        word_count=6,
+        provider="test",
+        model="test",
+    )
+    session.add(chapter_version)
+    session.flush()
+    chapter.current_version_id = chapter_version.id
+    chapter.accepted_version_id = chapter_version.id
 
     character = Character(
         project_id=project.id,
@@ -98,6 +122,8 @@ def create_story_graph(session: Session) -> StoryGraph:
     fact = Fact(
         project_id=project.id,
         chapter_id=chapter.id,
+        chapter_version_id=chapter_version.id,
+        normalized_hash=FactNormalizer().identity_hash("Clockwork Harbor", "moves_at", "midnight"),
         subject="Clockwork Harbor",
         predicate="moves_at",
         object="midnight",
@@ -117,6 +143,7 @@ def create_story_graph(session: Session) -> StoryGraph:
     evaluation = Evaluation(
         project_id=project.id,
         chapter_id=chapter.id,
+        chapter_version_id=chapter_version.id,
         evaluator="test-critic",
         overall_score=78,
         consistency_score=90,
@@ -159,6 +186,7 @@ def create_story_graph(session: Session) -> StoryGraph:
     return StoryGraph(
         project=project,
         chapter=chapter,
+        chapter_version=chapter_version,
         character=character,
         location=location,
         story_rule=story_rule,

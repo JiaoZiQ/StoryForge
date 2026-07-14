@@ -31,3 +31,7 @@ class ChapterGenerationError(StoryForgeError):
 
 class EvaluationError(StoryForgeError):
     """Raised when a chapter evaluation cannot be completed safely."""
+
+
+class WorkflowExecutionError(StoryForgeError):
+    """Raised when a durable chapter workflow cannot continue safely."""
