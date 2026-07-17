@@ -6,6 +6,12 @@
 
 ### Added
 
+- M9：Next.js App Router + React + TypeScript strict Web 控制中心，覆盖项目、规划、章节、版本、评估、冲突、事实、工作流、Memory、Retrieval、Graph 与系统状态。
+- M9：OpenAPI 自动生成 TypeScript 类型、Zod 运行时响应校验、TanStack Query 缓存/失效/条件轮询和统一安全错误结构。
+- M9：同源 Next.js server proxy，固定内部 API 上游、请求大小限制、header allowlist、请求 ID 透传和 503/504 安全映射。
+- M9：Cytoscape 1/2-hop 图谱、服务端版本 diff、检索来源解释、accepted-only 事实视图和按需正文加载。
+- M9：Vitest/RTL 覆盖率门禁、四个独立 Playwright E2E 场景、axe 检查、Node 24 非 root 镜像、Compose frontend 服务和 CI job。
+- M9：PostgreSQL + pgvector + MockLLM/MockEmbedding `demo-m9`，返回安全 Web URL 与计数摘要。
 - M8：独立 EmbeddingProvider、确定性且无网络的 MockEmbedding，以及带批处理、维度校验、超时和脱敏异常的 OpenAI-compatible embedding provider。
 - M8：第七个 Alembic migration `e8b4a2f7c913`，在 PostgreSQL 启用 pgvector，新增 `memory_chunks`、`memory_index_records`、`graph_entities`、`graph_relations` 和 cosine HNSW 索引。
 - M8：accepted 版本的结构化切分、同步可重试索引、候选/拒绝/已替代/未来记忆隔离和重复 reindex 幂等。
@@ -54,6 +60,8 @@
 
 ### Changed
 
+- Compose 启动链扩展为 PostgreSQL → migrate → API → frontend，并使用 internal network 阻止运行时容器访问公网；M9 不新增 migration。
+- README、架构、工作流、数据模型、评估、开发、部署、API、Memory/Retrieval/Graph、进度和 ADR 同步到 Milestone 9。
 - ContextBuilder 现在将 accepted、过去章节的 hybrid hits 纳入写作上下文；项目、当前章节大纲和 active StoryRule 是强制预算项，memory 始终最后加入。
 - Compose 与 PostgreSQL CI service 改用 `pgvector/pgvector:0.8.2-pg16-bookworm`；readiness 精确要求 M8 head `e8b4a2f7c913`。
 - readiness 从“返回当前 revision”加强为“数据库 revision 必须等于代码 migration head”，过期 schema 返回统一 503。

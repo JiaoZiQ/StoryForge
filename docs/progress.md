@@ -129,3 +129,21 @@ uv run storyforge demo-m4 --database .\storyforge-m4-demo.sqlite3 --reset
 - ContextBuilder 将 hybrid memory 放在可选预算末尾，项目、当前大纲和 active rules 始终保留；vector 不可用时明确降级为 keyword + fact + graph。
 - REST API 和 CLI 提供 memory status/list/show/reindex、retrieval search、graph entities/relations/neighbors；默认不返回正文或 embedding 数组。
 - `demo-m8` 使用 PostgreSQL + MockLLM + MockEmbedding，第一章修订后接受 v2，索引并检索到第二章上下文，验证四种不可见状态和三类重复数均为 0。
+
+## Milestone 9：Web 前端与可视化控制中心
+
+状态：实现完成，并通过全新 PostgreSQL/pgvector volume 的独立冷启动验收。
+
+- 新增 Next.js App Router/React/TypeScript strict/Tailwind 应用壳层和全部 M1–M8 核心资源页面。
+- OpenAPI 导出与 TypeScript 生成纳入 CI；统一 client 使用 Zod 校验、安全错误、request ID、超时和 TanStack Query 缓存/失效。
+- 章节与版本列表默认无正文，正文仅 Content tab 按需请求；accepted facts、future boundary 和 2-hop 图限制仍由 API 强制。
+- Workflow 页面按非终态条件轮询，completed/failed/cancelled 不提供 resume/cancel；Versions 使用服务端 diff，Conflicts 支持状态处理与失败回滚。
+- Retrieval 展示四路候选、融合/去重、来源解释和 degraded reason；Cytoscape 图提供等价可访问文本列表。
+- 前端 Node 24 多阶段非 root 镜像加入 Compose，等待 API healthy；API/frontend 仅连接 internal network，无凭据 gateway 负责本机端口，阻止 Mock provider 进程访问公网。
+- Vitest/RTL 核心测试与四个无顺序依赖 Playwright 场景覆盖创建规划、修订评估、Retrieval/Graph 和冲突处理。
+- `demo-m9` 使用 PostgreSQL + pgvector + MockLLM/MockEmbedding 准备安全浏览器项目；M9 不新增 migration，不开始 M10。
+- 最终冷启动环境从零构建 API、frontend 和无凭据 gateway 镜像，PostgreSQL、唯一 Alembic head、readiness、持久化重启和容器内 CLI 均通过。
+- `demo-m9` 完成一次修订并接受 v2，最终分 8.16；9 个 accepted memory chunks、4 个实体、1 条关系和 7 个检索命中可查询。
+- 前端单元测试 20 项通过，语句覆盖率 96.34%；四个独立 Playwright 场景通过；PostgreSQL marker 13 项通过。
+- Python 全量默认门禁收集 265 项：252 passed、13 个 PostgreSQL marker 在未配置测试 URL 时按设计 skipped，覆盖率 88.96%；Ruff、strict mypy、OpenAPI 生成一致性、Prettier、ESLint、TypeScript 和 Next 生产构建均通过。
+- 冷启动审计确认 candidate/future facts、列表正文泄漏、重复版本/评估/冲突/正式事实/chunk/entity/relation、日志密钥/数据库 URL/正文/traceback 命中均为 0。

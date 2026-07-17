@@ -2,7 +2,7 @@
 
 ## Supported scope
 
-Milestone 8 继续使用 M7 的单机 Docker Compose 路径，并把数据库镜像升级为 PostgreSQL 16 + pgvector 0.8.2。这不代表生产就绪；当前没有认证、队列、多副本共享 checkpoint、TLS、自动备份或高可用。
+Milestone 9 在 M8 PostgreSQL 16 + pgvector Compose 路径上增加 Next.js Web 服务、internal backend network 和无凭据本机 gateway。这不代表生产就绪；当前没有认证、队列、多副本共享 checkpoint、TLS、自动备份或高可用。
 
 ## Docker cold start
 
@@ -16,12 +16,14 @@ docker compose ps
 Invoke-RestMethod http://127.0.0.1:8000/health
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/ready
 Invoke-RestMethod http://127.0.0.1:8000/openapi.json
+Invoke-WebRequest http://127.0.0.1:3000
 docker compose exec api storyforge --help
-docker compose exec api storyforge demo-m8 --output json
+docker compose exec api storyforge demo-m9 --frontend-url http://localhost:3000 --output json
 docker compose exec api id
+docker compose exec frontend id
 ```
 
-macOS/Linux 使用 `cp` 和 `curl`。成功状态应为 pgvector PostgreSQL healthy、migrate exited 0、API healthy；`id` 应显示 UID 10001。`SELECT extversion FROM pg_extension WHERE extname='vector'` 应返回 0.8.2。
+macOS/Linux 使用 `cp` 和 `curl`。成功状态应为 pgvector PostgreSQL healthy、migrate exited 0、API healthy、frontend healthy；两个 `id` 都应显示 UID 10001。`SELECT extversion FROM pg_extension WHERE extname='vector'` 应返回 0.8.2。
 
 `docker compose down` 保留 `storyforge_postgres_data`。`docker compose down -v` 仅在明确需要永久删除本地开发数据时使用。
 
@@ -33,13 +35,18 @@ uv run alembic upgrade head
 uv run alembic check
 uv run storyforge demo-m6 --output json
 uv run uvicorn storyforge.api.app:create_app --factory
+Set-Location frontend
+npm ci
+npm run dev
 ```
 
 默认使用 SQLite + MockLLM，无 Docker、API Key 或模型网络依赖。
 
 ## Startup contract
 
-Compose 采用独立 migration service：PostgreSQL 通过 `pg_isready` 后，migrate 使用实际连接重试并执行 `alembic upgrade head`；只有退出码 0 才启动 API。API healthcheck 调用 readiness，所以 migration 不完整时不会 healthy。重复 upgrade head 是幂等操作。
+Compose 采用独立 migration service：PostgreSQL 通过 `pg_isready` 后，migrate 使用实际连接重试并执行 `alembic upgrade head`；只有退出码 0 才启动 API。API healthcheck 调用 readiness，所以 migration 不完整时不会 healthy；frontend 又等待 API healthy。重复 upgrade head 是幂等操作。
+
+API、migration 和 frontend 只加入 `internal: true` 的 backend network，因此 Mock provider 进程无公网出口。无凭据 Node gateway 同时连接 backend 与普通 ingress network，把 3000/8000 端口发布到 `127.0.0.1`；PostgreSQL 仅为本地诊断同时发布 54329。镜像构建阶段可以从 registry 安装锁定依赖，但 `.dockerignore` 排除 `.env`、Git 历史、本地数据库、测试 artifact 和 node_modules。
 
 ## Production configuration
 
@@ -59,6 +66,7 @@ STORYFORGE_EMBEDDING_API_KEY=...
 STORYFORGE_MOCK_MODE=false
 STORYFORGE_LOG_FORMAT=json
 STORYFORGE_ALLOWED_ORIGINS=https://trusted.example
+STORYFORGE_INTERNAL_API_URL=http://api:8000
 ```
 
 不要使用 Compose 的开发密码。凭据应由部署平台运行时注入，不能写入镜像 layer、仓库或日志。API 应位于 TLS 反向代理和网络访问控制之后。
@@ -74,4 +82,4 @@ STORYFORGE_ALLOWED_ORIGINS=https://trusted.example
 
 ## Known limitations
 
-工作流请求同步执行；SQLite checkpoint 只适合当前单实例；没有滚动发布、leader election 或 migration lock 服务；没有 Kubernetes、云厂商模板、Redis/Celery 或镜像自动发布。
+工作流请求同步执行；SQLite checkpoint 只适合当前单实例；Web 没有认证/RBAC；没有滚动发布、leader election 或 migration lock 服务；没有 Kubernetes、云厂商模板、Redis/Celery 或镜像自动发布。

@@ -21,6 +21,11 @@ dist
 *.sqlite3
 *.log
 generated
+frontend/node_modules
+frontend/.next
+frontend/coverage
+frontend/playwright-report
+frontend/test-results
 tests
 .m7-baseline
 .m7-acceptance

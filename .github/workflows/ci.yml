@@ -30,6 +30,40 @@ jobs:
       - run: uv run mypy src
       - run: uv run pytest -m "not postgres"
 
+  frontend-quality:
+    name: Next.js quality, API contract, unit tests, and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@088c4056d3c1274cc0da42f5789a66017e8e0cd0 # v8.1.0
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.14.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --locked --all-groups
+      - run: npm ci
+        working-directory: frontend
+      - run: npm audit --audit-level=high
+        working-directory: frontend
+      - run: npm run check:api
+        working-directory: frontend
+      - run: npm run format:check
+        working-directory: frontend
+      - run: npm run lint
+        working-directory: frontend
+      - run: npm run typecheck
+        working-directory: frontend
+      - run: npm test
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+
   postgres-tests:
     name: PostgreSQL 16 migrations and integration tests
     runs-on: ubuntu-latest
@@ -73,14 +107,56 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run storyforge demo-m8 --output json
 
+  browser-e2e:
+    name: PostgreSQL Mock browser end-to-end tests
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_USER: storyforge
+      POSTGRES_PASSWORD: storyforge-e2e-only
+      POSTGRES_DB: storyforge_e2e
+      POSTGRES_PORT: "54329"
+      STORYFORGE_API_PORT: "8000"
+      STORYFORGE_WEB_PORT: "3000"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.14.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: docker compose config --quiet
+      - run: docker compose up --build --detach --wait
+      - run: docker compose exec -T api storyforge demo-m9 --frontend-url http://localhost:3000 --output json
+      - run: npm run test:e2e
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_EXTERNAL_SERVER: "1"
+      - if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-failure-screenshots
+          path: frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 5
+      - if: always()
+        run: docker compose down --volumes
+
   docker-build:
-    name: Build and inspect the production image
+    name: Build and inspect production images
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - run: docker build --tag storyforge:ci .
+      - run: docker build --file frontend/Dockerfile --tag storyforge-web:ci .
+      - run: docker build --file deploy/ingress.Dockerfile --tag storyforge-gateway:ci .
       - run: docker run --rm storyforge:ci storyforge --help
       - run: docker run --rm storyforge:ci python --version
       - run: docker run --rm storyforge:ci python -c "import storyforge; print(storyforge.__version__)"
       - run: test "$(docker run --rm storyforge:ci id -u)" != "0"
+      - run: test "$(docker run --rm storyforge-web:ci id -u)" != "0"
+      - run: test "$(docker run --rm storyforge-gateway:ci id -u)" != "0"
       - run: docker compose config --quiet

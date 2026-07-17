@@ -1,9 +1,11 @@
 # StoryForge 架构
 
-StoryForge 采用 Python 模块化单体和单向依赖，当前实现到 Milestone 7。
+StoryForge 采用 Python 模块化单体、独立 Web 控制面和单向依赖，当前实现到 Milestone 9。
 
 ```mermaid
 flowchart LR
+    Browser["Next.js browser UI"] --> Proxy["Next.js same-origin proxy"]
+    Proxy --> API
     CLI["Grouped CLI"] --> Application["Application Services"]
     API["FastAPI Routes"] --> Application
     Application --> Workflow["ChapterWorkflowService / LangGraph"]
@@ -138,3 +140,9 @@ chapter outline → RetrievalQueryBuilder
 ```
 
 接受事务只创建 pending 索引并原子隐藏旧版本 memory；embedding 在事务外执行。provider 失败不会撤销已接受正文，而是把索引标为 failed，检索明确降级。ContextBuilder 始终保留项目、当前大纲和 active rules，memory 最后进入预算。详见 [memory.md](memory.md)、[retrieval.md](retrieval.md)、[graph.md](graph.md) 和 [ADR 0007](decisions/0007-m8-pgvector-hybrid-memory.md)。
+
+## M9 Web 边界
+
+`frontend` 是 FastAPI 的可视化适配器，不是新的领域层。页面 → TanStack Query hook → 统一 OpenAPI client → Next.js 同源 proxy → FastAPI route → Application Service；前端没有 ORM、provider 或工作流规则。OpenAPI 生成类型保证编译期路径/参数一致，Zod 校验运行时响应。正文只在显式 tab 请求；Facts、Memory、Graph 和 Context 的 accepted/过去章节过滤仍由 API/Repository 强制。
+
+Compose 使用 API、frontend 和无凭据 gateway 三个独立非 root 镜像。API/frontend 只连接 internal network；gateway 同时连接 internal 与 host ingress，只做两端口流式转发且不持有 provider key 或数据库 URL。frontend 只获得内部 API 地址，API 保持原有凭据边界。详见 [frontend.md](frontend.md) 和 [ADR 0008](decisions/0008-m9-web-control-center.md)。

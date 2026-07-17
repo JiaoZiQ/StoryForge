@@ -1,0 +1,42 @@
+import type { components } from "./generated";
+
+export type PageMeta = components["schemas"]["PageMeta"];
+export type Page<T> = { items: T[]; meta: PageMeta };
+export type ProjectSummary = components["schemas"]["ProjectSummary"];
+export type ProjectDetail = components["schemas"]["ProjectDetail"];
+export type ProjectCreateRequest =
+  components["schemas"]["ProjectCreateRequest"];
+export type PlanResponse = components["schemas"]["PlanResponse"];
+export type ChapterSummary = components["schemas"]["ChapterSummary"];
+export type ChapterDetail = components["schemas"]["ChapterDetail"];
+export type ContextSummary = components["schemas"]["ContextSummary"];
+export type ChapterGenerationResponse =
+  components["schemas"]["ChapterGenerationResponse"];
+export type VersionSummary = components["schemas"]["VersionSummary"];
+export type VersionDetail = components["schemas"]["VersionDetail"];
+export type VersionDiffResponse = components["schemas"]["VersionDiffResponse"];
+export type EvaluationSummary = components["schemas"]["EvaluationSummary"];
+export type EvaluationDetail = components["schemas"]["EvaluationDetail"];
+export type ConflictResponse = components["schemas"]["ConflictResponse"];
+export type FactResponse = components["schemas"]["FactResponse"];
+export type WorkflowStatusResponse =
+  components["schemas"]["WorkflowStatusResponse"];
+export type WorkflowEventResponse =
+  components["schemas"]["WorkflowEventResponse"];
+export type RetrievalSearchRequest =
+  components["schemas"]["RetrievalSearchRequest"];
+export type RetrievalSearchResponse =
+  components["schemas"]["RetrievalSearchResponse"];
+export type MemorySummary = components["schemas"]["MemorySummary"];
+export type MemoryDetail = components["schemas"]["MemoryDetail"];
+export type MemoryIndexStatusResponse =
+  components["schemas"]["MemoryIndexStatusResponse"];
+export type MemoryReindexResponse =
+  components["schemas"]["MemoryReindexResponse"];
+export type GraphEntityResponse = components["schemas"]["GraphEntityResponse"];
+export type GraphRelationResponse =
+  components["schemas"]["GraphRelationResponse"];
+export type GraphNeighborsResponse =
+  components["schemas"]["GraphNeighborsResponse"];
+export type HealthResponse = components["schemas"]["HealthResponse"];
+export type ReadinessResponse = components["schemas"]["ReadinessResponse"];

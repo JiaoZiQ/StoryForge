@@ -69,6 +69,16 @@
 - FastAPI/CLI memory、retrieval、graph 接口，以及 PostgreSQL + MockLLM + MockEmbedding `demo-m8`。
 - 第七个 Alembic migration `e8b4a2f7c913`，支持空库和已有 M7 数据升级。
 
+## Milestone 9：Web 前端与可视化控制中心（已完成）
+
+- Next.js App Router、React、TypeScript strict、Tailwind 与响应式应用壳层。
+- 项目、规划、章节、版本 diff、评估、冲突、accepted facts、工作流、Memory、Retrieval、Graph 与系统状态页面。
+- OpenAPI 生成类型 + Zod 运行时校验、统一 API client、同源 server proxy、安全错误和请求 ID。
+- TanStack Query 缓存/失效/工作流条件轮询，React Hook Form + Zod 表单和危险操作确认。
+- Cytoscape 关系图及等价文本列表；图遍历限制 1/2 hops，正文按需加载，列表默认无正文。
+- Vitest/RTL 单元测试、四个独立 Playwright 场景、axe 检查、Node 非 root 镜像、Compose 与 CI 门禁。
+- PostgreSQL + pgvector + MockLLM + MockEmbedding `demo-m9`，无新增数据库 migration。
+
 ## 后续方向
 
-后续里程碑再评估 Neo4j、Redis、Celery、Web 前端、TTS、图片生成、PDF 与 ePub；这些不进入当前核心范围。
+后续里程碑再评估认证/RBAC、Neo4j、Redis、Celery、TTS、图片生成、PDF 与 ePub；这些不进入当前核心范围。

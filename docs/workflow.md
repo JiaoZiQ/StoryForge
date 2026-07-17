@@ -135,3 +135,9 @@ Compose 的 migrate 服务只负责 schema，API readiness 读取 `alembic_versi
 第二章及后续 ContextBuilder 先构造不可删除的 ProjectContext、当前 ChapterOutlineContext 和 active StoryRule，再装入人物、事实、伏笔、最近摘要和地点，最后装入 hybrid hits。所有检索入口共同应用 project、accepted status、source chapter、validity 和字符预算边界；vector 路由失败只产生明确 degraded reason，不关闭其他三路。
 
 M8 不改变 LangGraph 路由、评估通过条件或候选事实提升事务。跨章节并行、异步任务队列、复杂人工审批 UI、全书级审稿、Neo4j/Redis/Celery 不属于 M8。
+
+## M9 Web 工作流交互
+
+Web 启动工作流时沿用同步 `201` 语义，完成后跳转到 WorkflowRun 页面。若未来使用 debug pause，只有 `paused` 显示 resume；`pending/running` 可协作式 cancel；completed、completed_needs_review、failed 和 cancelled 不允许 resume/cancel。详情页只在非终态每 3 秒轮询状态与事件，终态立即停止。
+
+UI 不复制评分、阻断、最佳版本或接受规则。版本 diff、Evaluation、Conflict 和 WorkflowEvent 全部查询服务端持久化结果。正文只在章节 Content tab 打开后请求；上下文、Fact、Memory/Retrieval/Graph 页面继续受 accepted 与未来章节边界保护。
