@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from storyforge import __version__
 from storyforge.database import create_database_engine, create_session_factory
+from storyforge.logging_config import configure_logging
 from storyforge.settings import Settings
 
 from .errors import install_exception_handlers
@@ -44,10 +45,7 @@ class StoryForgeAPI(FastAPI):
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build an isolated application without import-time database connections."""
     configured = settings or Settings.from_env()
-    logging.basicConfig(
-        level=getattr(logging, configured.log_level),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+    configure_logging(configured)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -64,8 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="StoryForge API",
         summary="Generate, evaluate, revise, and audit long-form story chapters.",
         description=(
-            "Milestone 6 exposes synchronous application services over a versioned REST API. "
-            "Chapter workflows complete before their 201 response; no background worker is implied."
+            "Milestone 8 adds accepted-only hybrid retrieval and a PostgreSQL relational graph "
+            "to the synchronous versioned REST API; no background worker is implied."
         ),
         version=__version__,
         lifespan=lifespan,
@@ -79,9 +77,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"name": "conflicts", "description": "Consistency conflict review."},
             {"name": "facts", "description": "Accepted canonical facts only."},
             {"name": "workflows", "description": "Durable synchronous workflows."},
+            {"name": "memory", "description": "Accepted semantic memory lifecycle."},
+            {"name": "retrieval", "description": "Explainable hybrid retrieval."},
+            {"name": "graph", "description": "Bounded relational story graph."},
         ],
     )
     install_http_middleware(application, configured)
+    if configured.allowed_origins:
+        application.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(configured.allowed_origins),
+            allow_credentials=configured.cors_allow_credentials,
+            allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "X-Request-ID"],
+        )
     install_exception_handlers(application)
     application.include_router(root_router)
     application.include_router(api_router, prefix=configured.api_prefix)

@@ -12,6 +12,7 @@ from storyforge.agents import CriticAgent, FactExtractorAgent, RevisionAgent, Wr
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import SessionFactory
 from storyforge.demo import build_critic_provider, build_demo_provider
+from storyforge.embeddings import embedding_provider
 from storyforge.evaluation import EvaluationScorer, MechanicalEvaluator
 from storyforge.exceptions import DomainValidationError, EntityNotFoundError
 from storyforge.llm import (
@@ -20,8 +21,17 @@ from storyforge.llm import (
     OpenAICompatibleProvider,
 )
 from storyforge.m5_demo import build_m5_provider
+from storyforge.memory import MemoryIndexService
 from storyforge.prompts import build_prompt_registry
 from storyforge.repositories import ProjectRepository
+from storyforge.retrieval import (
+    FactRetriever,
+    GraphRetriever,
+    HybridRetriever,
+    HybridWeights,
+    KeywordRetriever,
+    VectorRetriever,
+)
 from storyforge.revision import AcceptanceEvaluator, RevisionBriefBuilder
 from storyforge.services import (
     ChapterGenerationService,
@@ -107,7 +117,7 @@ class DomainServiceFactory:
         registry = build_prompt_registry()
         return ChapterGenerationService(
             self.session_factory,
-            ContextBuilder(self.session_factory),
+            self.context_builder(),
             WriterAgent(provider, registry),
             FactExtractorAgent(provider, registry),
         )
@@ -125,18 +135,58 @@ class DomainServiceFactory:
         registry = build_prompt_registry()
         versions = ChapterVersionService(
             self.session_factory,
-            ContextBuilder(self.session_factory),
+            self.context_builder(),
             WriterAgent(provider, registry),
             FactExtractorAgent(provider, registry),
             RevisionAgent(provider, registry),
             RevisionBriefBuilder(),
             AcceptanceEvaluator(),
+            self.memory_index_service(),
         )
         return ChapterWorkflowService(
             self.session_factory,
             versions,
             self.evaluation_service(provider),
             self.checkpoint_path(),
+        )
+
+    def memory_index_service(self) -> MemoryIndexService:
+        return MemoryIndexService(
+            self.session_factory,
+            lambda: embedding_provider(self.settings),
+            provider_name=self.settings.embedding_provider,
+            model_name=self.settings.embedding_model,
+            dimensions=self.settings.embedding_dimensions,
+        )
+
+    def hybrid_retriever(self) -> HybridRetriever:
+        keyword = KeywordRetriever(self.session_factory)
+        vector = VectorRetriever(
+            self.session_factory,
+            lambda: embedding_provider(self.settings),
+            dimensions=self.settings.embedding_dimensions,
+        )
+        fact = FactRetriever(self.session_factory)
+        graph = GraphRetriever(self.session_factory)
+        return HybridRetriever(
+            keyword=keyword.retrieve,
+            vector=vector.retrieve,
+            fact=fact.retrieve,
+            graph=graph.retrieve,
+            weights=HybridWeights(
+                keyword=self.settings.hybrid_keyword_weight,
+                vector=self.settings.hybrid_vector_weight,
+                fact=self.settings.hybrid_fact_weight,
+                graph=self.settings.hybrid_graph_weight,
+            ),
+        )
+
+    def context_builder(self) -> ContextBuilder:
+        return ContextBuilder(
+            self.session_factory,
+            hybrid_retriever=self.hybrid_retriever(),
+            retrieval_top_k=self.settings.retrieval_top_k,
+            retrieval_max_context_chars=self.settings.retrieval_max_context_chars,
         )
 
     def checkpoint_path(self) -> Path:

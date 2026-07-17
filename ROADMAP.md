@@ -51,11 +51,34 @@
 - 完整 REST API、Application Service、依赖注入、统一异常映射、请求 ID、分页和 OpenAPI。
 - 分组 CLI、`demo-m6`、API/CLI/迁移集成测试，以及 accepted Fact/版本数据隔离。
 
-## Milestone 7：Docker 与完整文档（未开始）
+## Milestone 7：Docker 与完整文档（已完成）
 
-- Dockerfile、Docker Compose、PostgreSQL 服务。
-- 完整使用、部署和演示文档。
+- Python 3.12 多阶段非 root Dockerfile、`.dockerignore` 和锁定生产依赖。
+- PostgreSQL 16、独立 migration service、health/readiness 门禁和 named volume 的 Docker Compose。
+- development/test/production Settings、结构化脱敏日志、有限数据库等待和一键命令。
+- PostgreSQL migration/API/workflow/demo 专项测试与 quality/postgres/docker 三段 CI。
+- PostgreSQL + MockLLM `demo-m7`、冷启动、部署、安全、贡献、许可证和最终限制文档。
+
+## Milestone 8：混合长期记忆与图谱检索（已完成）
+
+- 独立 EmbeddingProvider、确定性 MockEmbedding 和 OpenAI-compatible embedding 适配器。
+- accepted ChapterVersion 的结构化切分、`vector(64)` 存储、cosine HNSW、索引状态与幂等重建。
+- PostgreSQL 关系表保存实体和受控关系；最多 2 hops，并按 accepted 状态与章节时间边界过滤。
+- Keyword、Vector、Fact、Graph 四路召回，weighted RRF 融合、内容去重、规则式重排和来源解释。
+- ContextBuilder 将 hybrid hits 放入第二章及后续上下文，同时强制保留项目、当前大纲和 active rules。
+- FastAPI/CLI memory、retrieval、graph 接口，以及 PostgreSQL + MockLLM + MockEmbedding `demo-m8`。
+- 第七个 Alembic migration `e8b4a2f7c913`，支持空库和已有 M7 数据升级。
+
+## Milestone 9：Web 前端与可视化控制中心（已完成）
+
+- Next.js App Router、React、TypeScript strict、Tailwind 与响应式应用壳层。
+- 项目、规划、章节、版本 diff、评估、冲突、accepted facts、工作流、Memory、Retrieval、Graph 与系统状态页面。
+- OpenAPI 生成类型 + Zod 运行时校验、统一 API client、同源 server proxy、安全错误和请求 ID。
+- TanStack Query 缓存/失效/工作流条件轮询，React Hook Form + Zod 表单和危险操作确认。
+- Cytoscape 关系图及等价文本列表；图遍历限制 1/2 hops，正文按需加载，列表默认无正文。
+- Vitest/RTL 单元测试、四个独立 Playwright 场景、axe 检查、Node 非 root 镜像、Compose 与 CI 门禁。
+- PostgreSQL + pgvector + MockLLM + MockEmbedding `demo-m9`，无新增数据库 migration。
 
 ## 后续方向
 
-第一版完成后再评估 Neo4j、pgvector、Redis、Celery、Web 前端、TTS、图片生成、PDF 与 ePub；这些不进入当前核心范围。
+后续里程碑再评估认证/RBAC、Neo4j、Redis、Celery、TTS、图片生成、PDF 与 ePub；这些不进入当前核心范围。

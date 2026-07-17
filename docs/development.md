@@ -145,3 +145,65 @@ uv run storyforge evaluate-chapter --database .\debug.db --project-id 1 --chapte
 - Prompt 请求可在 Mock 的 `requests` 中检查，确保只包含显式 CriticContext。
 - 不把真实密钥、正文、SQLite 文件或带凭据 URL 提交到仓库。
 - checkpoint 文件按字节检查不包含完整正文或 `sk-` 密钥；WorkflowEvent 响应不包含正文/Payload/Prompt。
+
+## Milestone 8 本地与容器开发
+
+锁定安装：
+
+```powershell
+uv sync --locked --all-groups
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy src
+uv run pytest
+```
+
+Docker 路径：
+
+```powershell
+docker compose config
+docker compose up --build -d
+docker compose exec api alembic check
+docker compose exec api storyforge demo-m8 --output json
+docker compose down
+```
+
+PostgreSQL marker 只在 `STORYFORGE_POSTGRES_TEST_URL` 存在时运行，并强制数据库名以 `_test` 结尾。M8 必须使用带 `vector` extension 的 PostgreSQL 镜像；测试会清空测试数据库，绝不能指向开发或生产数据库。完整命令和 PowerShell/macOS/Linux 差异见 README 与 [deployment.md](deployment.md)。
+
+M8 聚焦测试：
+
+```powershell
+uv run pytest tests/unit/test_milestone8_embeddings_memory.py
+uv run pytest tests/unit/test_milestone8_graph_retrieval.py
+uv run pytest tests/integration/test_milestone8_memory_lifecycle.py
+uv run pytest tests/integration/test_milestone8_cli.py
+uv run pytest -m postgres --no-cov
+```
+
+`scripts/wait_for_db.py` 和 `storyforge-wait-for-db` 使用实际 `SELECT 1`、有限重试和可配置间隔，不使用固定启动 sleep。`make clean` 只清理工具缓存、coverage 与构建目录；删除 Compose volume 必须显式 `make docker-reset`。
+
+## Milestone 9 前端开发
+
+需要 Node.js 24 与 npm。锁定安装和门禁：
+
+```powershell
+Set-Location frontend
+npm ci
+npm run check:api
+npm run format:check
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+真实 E2E 先从仓库根目录 `docker compose up --build -d`，再安装 Chromium 并运行：
+
+```powershell
+Set-Location frontend
+npx playwright install chromium
+$env:PLAYWRIGHT_EXTERNAL_SERVER="1"
+npm run test:e2e
+```
+
+四个 Playwright 场景各自创建数据，可并行且不依赖顺序。测试运行时使用 Compose internal network、MockLLM 和 MockEmbedding，不需要 API Key；trace 关闭，仅失败 screenshot 可作为短期 artifact。`npm run generate:api` 会改写 OpenAPI/生成类型，提交前必须执行 `npm run check:api` 确认没有漂移。

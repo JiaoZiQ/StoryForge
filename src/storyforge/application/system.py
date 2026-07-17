@@ -2,6 +2,8 @@
 
 from storyforge import __version__
 from storyforge.database import SessionFactory
+from storyforge.exceptions import DatabaseNotReadyError
+from storyforge.migrations import MIGRATION_HEAD
 from storyforge.repositories import SystemRepository
 from storyforge.schemas.api import HealthResponse, ReadinessResponse
 from storyforge.settings import Settings
@@ -22,6 +24,8 @@ class SystemApplicationService:
             repository = SystemRepository(session)
             repository.ping()
             revision = repository.migration_revision()
+        if revision != MIGRATION_HEAD:
+            raise DatabaseNotReadyError("Database migrations are incomplete")
         return ReadinessResponse(
             status="ready",
             database="ok",

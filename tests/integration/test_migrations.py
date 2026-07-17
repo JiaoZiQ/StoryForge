@@ -6,9 +6,10 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect, text
+from tests._factories import create_story_graph
 
-from storyforge.database import create_database_engine
-from storyforge.models import Base
+from storyforge.database import create_database_engine, create_session_factory
+from storyforge.models import Base, Project
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -46,6 +47,42 @@ def test_initial_migration_upgrade_matches_metadata_and_downgrades(
         assert model_tables.isdisjoint(downgraded_tables)
     finally:
         downgraded_engine.dispose()
+
+
+def test_milestone7_data_upgrades_to_memory_schema_without_old_migration_edits(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "m7-to-m8.sqlite3"
+    database_url = f"sqlite:///{database_path.as_posix()}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    config = Config(str(PROJECT_ROOT / "alembic.ini"))
+    command.upgrade(config, "c7d4e1a2b9f0")
+    engine = create_database_engine(database_url)
+    session_factory = create_session_factory(engine)
+    with session_factory.begin() as session:
+        project_id = create_story_graph(session).project.id
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_database_engine(database_url)
+    inspector = inspect(engine)
+    assert {
+        "memory_chunks",
+        "memory_index_records",
+        "graph_entities",
+        "graph_relations",
+    } <= set(inspector.get_table_names())
+    with create_session_factory(engine)() as session:
+        assert session.get(Project, project_id) is not None
+    engine.dispose()
+
+    command.downgrade(config, "c7d4e1a2b9f0")
+    engine = create_database_engine(database_url)
+    inspector = inspect(engine)
+    assert "projects" in inspector.get_table_names()
+    assert "memory_chunks" not in inspector.get_table_names()
+    engine.dispose()
 
 
 def test_milestone3_migration_backfills_existing_rows(

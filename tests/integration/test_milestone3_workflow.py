@@ -17,6 +17,7 @@ from storyforge.llm import MockFailure, MockLLMProvider
 from storyforge.models import ChapterVersion, Fact, Project
 from storyforge.prompts import build_prompt_registry
 from storyforge.repositories import ChapterRepository, ProjectRepository
+from storyforge.retrieval import HybridRetriever
 from storyforge.schemas.context import ContextBuildRequest
 from storyforge.schemas.domain import ProjectCreate
 from storyforge.schemas.generation import (
@@ -141,8 +142,22 @@ def test_context_excludes_future_sources_and_applies_budget(db_engine: Engine) -
         ContextBuildRequest(project_id=project.id, chapter_number=2, max_context_chars=50)
     )
     assert tiny.current_outline.chapter_number == 2
+    assert tiny.rules
     assert tiny.budget.mandatory_outline_exceeded_budget is True
-    assert tiny.budget.omitted_items == tiny.budget.candidate_items
+    assert tiny.budget.omitted_items == tiny.budget.candidate_items - len(tiny.rules)
+
+    hybrid_tiny = ContextBuilder(
+        factory,  # type: ignore[arg-type]
+        hybrid_retriever=HybridRetriever(
+            keyword=lambda _: [],
+            vector=lambda _: [],
+            fact=lambda _: [],
+            graph=lambda _: [],
+        ),
+    ).build(ContextBuildRequest(project_id=project.id, chapter_number=2, max_context_chars=50))
+    assert hybrid_tiny.current_outline.chapter_number == 2
+    assert hybrid_tiny.rules
+    assert hybrid_tiny.budget.mandatory_outline_exceeded_budget is True
 
 
 def test_replan_and_regeneration_require_explicit_overwrite_and_preserve_snapshots(

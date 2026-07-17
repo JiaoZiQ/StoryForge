@@ -53,3 +53,31 @@ M3–M5 的扁平命令仍保留兼容，包括 `create-project`、`generate-cha
 CLI 不打印 traceback、Prompt、完整 provider 错误或密钥。演示固定使用 MockLLM、临时 SQLite 且不访问网络。
 
 普通分组命令读取与 API 相同的 `STORYFORGE_LLM_PROVIDER`、model、base URL、timeout、retry 和 key 环境配置；未设置时默认 Mock。数据库仍使用命令显式给出的本地 `--database` 路径。`demo m6`/`demo-m6` 无论外部 provider 配置如何都固定使用离线 Mock。
+
+## Milestone 7 部署命令
+
+```powershell
+uv run storyforge-wait-for-db
+uv run storyforge-migrate
+uv run storyforge-api
+docker compose exec api storyforge demo-m7 --output human
+docker compose exec api storyforge demo-m7 --output json
+```
+
+`demo-m7` 与临时 SQLite 的 `demo-m6` 不同：它要求当前 `STORYFORGE_DATABASE_URL` 是已迁移到 head 的 PostgreSQL，强制 Mock 模式，并创建唯一项目。JSON 输出是单一标准文档，包含 backend、revision、workflow/版本/评估/冲突/fact 计数，以及候选、未来和重复计数。
+
+## Milestone 8 记忆与检索命令
+
+```powershell
+storyforge memory status --project-id 1 --output json
+storyforge memory list --project-id 1 --output json
+storyforge memory show --project-id 1 --memory-id 1 --output json
+storyforge memory reindex --project-id 1 --chapter-version-id 2 --output json
+storyforge retrieval search --project-id 1 --query "Mara brass key" --current-chapter 2 --output json
+storyforge graph entities --project-id 1 --output json
+storyforge graph relations --project-id 1 --current-chapter 2 --output json
+storyforge graph neighbors --project-id 1 --entity-id 1 --current-chapter 2 --max-hops 2 --output json
+storyforge demo-m8 --output json
+```
+
+完整 `demo-m8` 必须在已迁移的 PostgreSQL/pgvector 上运行，并要求 MockLLM、MockEmbedding 和无 API Key。SQLite 可以运行普通命令，但 vector 路由会明确降级；JSON 仍是单一标准文档。memory 列表默认不返回完整内容，任何 CLI 输出都不返回 embedding 数组。

@@ -17,6 +17,7 @@ from storyforge.exceptions import (
     ConfigurationError,
     ContextBuildError,
     DatabaseConflictError,
+    DatabaseNotReadyError,
     DomainValidationError,
     EntityNotFoundError,
     EvaluationError,
@@ -62,6 +63,8 @@ def _response(
 
 
 def _mapping(exc: Exception) -> tuple[int, str, str]:
+    if isinstance(exc, DatabaseNotReadyError):
+        return 503, "database_not_ready", "The database migrations are incomplete"
     if isinstance(exc, EntityNotFoundError):
         return 404, "resource_not_found", str(exc)
     if isinstance(exc, WorkflowAlreadyRunningError):

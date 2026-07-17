@@ -36,10 +36,10 @@ class DemoApplicationService:
         self._evaluations = EvaluationApplicationService(session_factory, self._factory)
         self._workflows = WorkflowApplicationService(session_factory, self._factory, settings)
 
-    def run(self) -> DemoM6Response:
+    def run(self, *, project_title: str = "Milestone 6 offline interface") -> DemoM6Response:
         project = self._projects.create(
             ProjectCreateRequest(
-                title="Milestone 6 offline interface",
+                title=project_title,
                 genre="mystery",
                 premise="An archivist investigates a sealed tidal records network.",
                 target_chapters=3,
@@ -107,6 +107,7 @@ class DemoApplicationService:
             plan_foreshadowing=len(plan.foreshadowing),
             chapter=chapter,
             versions=len(versions.items),
+            evaluations=len(evaluations.items),
             accepted_version=workflow.accepted_version,
             final_score=latest.final_score,
             evaluation=DemoEvaluationSummary(

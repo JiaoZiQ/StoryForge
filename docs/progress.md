@@ -102,3 +102,48 @@ uv run storyforge demo-m4 --database .\storyforge-m4-demo.sqlite3 --reset
 - 数据库反查：2 条 completed Evaluation、3 条 EvaluationIssue、2 条 Conflict，原始分、权重分、evaluator version、prompt version 均存在，provider 均为 mock。
 - README 的创建/规划/生成/评估、评估历史、冲突过滤/状态更新、M3/M4 demo 和真实 Uvicorn `/health` 命令均执行成功。
 - 网络阻断、未来事实、作者秘密和日志正文隔离由集成测试验证。该段为 M4 历史验收记录。
+
+## Milestone 7：Docker、PostgreSQL 与工程交付
+
+状态：实现完成，最终门禁与冷启动实测通过。
+
+- Python 3.12.12 slim 多阶段镜像，锁定 uv 依赖，UID/GID 10001 非 root，默认 exec-form `storyforge-api`。
+- Compose 使用 PostgreSQL 16 named volume、`pg_isready`、one-shot migrate 和 readiness health gate；重复迁移与 API 重启保留数据。
+- Settings 区分 development/test/production，生产拒绝 SQLite、Mock、开发密码和 credentialed wildcard CORS。
+- 新 migration `c7d4e1a2b9f0` 用部分唯一索引保证同章节仅一个活跃工作流；readiness 要求精确 head。
+- PostgreSQL 专项测试覆盖 migration、Alembic check、JSON/Enum/timezone/boolean、事务回滚、级联、分页排序、Fact 隔离、工作流/API/demo 幂等。
+- GitHub Actions 分为 quality、postgres-tests、docker-build，全部使用 MockLLM 和锁文件，不需要真实 API Key。
+- `demo-m7` 使用当前 PostgreSQL 创建唯一项目、修订一次并验证 accepted facts、未来边界和四类重复计数。
+- Docker/Compose、部署、贡献、安全、行为准则、MIT License 和新电脑冷启动文档已补齐。
+- 最终全量运行收集 228 项（含真实 PostgreSQL marker），228 passed；分支覆盖率 90.01%，Ruff、strict mypy、Alembic check、Docker build 和 Compose 冷启动均通过。
+
+## Milestone 8：混合长期记忆与图谱检索
+
+状态：实现完成，独立 pgvector 冷启动验收通过。
+
+- 新增 EmbeddingProvider 抽象、确定性 MockEmbedding、OpenAI-compatible embedding 适配器和独立配置/密钥边界。
+- 新 migration `e8b4a2f7c913` 启用 pgvector 0.8.2，新增 `vector(64)` memory、索引审计、图实体/关系表与 cosine HNSW。
+- accepted ChapterVersion 自动创建同步索引；embedding 失败不回滚已接受正文，而是保存 failed 状态并允许重试。
+- MemoryChunk、GraphEntity 和 GraphRelation 均按状态、项目、章节有效期与版本过滤；重复 reindex 使用唯一约束和 upsert 保持幂等。
+- Keyword、Vector、Fact、Graph 四路召回通过 weighted RRF 融合、内容哈希/规范文本去重和确定性重排，并保留 matched sources 与解释。
+- ContextBuilder 将 hybrid memory 放在可选预算末尾，项目、当前大纲和 active rules 始终保留；vector 不可用时明确降级为 keyword + fact + graph。
+- REST API 和 CLI 提供 memory status/list/show/reindex、retrieval search、graph entities/relations/neighbors；默认不返回正文或 embedding 数组。
+- `demo-m8` 使用 PostgreSQL + MockLLM + MockEmbedding，第一章修订后接受 v2，索引并检索到第二章上下文，验证四种不可见状态和三类重复数均为 0。
+
+## Milestone 9：Web 前端与可视化控制中心
+
+状态：实现完成，并通过全新 PostgreSQL/pgvector volume 的独立冷启动验收。
+
+- 新增 Next.js App Router/React/TypeScript strict/Tailwind 应用壳层和全部 M1–M8 核心资源页面。
+- OpenAPI 导出与 TypeScript 生成纳入 CI；统一 client 使用 Zod 校验、安全错误、request ID、超时和 TanStack Query 缓存/失效。
+- 章节与版本列表默认无正文，正文仅 Content tab 按需请求；accepted facts、future boundary 和 2-hop 图限制仍由 API 强制。
+- Workflow 页面按非终态条件轮询，completed/failed/cancelled 不提供 resume/cancel；Versions 使用服务端 diff，Conflicts 支持状态处理与失败回滚。
+- Retrieval 展示四路候选、融合/去重、来源解释和 degraded reason；Cytoscape 图提供等价可访问文本列表。
+- 前端 Node 24 多阶段非 root 镜像加入 Compose，等待 API healthy；API/frontend 仅连接 internal network，无凭据 gateway 负责本机端口，阻止 Mock provider 进程访问公网。
+- Vitest/RTL 核心测试与四个无顺序依赖 Playwright 场景覆盖创建规划、修订评估、Retrieval/Graph 和冲突处理。
+- `demo-m9` 使用 PostgreSQL + pgvector + MockLLM/MockEmbedding 准备安全浏览器项目；M9 不新增 migration，不开始 M10。
+- 最终冷启动环境从零构建 API、frontend 和无凭据 gateway 镜像，PostgreSQL、唯一 Alembic head、readiness、持久化重启和容器内 CLI 均通过。
+- `demo-m9` 完成一次修订并接受 v2，最终分 8.16；9 个 accepted memory chunks、4 个实体、1 条关系和 7 个检索命中可查询。
+- 前端单元测试 20 项通过，语句覆盖率 96.34%；四个独立 Playwright 场景通过；PostgreSQL marker 13 项通过。
+- Python 全量默认门禁收集 265 项：252 passed、13 个 PostgreSQL marker 在未配置测试 URL 时按设计 skipped，覆盖率 88.96%；Ruff、strict mypy、OpenAPI 生成一致性、Prettier、ESLint、TypeScript 和 Next 生产构建均通过。
+- 冷启动审计确认 candidate/future facts、列表正文泄漏、重复版本/评估/冲突/正式事实/chunk/entity/relation、日志密钥/数据库 URL/正文/traceback 命中均为 0。

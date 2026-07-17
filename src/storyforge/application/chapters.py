@@ -32,7 +32,6 @@ from storyforge.schemas.api import (
 )
 from storyforge.schemas.context import ContextBuildRequest
 from storyforge.schemas.generation import ChapterGenerationRequest
-from storyforge.services import ContextBuilder
 from storyforge.settings import Settings
 
 from .common import page_response
@@ -120,7 +119,7 @@ class ChapterApplicationService:
     def context(
         self, project_id: int, chapter_number: int, *, max_context_chars: int = 24_000
     ) -> ContextSummary:
-        context = ContextBuilder(self._session_factory).build(
+        context = self._factory.context_builder().build(
             ContextBuildRequest(
                 project_id=project_id,
                 chapter_number=chapter_number,
@@ -137,6 +136,7 @@ class ChapterApplicationService:
             known_fact_count=len(context.known_facts),
             active_foreshadowing=[item.description for item in context.active_foreshadowing],
             previous_summary_count=len(context.recent_chapters),
+            memory_hit_count=len(context.memory_hits),
             metadata=context.budget.model_dump(mode="json"),
             truncated_categories=list(context.budget.omitted_categories),
         )

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from tests._factories import create_story_graph, make_chapter, make_project
 
+from storyforge.enums import WorkflowRunStatus
 from storyforge.models import (
     Chapter,
     Character,
@@ -178,3 +179,40 @@ def test_revision_new_version_is_unique_within_chapter(session: Session) -> None
     with pytest.raises(IntegrityError):
         session.commit()
     session.rollback()
+
+
+def test_only_one_active_workflow_is_allowed_per_chapter(session: Session) -> None:
+    """The database closes the race left by an application-only active-run check."""
+    graph = create_story_graph(session)
+    first = WorkflowRun(
+        project_id=graph.project.id,
+        chapter_id=graph.chapter.id,
+        current_node="initialize_workflow",
+        status=WorkflowRunStatus.RUNNING,
+    )
+    session.add(first)
+    session.commit()
+
+    session.add(
+        WorkflowRun(
+            project_id=graph.project.id,
+            chapter_id=graph.chapter.id,
+            current_node="initialize_workflow",
+            status=WorkflowRunStatus.PAUSED,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+
+    first.status = WorkflowRunStatus.COMPLETED
+    session.commit()
+    session.add(
+        WorkflowRun(
+            project_id=graph.project.id,
+            chapter_id=graph.chapter.id,
+            current_node="initialize_workflow",
+            status=WorkflowRunStatus.PENDING,
+        )
+    )
+    session.commit()

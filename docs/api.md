@@ -63,3 +63,31 @@ uv run uvicorn storyforge.api.app:create_app --factory --reload
 请求和响应可通过 `X-Request-ID` 关联。普通日志不记录请求体、响应体、Prompt、正文、header、cookie、密钥或数据库凭据。Fact 查询固定 accepted；`status=candidate` 会返回 422。Context 查询只读取当前章之前可见的 accepted 事实。
 
 工作流目前是同步执行：启动返回 201，只有在完成、进入人工复核或显式暂停后才返回；resume 返回 200。没有后台队列，因此不返回 202。
+
+## M7 容器运行
+
+`storyforge-api` 从 Settings 读取 host、port、log level 与 text/JSON 格式，并用 Uvicorn factory 启动。`/health` 不访问数据库、LLM 或 embedding provider；`/api/v1/ready` 执行数据库 ping 并要求 migration revision 等于 `e8b4a2f7c913`，过期 schema 返回统一 503 `database_not_ready`。
+
+Compose 只向 `127.0.0.1:8000` 发布 API。当前没有认证或授权，不能将端口直接暴露公网。生产部署还需外部 TLS、反向代理、访问控制、密钥管理、限流和备份策略。
+
+## M8 Memory、Retrieval 与 Graph
+
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| POST | `/api/v1/projects/{project_id}/retrieval/search` | 四路混合检索；返回分路计数、degraded reason、来源解释，不返回向量 |
+| GET | `/api/v1/projects/{project_id}/memory` | accepted、过去有效 memory 分页列表；默认仅 preview |
+| GET | `/api/v1/projects/{project_id}/memory/{memory_id}` | memory 详情；正文需 `include_content=true` |
+| GET | `/api/v1/projects/{project_id}/memory/status` | 索引状态、attempt 和计数 |
+| POST | `/api/v1/projects/{project_id}/memory/reindex` | 幂等重建 accepted 版本索引 |
+| GET | `/api/v1/projects/{project_id}/graph/entities` | accepted 实体列表 |
+| GET | `/api/v1/projects/{project_id}/graph/entities/{entity_id}` | 实体详情 |
+| GET | `/api/v1/projects/{project_id}/graph/relations` | 按章节边界过滤关系 |
+| GET | `/api/v1/projects/{project_id}/graph/neighbors` | 最多 2 hops 的去循环邻居查询 |
+
+`debug=true` 默认禁用；生产强制 reindex 被拒绝。所有路由只适配参数并调用 Application Service。普通响应不包含 embedding 数组、完整 prompt 或默认正文。
+
+## M9 Web proxy 与契约生成
+
+`scripts/export_openapi.py` 从 `create_app()` 导出 `docs/openapi.json`，frontend 的 `openapi-typescript` 生成严格路径/请求/响应类型；CI 重新生成并要求 Git diff 为空。浏览器不直接持有 API origin，只访问同源 `/backend`。Next.js server proxy 使用固定、仅服务端可见的上游，保留 query 与 request ID，限制 header 和 1 MiB body，不转发 cookie 或任意 host。
+
+Web client 对成功响应继续执行 Zod 校验；404、409、413、422、503、504 和 500 统一映射为可展示的安全错误。内部 URL、traceback、Prompt、正文、embedding 和凭据不进入错误详情。

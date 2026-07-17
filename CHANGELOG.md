@@ -6,6 +6,24 @@
 
 ### Added
 
+- M9：Next.js App Router + React + TypeScript strict Web 控制中心，覆盖项目、规划、章节、版本、评估、冲突、事实、工作流、Memory、Retrieval、Graph 与系统状态。
+- M9：OpenAPI 自动生成 TypeScript 类型、Zod 运行时响应校验、TanStack Query 缓存/失效/条件轮询和统一安全错误结构。
+- M9：同源 Next.js server proxy，固定内部 API 上游、请求大小限制、header allowlist、请求 ID 透传和 503/504 安全映射。
+- M9：Cytoscape 1/2-hop 图谱、服务端版本 diff、检索来源解释、accepted-only 事实视图和按需正文加载。
+- M9：Vitest/RTL 覆盖率门禁、四个独立 Playwright E2E 场景、axe 检查、Node 24 非 root 镜像、Compose frontend 服务和 CI job。
+- M9：PostgreSQL + pgvector + MockLLM/MockEmbedding `demo-m9`，返回安全 Web URL 与计数摘要。
+- M8：独立 EmbeddingProvider、确定性且无网络的 MockEmbedding，以及带批处理、维度校验、超时和脱敏异常的 OpenAI-compatible embedding provider。
+- M8：第七个 Alembic migration `e8b4a2f7c913`，在 PostgreSQL 启用 pgvector，新增 `memory_chunks`、`memory_index_records`、`graph_entities`、`graph_relations` 和 cosine HNSW 索引。
+- M8：accepted 版本的结构化切分、同步可重试索引、候选/拒绝/已替代/未来记忆隔离和重复 reindex 幂等。
+- M8：Keyword、Vector、Fact、Graph 四路检索、weighted RRF、内容去重、确定性重排、来源解释及 vector 失败降级。
+- M8：关系图谱 1/2 hop 查询、Memory/Graph/Hybrid REST API 与 CLI，以及 PostgreSQL + MockLLM + MockEmbedding `demo-m8`。
+- M7：Python 3.12.12 slim 多阶段、锁定依赖、UID 10001 非 root 的生产式 Dockerfile 与敏感文件隔离 `.dockerignore`。
+- M7：PostgreSQL 16、`pg_isready`、one-shot migration、精确 readiness 和 named volume 组成的 Docker Compose 启动链。
+- M7：development/test/production Settings、安全 CORS/Mock/开发密码校验、结构化 JSON 日志和数据库有界等待入口。
+- M7：第六个 Alembic migration `c7d4e1a2b9f0`，用跨 SQLite/PostgreSQL 部分唯一索引阻止同章节并发活跃工作流。
+- M7：真实 PostgreSQL marker 集成测试、GitHub Actions quality/postgres/docker jobs，以及 PostgreSQL + Mock `demo-m7`。
+- M7：Makefile、安全 clean、部署/冷启动文档、ADR 0006、CONTRIBUTING、SECURITY 与 CODE_OF_CONDUCT。
+
 - M0：Python 3.12 `src` 工程、FastAPI 健康检查、pytest/coverage/Ruff/mypy 门禁。
 - M1：十个基础 SQLAlchemy 2 领域模型、Pydantic v2 schema、repository、SQLite/PostgreSQL 配置与首个 Alembic 迁移。
 - M2：统一结构化 LLM provider、确定性 Mock、OpenAI-compatible provider、脱敏错误策略与版本化 PromptRegistry。
@@ -42,6 +60,13 @@
 
 ### Changed
 
+- Compose 启动链扩展为 PostgreSQL → migrate → API → frontend，并使用 internal network 阻止运行时容器访问公网；M9 不新增 migration。
+- README、架构、工作流、数据模型、评估、开发、部署、API、Memory/Retrieval/Graph、进度和 ADR 同步到 Milestone 9。
+- ContextBuilder 现在将 accepted、过去章节的 hybrid hits 纳入写作上下文；项目、当前章节大纲和 active StoryRule 是强制预算项，memory 始终最后加入。
+- Compose 与 PostgreSQL CI service 改用 `pgvector/pgvector:0.8.2-pg16-bookworm`；readiness 精确要求 M8 head `e8b4a2f7c913`。
+- readiness 从“返回当前 revision”加强为“数据库 revision 必须等于代码 migration head”，过期 schema 返回统一 503。
+- README、架构、数据模型、工作流、评估、开发、API、CLI、进度和发布元数据同步到 Milestone 7。
+
 - 项目状态增加 `planned`、`generating`、`failed`；章节状态增加生成与事实提取阶段状态，同时保留此前状态供后续里程碑使用。
 - README、架构、数据模型、开发、工作流与进度文档同步到 Milestone 3。
 - README、架构、数据模型、评估、开发、工作流、ADR 与进度文档同步到 Milestone 4。
@@ -51,6 +76,13 @@
 - README、API、CLI、架构、数据模型、评估、开发、工作流、ADR 与进度文档同步到 Milestone 6。
 
 ### Fixed
+
+- 修复 M8 验收中 active StoryRule 在极小上下文预算下可能被检索结果挤出的缺陷。
+- 修复 HybridRetriever 启用时小于 100 字符的 ContextBuilder 预算被下游检索 schema 拒绝的问题。
+- 修复 M7→M8 migration 测试的 downgrade 代码错位，以及 HybridRetriever 新去重语义对应的过期测试断言。
+- 修复测试环境 CLI 在应用显式 `--database` 参数前读取 Settings，导致安全的“test 必须显式数据库”校验误报的问题。
+- 修复仅依靠应用查询阻止同章节并发工作流的竞态窗口。
+- 修复 BuildKit cache mount 被构建层删除而造成 Docker build 失败的问题。
 
 - Writer 上下文不再暴露结局方向、角色秘密、未来章节摘要或由未来章节产生的事实。
 - FactExtractor 的 setup 更新会复用同一章节已有的计划伏笔，避免重复记录。

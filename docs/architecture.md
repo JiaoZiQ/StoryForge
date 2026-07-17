@@ -1,9 +1,11 @@
 # StoryForge 架构
 
-StoryForge 采用 Python 模块化单体和单向依赖，当前实现到 Milestone 6。
+StoryForge 采用 Python 模块化单体、独立 Web 控制面和单向依赖，当前实现到 Milestone 9。
 
 ```mermaid
 flowchart LR
+    Browser["Next.js browser UI"] --> Proxy["Next.js same-origin proxy"]
+    Proxy --> API
     CLI["Grouped CLI"] --> Application["Application Services"]
     API["FastAPI Routes"] --> Application
     Application --> Workflow["ChapterWorkflowService / LangGraph"]
@@ -108,4 +110,39 @@ checkpoint 与领域数据库分离：LangGraph SQLite 文件使用 `thread_id` 
 - 未接受版本事实永远不进入 ContextBuilder；接受版本与事实提升在同一事务。
 - 新版本更差时不会覆盖 WorkflowRun.best_version_id。
 
-设计取舍见 [decisions/0003-m4-rule-evaluation-history.md](decisions/0003-m4-rule-evaluation-history.md)、[decisions/0004-m5-durable-revision-workflow.md](decisions/0004-m5-durable-revision-workflow.md) 和 [decisions/0005-m6-application-interfaces.md](decisions/0005-m6-application-interfaces.md)。
+## M7 运行与部署边界
+
+```text
+postgres healthcheck
+  → migrate one-shot service: wait for connection → alembic upgrade head
+  → api: Uvicorn factory → /health + exact-head /api/v1/ready
+```
+
+Docker 镜像使用锁定依赖、多阶段构建和 UID/GID 10001 非 root 用户。应用进程不在 import time 连接数据库，也不默认迁移；Compose 让 migration 成为 API 的成功前置条件。SQLite 继续负责零依赖本地开发与 checkpoint，PostgreSQL 16 是 Compose 和跨数据库集成测试的关系数据库。
+
+Settings 对 development/test/production 分别校验。生产必须显式 PostgreSQL、非 Mock provider 和非开发密码；文本/JSON 日志写 stdout，HTTP 日志只记录 request ID、方法、路径、状态和耗时。当前部署没有认证、队列或多副本 checkpoint，不应直接暴露公网。
+
+设计取舍见 [decisions/0003-m4-rule-evaluation-history.md](decisions/0003-m4-rule-evaluation-history.md)、[decisions/0004-m5-durable-revision-workflow.md](decisions/0004-m5-durable-revision-workflow.md)、[decisions/0005-m6-application-interfaces.md](decisions/0005-m6-application-interfaces.md) 和 [decisions/0006-m7-container-postgres-delivery.md](decisions/0006-m7-container-postgres-delivery.md)。
+
+## M8 长期记忆与混合检索
+
+`embeddings` 是 embedding 调用的唯一出口；`memory` 负责切分、索引生命周期和状态隔离；`graph` 负责受控实体/关系抽取与最多 2 hops 查询；`retrieval` 负责四路召回、融合、去重和重排。API/CLI 只调用 `MemoryApplicationService`，不直接查询 ORM。
+
+```text
+accepted ChapterVersion
+  → MemoryIndexService
+  → structural chunks → EmbeddingProvider → PostgreSQL vector(64)
+  → rule-first graph extraction → graph entity/relation tables
+
+chapter outline → RetrievalQueryBuilder
+  → keyword + pgvector + accepted facts + graph
+  → weighted RRF → dedup → deterministic rerank → context budget
+```
+
+接受事务只创建 pending 索引并原子隐藏旧版本 memory；embedding 在事务外执行。provider 失败不会撤销已接受正文，而是把索引标为 failed，检索明确降级。ContextBuilder 始终保留项目、当前大纲和 active rules，memory 最后进入预算。详见 [memory.md](memory.md)、[retrieval.md](retrieval.md)、[graph.md](graph.md) 和 [ADR 0007](decisions/0007-m8-pgvector-hybrid-memory.md)。
+
+## M9 Web 边界
+
+`frontend` 是 FastAPI 的可视化适配器，不是新的领域层。页面 → TanStack Query hook → 统一 OpenAPI client → Next.js 同源 proxy → FastAPI route → Application Service；前端没有 ORM、provider 或工作流规则。OpenAPI 生成类型保证编译期路径/参数一致，Zod 校验运行时响应。正文只在显式 tab 请求；Facts、Memory、Graph 和 Context 的 accepted/过去章节过滤仍由 API/Repository 强制。
+
+Compose 使用 API、frontend 和无凭据 gateway 三个独立非 root 镜像。API/frontend 只连接 internal network；gateway 同时连接 internal 与 host ingress，只做两端口流式转发且不持有 provider key 或数据库 URL。frontend 只获得内部 API 地址，API 保持原有凭据边界。详见 [frontend.md](frontend.md) 和 [ADR 0008](decisions/0008-m9-web-control-center.md)。

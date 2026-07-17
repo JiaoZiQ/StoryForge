@@ -12,6 +12,7 @@ from storyforge.application import (
     ChapterApplicationService,
     DomainServiceFactory,
     EvaluationApplicationService,
+    MemoryApplicationService,
     PlanningApplicationService,
     ProjectApplicationService,
     SystemApplicationService,
@@ -102,9 +103,18 @@ def get_system_service(
     return SystemApplicationService(session_factory, settings)
 
 
+def get_memory_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+    factory: Annotated[DomainServiceFactory, Depends(get_domain_factory)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> MemoryApplicationService:
+    return MemoryApplicationService(session_factory, factory, settings)
+
+
 ProjectServiceDep = Annotated[ProjectApplicationService, Depends(get_project_service)]
 PlanningServiceDep = Annotated[PlanningApplicationService, Depends(get_planning_service)]
 ChapterServiceDep = Annotated[ChapterApplicationService, Depends(get_chapter_service)]
 EvaluationServiceDep = Annotated[EvaluationApplicationService, Depends(get_evaluation_service)]
 WorkflowServiceDep = Annotated[WorkflowApplicationService, Depends(get_workflow_service)]
 SystemServiceDep = Annotated[SystemApplicationService, Depends(get_system_service)]
+MemoryServiceDep = Annotated[MemoryApplicationService, Depends(get_memory_service)]

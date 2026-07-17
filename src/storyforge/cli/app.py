@@ -21,6 +21,9 @@ from storyforge.agents import (
     WriterAgent,
 )
 from storyforge.cli.m6 import configure_demo_m6_alias, configure_m6_commands
+from storyforge.cli.m7 import configure_m7_commands
+from storyforge.cli.m8 import configure_m8_commands
+from storyforge.cli.m9 import configure_m9_commands
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.demo import (
@@ -86,6 +89,12 @@ _GROUPED_COMMANDS = {
     "workflow",
     "demo",
     "demo-m6",
+    "demo-m7",
+    "demo-m8",
+    "demo-m9",
+    "memory",
+    "retrieval",
+    "graph",
 }
 
 
@@ -1161,6 +1170,9 @@ def _parser() -> argparse.ArgumentParser:
     demo_m5.set_defaults(handler=_demo_m5)
     configure_m6_commands(commands, plan)
     configure_demo_m6_alias(commands)
+    configure_m7_commands(commands)
+    configure_m8_commands(commands)
+    configure_m9_commands(commands)
     return parser
 
 

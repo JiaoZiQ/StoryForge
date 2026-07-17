@@ -16,6 +16,10 @@ from storyforge.enums import (
     ConflictType,
     EvaluationStatus,
     FactStatus,
+    GraphEntityType,
+    GraphPredicate,
+    MemoryIndexStatus,
+    MemoryStatus,
     ProjectStatus,
     WorkflowEventType,
     WorkflowRunStatus,
@@ -201,6 +205,7 @@ class ContextSummary(BaseModel):
     known_fact_count: int
     active_foreshadowing: list[str]
     previous_summary_count: int
+    memory_hit_count: int = 0
     metadata: dict[str, object]
     truncated_categories: list[str]
 
@@ -434,6 +439,7 @@ class DemoM6Response(BaseModel):
     plan_foreshadowing: int
     chapter: ChapterDetail
     versions: int
+    evaluations: int
     accepted_version: int
     final_score: float
     evaluation: DemoEvaluationSummary
@@ -446,6 +452,153 @@ class DemoM6Response(BaseModel):
     duplicate_evaluations: int
     duplicate_conflicts: int
     duplicate_facts: int
+
+
+class RetrievalSearchRequest(RequestModel):
+    query: str = Field(min_length=1, max_length=2_000)
+    current_chapter: int = Field(gt=0)
+    character_names: list[str] = Field(default_factory=list, max_length=50)
+    location_names: list[str] = Field(default_factory=list, max_length=50)
+    source_types: list[str] = Field(default_factory=list, max_length=20)
+    top_k: int = Field(default=20, ge=1, le=100)
+    max_context_chars: int = Field(default=16_000, ge=100, le=100_000)
+    include_sources: list[Literal["keyword", "vector", "fact", "graph"]] | None = None
+    debug: bool = False
+
+
+class RetrievalHitResponse(BaseModel):
+    id: int
+    source_type: str
+    content: str
+    score: float
+    sources: list[str]
+    chapter_number: int | None
+    version_id: int | None
+    entity_names: list[str]
+    relation_path: list[str]
+    explanation: str
+
+
+class RetrievalSearchResponse(BaseModel):
+    query: str
+    hits: list[RetrievalHitResponse]
+    total_candidates: int
+    keyword_candidates: int
+    vector_candidates: int
+    fact_candidates: int
+    graph_candidates: int
+    deduplicated_count: int
+    omitted_count: int
+    estimated_chars: int
+    retrieval_version: str
+    filters_applied: list[str]
+    degraded: bool
+    degraded_reasons: list[str]
+
+
+class MemorySummary(BaseModel):
+    id: int
+    project_id: int
+    chapter_id: int | None
+    chapter_version_id: int | None
+    source_type: str
+    source_id: str
+    chunk_index: int
+    content_preview: str
+    content_hash: str
+    token_estimate: int
+    character_count: int
+    embedding_provider: str
+    embedding_model: str
+    embedding_dimensions: int
+    status: MemoryStatus
+    valid_from_chapter: int
+    valid_to_chapter: int | None
+    created_at: datetime
+
+
+class MemoryDetail(MemorySummary):
+    content: str | None = None
+    metadata: dict[str, object]
+
+
+class MemoryReindexRequest(RequestModel):
+    chapter_version_id: int | None = Field(default=None, gt=0)
+    all_accepted_chapters: bool = False
+    force: bool = False
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> MemoryReindexRequest:
+        if (self.chapter_version_id is None) == (not self.all_accepted_chapters):
+            raise ValueError("Specify exactly one of chapter_version_id or all_accepted_chapters")
+        return self
+
+
+class MemoryReindexItem(BaseModel):
+    chapter_version_id: int
+    status: str
+    chunk_count: int
+    graph_entity_count: int
+    graph_relation_count: int
+    degraded: bool
+
+
+class MemoryReindexResponse(BaseModel):
+    project_id: int
+    results: list[MemoryReindexItem]
+
+
+class MemoryIndexStatusResponse(BaseModel):
+    id: int
+    project_id: int
+    chapter_version_id: int
+    status: MemoryIndexStatus
+    attempt_count: int
+    chunk_count: int
+    graph_entity_count: int
+    graph_relation_count: int
+    embedding_provider: str
+    embedding_model: str
+    embedding_dimensions: int
+    error_code: str | None
+
+
+class GraphEntityResponse(BaseModel):
+    id: int
+    project_id: int
+    entity_type: GraphEntityType
+    canonical_name: str
+    description: str | None
+    aliases: list[str]
+    confidence: float
+    status: MemoryStatus
+    source_chapter_id: int | None
+    source_version_id: int | None
+
+
+class GraphRelationResponse(BaseModel):
+    id: int
+    project_id: int
+    subject_entity_id: int
+    subject_name: str
+    predicate: GraphPredicate
+    object_entity_id: int
+    object_name: str
+    confidence: float
+    valid_from_chapter: int
+    valid_to_chapter: int | None
+    status: MemoryStatus
+    evidence: str
+    source_version_id: int | None
+
+
+class GraphNeighborsResponse(BaseModel):
+    project_id: int
+    entity_id: int
+    current_chapter: int
+    max_hops: int
+    entities: list[GraphEntityResponse]
+    relations: list[GraphRelationResponse]
 
 
 class ScoreRange(RequestModel):

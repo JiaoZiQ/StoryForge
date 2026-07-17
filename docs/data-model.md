@@ -134,12 +134,26 @@ open | ignored | resolved | false_positive
 - `facts`：subject/predicate/object、来源章节、有效区间、置信度和原文引句；M5 增加状态/版本隔离。
 - `foreshadowings`：setup、预期/实际 payoff 和状态。
 
-## 迁移
+## M8 Memory 与 Graph
+
+`MemoryChunk` 保存 project/source/chapter/version、chunk index、内容哈希、token/字符估算、`vector(64)` embedding、provider/model/dimensions、validity 和状态。公开查询固定为 `accepted`，且要求来源章节早于当前章节、有效期覆盖当前章节。`MemoryIndexRecord` 按版本/provider/model 唯一，记录 pending/indexing/completed/failed、attempt、计数与脱敏错误。
+
+`GraphEntity` 保存受控 entity type、canonical/normalized name、可选来源版本、置信度和状态；`GraphRelation` 保存受控 predicate、subject/object 外键、证据哈希、来源版本、validity 和状态。查询只返回 accepted、过去有效关系，neighbors 最多 2 hops 并按关系 ID 去重防止循环爆炸。
+
+PostgreSQL 使用 pgvector `vector(64)` 和 `vector_cosine_ops` HNSW。SQLite 使用 JSON 兼容列，仅支持 keyword/fact/graph 降级路径，不伪装执行向量相似度。
+
+## 迁移历史
 
 - `3d5c121d94ea`：M1 初始领域表。
 - `b550a962dc62`：M3 规划/生成字段、状态和 `chapter_versions`。
 - `ad6fd0f94186`：M4 Evaluation 明细、EvaluationIssue、Conflict、章节评估状态、人物知识和 StoryRule metadata。
 - `69c75316dd7e`：M5 版本/候选事实/工作流审计/比较字段和表，以及新状态。
 - `f2a6c8d91b04`：M6 项目输入、评估详情、冲突处理备注和 `created` 状态。
+- `c7d4e1a2b9f0`：M7 为 `workflow_runs(chapter_id)` 增加跨 SQLite/PostgreSQL 的部分唯一索引，仅覆盖 `pending`、`running`、`paused`，从数据库层阻止同章节并发活跃工作流。
+- `e8b4a2f7c913`：M8 启用 PostgreSQL `vector` extension，新增 memory/index/graph 表和 cosine HNSW；SQLite 使用兼容 JSON 列且不创建向量索引。
 
-M5 migration 不修改旧 migration。它支持空库 upgrade head，也会把已有 M4 Chapter 正文安全迁入首个 accepted ChapterVersion，把已有 Fact/Evaluation/Conflict 关联到该版本并计算事实哈希。测试覆盖从 M4 升级、降级到 M4、全链 downgrade base 和再次 upgrade head。
+## M9 数据模型说明
+
+M9 没有新增表、字段或 Alembic revision。Web UI 只消费 M6–M8 的公共 projection；列表默认无正文，Evaluation/Conflict 仍绑定 ChapterVersion，Fact/Memory/Graph 仍由 accepted 状态和章节有效期约束。TanStack Query 缓存不是持久化事实来源，刷新后必须从 API 重建。
+
+所有后续 migration 都不修改旧 revision。迁移支持空 SQLite/PostgreSQL upgrade head；已有 M4/M5/M6 数据分别由后续 revision 安全升级。模型使用非原生字符串 Enum、SQLAlchemy JSON、timezone-aware DateTime、数据库外键和约束，PostgreSQL 专项测试覆盖 JSON、Enum、boolean、时间、级联、回滚、分页、排序、候选事实隔离和幂等唯一键。
