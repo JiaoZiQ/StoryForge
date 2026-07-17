@@ -102,3 +102,17 @@ uv run storyforge demo-m4 --database .\storyforge-m4-demo.sqlite3 --reset
 - 数据库反查：2 条 completed Evaluation、3 条 EvaluationIssue、2 条 Conflict，原始分、权重分、evaluator version、prompt version 均存在，provider 均为 mock。
 - README 的创建/规划/生成/评估、评估历史、冲突过滤/状态更新、M3/M4 demo 和真实 Uvicorn `/health` 命令均执行成功。
 - 网络阻断、未来事实、作者秘密和日志正文隔离由集成测试验证。该段为 M4 历史验收记录。
+
+## Milestone 7：Docker、PostgreSQL 与工程交付
+
+状态：实现完成，最终门禁与冷启动实测通过。
+
+- Python 3.12.12 slim 多阶段镜像，锁定 uv 依赖，UID/GID 10001 非 root，默认 exec-form `storyforge-api`。
+- Compose 使用 PostgreSQL 16 named volume、`pg_isready`、one-shot migrate 和 readiness health gate；重复迁移与 API 重启保留数据。
+- Settings 区分 development/test/production，生产拒绝 SQLite、Mock、开发密码和 credentialed wildcard CORS。
+- 新 migration `c7d4e1a2b9f0` 用部分唯一索引保证同章节仅一个活跃工作流；readiness 要求精确 head。
+- PostgreSQL 专项测试覆盖 migration、Alembic check、JSON/Enum/timezone/boolean、事务回滚、级联、分页排序、Fact 隔离、工作流/API/demo 幂等。
+- GitHub Actions 分为 quality、postgres-tests、docker-build，全部使用 MockLLM 和锁文件，不需要真实 API Key。
+- `demo-m7` 使用当前 PostgreSQL 创建唯一项目、修订一次并验证 accepted facts、未来边界和四类重复计数。
+- Docker/Compose、部署、贡献、安全、行为准则、MIT License 和新电脑冷启动文档已补齐。
+- 最终全量运行收集 228 项（含真实 PostgreSQL marker），228 passed；分支覆盖率 90.01%，Ruff、strict mypy、Alembic check、Docker build 和 Compose 冷启动均通过。

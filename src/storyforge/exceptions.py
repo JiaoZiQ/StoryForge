@@ -9,6 +9,10 @@ class ConfigurationError(StoryForgeError):
     """Raised when application configuration is unsafe or incomplete."""
 
 
+class DatabaseNotReadyError(StoryForgeError):
+    """Raised when the database is reachable but has not reached migration head."""
+
+
 class EntityNotFoundError(StoryForgeError):
     """Raised when a requested project or chapter does not exist."""
 

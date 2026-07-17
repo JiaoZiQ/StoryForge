@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+env:
+  UV_LOCKED: "1"
+  UV_NO_PROGRESS: "1"
+
+jobs:
+  quality:
+    name: Python 3.12 quality and SQLite tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@088c4056d3c1274cc0da42f5789a66017e8e0cd0 # v8.1.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-groups
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy src
+      - run: uv run pytest -m "not postgres"
+
+  postgres-tests:
+    name: PostgreSQL 16 migrations and integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-bookworm
+        env:
+          POSTGRES_USER: storyforge
+          POSTGRES_PASSWORD: storyforge-ci-test-only
+          POSTGRES_DB: storyforge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U storyforge -d storyforge_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://storyforge:storyforge-ci-test-only@127.0.0.1:5432/storyforge_test
+      STORYFORGE_DATABASE_URL: postgresql+psycopg://storyforge:storyforge-ci-test-only@127.0.0.1:5432/storyforge_test
+      STORYFORGE_POSTGRES_TEST_URL: postgresql+psycopg://storyforge:storyforge-ci-test-only@127.0.0.1:5432/storyforge_test
+      STORYFORGE_ENVIRONMENT: test
+      STORYFORGE_LLM_PROVIDER: mock
+      STORYFORGE_MOCK_MODE: "true"
+      STORYFORGE_CHECKPOINT_PATH: /tmp/storyforge-ci-checkpoints.sqlite3
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@088c4056d3c1274cc0da42f5789a66017e8e0cd0 # v8.1.0
+        with:
+          enable-cache: true
+      - run: uv sync --locked --all-groups
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check
+      - run: uv run pytest -m postgres --no-cov
+
+  docker-build:
+    name: Build and inspect the production image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker build --tag storyforge:ci .
+      - run: docker run --rm storyforge:ci storyforge --help
+      - run: docker run --rm storyforge:ci python --version
+      - run: docker run --rm storyforge:ci python -c "import storyforge; print(storyforge.__version__)"
+      - run: test "$(docker run --rm storyforge:ci id -u)" != "0"

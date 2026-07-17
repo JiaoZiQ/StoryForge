@@ -51,10 +51,13 @@
 - 完整 REST API、Application Service、依赖注入、统一异常映射、请求 ID、分页和 OpenAPI。
 - 分组 CLI、`demo-m6`、API/CLI/迁移集成测试，以及 accepted Fact/版本数据隔离。
 
-## Milestone 7：Docker 与完整文档（未开始）
+## Milestone 7：Docker 与完整文档（已完成）
 
-- Dockerfile、Docker Compose、PostgreSQL 服务。
-- 完整使用、部署和演示文档。
+- Python 3.12 多阶段非 root Dockerfile、`.dockerignore` 和锁定生产依赖。
+- PostgreSQL 16、独立 migration service、health/readiness 门禁和 named volume 的 Docker Compose。
+- development/test/production Settings、结构化脱敏日志、有限数据库等待和一键命令。
+- PostgreSQL migration/API/workflow/demo 专项测试与 quality/postgres/docker 三段 CI。
+- PostgreSQL + MockLLM `demo-m7`、冷启动、部署、安全、贡献、许可证和最终限制文档。
 
 ## 后续方向
 

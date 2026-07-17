@@ -54,7 +54,7 @@ def _services(args: argparse.Namespace) -> Iterator[_Services]:
     database = Path(args.database).expanduser().resolve()
     database_url = f"sqlite:///{database.as_posix()}"
     _upgrade(database_url)
-    configured = Settings.from_env()
+    configured = Settings.from_env({**os.environ, "STORYFORGE_DATABASE_URL": database_url})
     settings = configured.model_copy(
         update={
             "database_url": database_url,

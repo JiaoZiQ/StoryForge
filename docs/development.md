@@ -145,3 +145,29 @@ uv run storyforge evaluate-chapter --database .\debug.db --project-id 1 --chapte
 - Prompt 请求可在 Mock 的 `requests` 中检查，确保只包含显式 CriticContext。
 - 不把真实密钥、正文、SQLite 文件或带凭据 URL 提交到仓库。
 - checkpoint 文件按字节检查不包含完整正文或 `sk-` 密钥；WorkflowEvent 响应不包含正文/Payload/Prompt。
+
+## Milestone 7 本地与容器开发
+
+锁定安装：
+
+```powershell
+uv sync --locked --all-groups
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy src
+uv run pytest
+```
+
+Docker 路径：
+
+```powershell
+docker compose config
+docker compose up --build -d
+docker compose exec api alembic check
+docker compose exec api storyforge demo-m7 --output json
+docker compose down
+```
+
+PostgreSQL marker 只在 `STORYFORGE_POSTGRES_TEST_URL` 存在时运行，并强制数据库名以 `_test` 结尾。该测试会清空测试数据库，绝不能指向开发或生产数据库。完整命令和 PowerShell/macOS/Linux 差异见 README 与 [deployment.md](deployment.md)。
+
+`scripts/wait_for_db.py` 和 `storyforge-wait-for-db` 使用实际 `SELECT 1`、有限重试和可配置间隔，不使用固定启动 sleep。`make clean` 只清理工具缓存、coverage 与构建目录；删除 Compose volume 必须显式 `make docker-reset`。

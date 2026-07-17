@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from storyforge.api.app import create_app
 from storyforge.api.dependencies import get_project_service
 from storyforge.llm.exceptions import LLMConfigurationError, LLMTimeoutError
+from storyforge.migrations import MIGRATION_HEAD
 from storyforge.settings import Settings
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -74,7 +75,7 @@ def test_complete_api_path_is_typed_paginated_and_future_safe(
     assert health.json() == {"status": "ok", "service": "storyforge", "version": "0.1.0"}
     assert ready.status_code == 200
     assert ready.headers["x-request-id"] == request_id
-    assert ready.json()["migration_revision"] == "f2a6c8d91b04"
+    assert ready.json()["migration_revision"] == MIGRATION_HEAD
 
     project_id = _create_project(api_client)
     listing = api_client.get("/api/v1/projects?page=1&page_size=1&sort=title&order=asc")

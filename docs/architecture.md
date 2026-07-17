@@ -1,6 +1,6 @@
 # StoryForge 架构
 
-StoryForge 采用 Python 模块化单体和单向依赖，当前实现到 Milestone 6。
+StoryForge 采用 Python 模块化单体和单向依赖，当前实现到 Milestone 7。
 
 ```mermaid
 flowchart LR
@@ -108,4 +108,16 @@ checkpoint 与领域数据库分离：LangGraph SQLite 文件使用 `thread_id` 
 - 未接受版本事实永远不进入 ContextBuilder；接受版本与事实提升在同一事务。
 - 新版本更差时不会覆盖 WorkflowRun.best_version_id。
 
-设计取舍见 [decisions/0003-m4-rule-evaluation-history.md](decisions/0003-m4-rule-evaluation-history.md)、[decisions/0004-m5-durable-revision-workflow.md](decisions/0004-m5-durable-revision-workflow.md) 和 [decisions/0005-m6-application-interfaces.md](decisions/0005-m6-application-interfaces.md)。
+## M7 运行与部署边界
+
+```text
+postgres healthcheck
+  → migrate one-shot service: wait for connection → alembic upgrade head
+  → api: Uvicorn factory → /health + exact-head /api/v1/ready
+```
+
+Docker 镜像使用锁定依赖、多阶段构建和 UID/GID 10001 非 root 用户。应用进程不在 import time 连接数据库，也不默认迁移；Compose 让 migration 成为 API 的成功前置条件。SQLite 继续负责零依赖本地开发与 checkpoint，PostgreSQL 16 是 Compose 和跨数据库集成测试的关系数据库。
+
+Settings 对 development/test/production 分别校验。生产必须显式 PostgreSQL、非 Mock provider 和非开发密码；文本/JSON 日志写 stdout，HTTP 日志只记录 request ID、方法、路径、状态和耗时。当前部署没有认证、队列或多副本 checkpoint，不应直接暴露公网。
+
+设计取舍见 [decisions/0003-m4-rule-evaluation-history.md](decisions/0003-m4-rule-evaluation-history.md)、[decisions/0004-m5-durable-revision-workflow.md](decisions/0004-m5-durable-revision-workflow.md)、[decisions/0005-m6-application-interfaces.md](decisions/0005-m6-application-interfaces.md) 和 [decisions/0006-m7-container-postgres-delivery.md](decisions/0006-m7-container-postgres-delivery.md)。

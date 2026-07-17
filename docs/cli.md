@@ -53,3 +53,15 @@ M3–M5 的扁平命令仍保留兼容，包括 `create-project`、`generate-cha
 CLI 不打印 traceback、Prompt、完整 provider 错误或密钥。演示固定使用 MockLLM、临时 SQLite 且不访问网络。
 
 普通分组命令读取与 API 相同的 `STORYFORGE_LLM_PROVIDER`、model、base URL、timeout、retry 和 key 环境配置；未设置时默认 Mock。数据库仍使用命令显式给出的本地 `--database` 路径。`demo m6`/`demo-m6` 无论外部 provider 配置如何都固定使用离线 Mock。
+
+## Milestone 7 部署命令
+
+```powershell
+uv run storyforge-wait-for-db
+uv run storyforge-migrate
+uv run storyforge-api
+docker compose exec api storyforge demo-m7 --output human
+docker compose exec api storyforge demo-m7 --output json
+```
+
+`demo-m7` 与临时 SQLite 的 `demo-m6` 不同：它要求当前 `STORYFORGE_DATABASE_URL` 是已迁移到 head 的 PostgreSQL，强制 Mock 模式，并创建唯一项目。JSON 输出是单一标准文档，包含 backend、revision、workflow/版本/评估/冲突/fact 计数，以及候选、未来和重复计数。

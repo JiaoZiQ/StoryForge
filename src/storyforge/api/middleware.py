@@ -42,12 +42,14 @@ def install_http_middleware(app: FastAPI, settings: Settings) -> None:
         if settings.enable_http_logging and request.url.path != "/health":
             duration_ms = max(0, round((perf_counter() - started) * 1000))
             logger.info(
-                "http_request method=%s path=%s status=%s duration_ms=%s request_id=%s",
-                request.method,
-                request.url.path,
-                response.status_code,
-                duration_ms,
-                request_id,
+                "http_request",
+                extra={
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": response.status_code,
+                    "duration_ms": duration_ms,
+                    "request_id": request_id,
+                },
             )
         return response
 

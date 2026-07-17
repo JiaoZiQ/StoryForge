@@ -89,3 +89,7 @@ RevisionAgent 通过 `revision.system`/`revision.user` v1 Prompt 接收当前来
 - 达到最大轮次返回 `human_review`。
 
 VersionComparison 保存完整维度、分差、问题变化、decision、confidence 和理由，便于复盘每次接受/拒绝。
+
+## M7 部署说明
+
+M7 不改变任何评估、冲突、评分或接受语义。PostgreSQL 集成与 `demo-m7` 复用同一 EvaluationService，确认两次评估绑定两个 ChapterVersion、候选/未来事实不可见且版本、评估、冲突和正式事实重复数均为 0。日志仍只记录元数据，不记录机械证据中的整章正文或 Critic Prompt。

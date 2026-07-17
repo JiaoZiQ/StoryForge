@@ -1,0 +1,74 @@
+name: storyforge
+
+x-app-environment: &app-environment
+  STORYFORGE_ENVIRONMENT: development
+  STORYFORGE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-storyforge}:${POSTGRES_PASSWORD:-storyforge-dev-only}@postgres:5432/${POSTGRES_DB:-storyforge_dev}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-storyforge}:${POSTGRES_PASSWORD:-storyforge-dev-only}@postgres:5432/${POSTGRES_DB:-storyforge_dev}
+  STORYFORGE_LLM_PROVIDER: mock
+  STORYFORGE_LLM_MODEL: mock-storyforge-v1
+  STORYFORGE_MOCK_MODE: "true"
+  STORYFORGE_AUTO_MIGRATE: "false"
+  STORYFORGE_LOG_LEVEL: INFO
+  STORYFORGE_LOG_FORMAT: text
+  STORYFORGE_DATABASE_WAIT_ATTEMPTS: "60"
+  STORYFORGE_DATABASE_WAIT_INTERVAL_SECONDS: "1"
+  STORYFORGE_CHECKPOINT_PATH: /tmp/storyforge/checkpoints.sqlite3
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-storyforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-storyforge-dev-only}
+      POSTGRES_DB: ${POSTGRES_DB:-storyforge_dev}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-54329}:5432"
+    volumes:
+      - storyforge_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  migrate:
+    image: storyforge:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["storyforge-migrate"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: storyforge:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      <<: *app-environment
+      STORYFORGE_API_HOST: 0.0.0.0
+      STORYFORGE_API_PORT: "8000"
+      STORYFORGE_HEALTHCHECK_PATH: /api/v1/ready
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${STORYFORGE_API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "storyforge-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  storyforge_postgres_data:

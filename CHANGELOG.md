@@ -6,6 +6,13 @@
 
 ### Added
 
+- M7：Python 3.12.12 slim 多阶段、锁定依赖、UID 10001 非 root 的生产式 Dockerfile 与敏感文件隔离 `.dockerignore`。
+- M7：PostgreSQL 16、`pg_isready`、one-shot migration、精确 readiness 和 named volume 组成的 Docker Compose 启动链。
+- M7：development/test/production Settings、安全 CORS/Mock/开发密码校验、结构化 JSON 日志和数据库有界等待入口。
+- M7：第六个 Alembic migration `c7d4e1a2b9f0`，用跨 SQLite/PostgreSQL 部分唯一索引阻止同章节并发活跃工作流。
+- M7：真实 PostgreSQL marker 集成测试、GitHub Actions quality/postgres/docker jobs，以及 PostgreSQL + Mock `demo-m7`。
+- M7：Makefile、安全 clean、部署/冷启动文档、ADR 0006、CONTRIBUTING、SECURITY 与 CODE_OF_CONDUCT。
+
 - M0：Python 3.12 `src` 工程、FastAPI 健康检查、pytest/coverage/Ruff/mypy 门禁。
 - M1：十个基础 SQLAlchemy 2 领域模型、Pydantic v2 schema、repository、SQLite/PostgreSQL 配置与首个 Alembic 迁移。
 - M2：统一结构化 LLM provider、确定性 Mock、OpenAI-compatible provider、脱敏错误策略与版本化 PromptRegistry。
@@ -42,6 +49,9 @@
 
 ### Changed
 
+- readiness 从“返回当前 revision”加强为“数据库 revision 必须等于代码 migration head”，过期 schema 返回统一 503。
+- README、架构、数据模型、工作流、评估、开发、API、CLI、进度和发布元数据同步到 Milestone 7。
+
 - 项目状态增加 `planned`、`generating`、`failed`；章节状态增加生成与事实提取阶段状态，同时保留此前状态供后续里程碑使用。
 - README、架构、数据模型、开发、工作流与进度文档同步到 Milestone 3。
 - README、架构、数据模型、评估、开发、工作流、ADR 与进度文档同步到 Milestone 4。
@@ -51,6 +61,10 @@
 - README、API、CLI、架构、数据模型、评估、开发、工作流、ADR 与进度文档同步到 Milestone 6。
 
 ### Fixed
+
+- 修复测试环境 CLI 在应用显式 `--database` 参数前读取 Settings，导致安全的“test 必须显式数据库”校验误报的问题。
+- 修复仅依靠应用查询阻止同章节并发工作流的竞态窗口。
+- 修复 BuildKit cache mount 被构建层删除而造成 Docker build 失败的问题。
 
 - Writer 上下文不再暴露结局方向、角色秘密、未来章节摘要或由未来章节产生的事实。
 - FactExtractor 的 setup 更新会复用同一章节已有的计划伏笔，避免重复记录。

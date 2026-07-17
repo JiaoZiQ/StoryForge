@@ -14,10 +14,12 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy import (
     Enum as SQLAlchemyEnum,
@@ -766,6 +768,13 @@ class WorkflowRun(EntityBase):
         CheckConstraint(
             "finished_at IS NULL OR finished_at >= started_at",
             name="workflow_finished_after_start",
+        ),
+        Index(
+            "uq_workflow_runs_active_chapter",
+            "chapter_id",
+            unique=True,
+            sqlite_where=text("status IN ('pending', 'running', 'paused')"),
+            postgresql_where=text("status IN ('pending', 'running', 'paused')"),
         ),
     )
 

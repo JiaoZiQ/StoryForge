@@ -434,6 +434,7 @@ class DemoM6Response(BaseModel):
     plan_foreshadowing: int
     chapter: ChapterDetail
     versions: int
+    evaluations: int
     accepted_version: int
     final_score: float
     evaluation: DemoEvaluationSummary

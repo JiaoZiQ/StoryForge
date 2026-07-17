@@ -141,5 +141,6 @@ open | ignored | resolved | false_positive
 - `ad6fd0f94186`：M4 Evaluation 明细、EvaluationIssue、Conflict、章节评估状态、人物知识和 StoryRule metadata。
 - `69c75316dd7e`：M5 版本/候选事实/工作流审计/比较字段和表，以及新状态。
 - `f2a6c8d91b04`：M6 项目输入、评估详情、冲突处理备注和 `created` 状态。
+- `c7d4e1a2b9f0`：M7 为 `workflow_runs(chapter_id)` 增加跨 SQLite/PostgreSQL 的部分唯一索引，仅覆盖 `pending`、`running`、`paused`，从数据库层阻止同章节并发活跃工作流。
 
-M5 migration 不修改旧 migration。它支持空库 upgrade head，也会把已有 M4 Chapter 正文安全迁入首个 accepted ChapterVersion，把已有 Fact/Evaluation/Conflict 关联到该版本并计算事实哈希。测试覆盖从 M4 升级、降级到 M4、全链 downgrade base 和再次 upgrade head。
+所有后续 migration 都不修改旧 revision。迁移支持空 SQLite/PostgreSQL upgrade head；已有 M4/M5/M6 数据分别由后续 revision 安全升级。模型使用非原生字符串 Enum、SQLAlchemy JSON、timezone-aware DateTime、数据库外键和约束，PostgreSQL 专项测试覆盖 JSON、Enum、boolean、时间、级联、回滚、分页、排序、候选事实隔离和幂等唯一键。
