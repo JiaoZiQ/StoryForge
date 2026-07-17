@@ -66,6 +66,22 @@ uv run uvicorn storyforge.api.app:create_app --factory --reload
 
 ## M7 容器运行
 
-`storyforge-api` 从 Settings 读取 host、port、log level 与 text/JSON 格式，并用 Uvicorn factory 启动。`/health` 不访问数据库或 LLM；`/api/v1/ready` 执行数据库 ping 并要求 migration revision 等于 `c7d4e1a2b9f0`，过期 schema 返回统一 503 `database_not_ready`。
+`storyforge-api` 从 Settings 读取 host、port、log level 与 text/JSON 格式，并用 Uvicorn factory 启动。`/health` 不访问数据库、LLM 或 embedding provider；`/api/v1/ready` 执行数据库 ping 并要求 migration revision 等于 `e8b4a2f7c913`，过期 schema 返回统一 503 `database_not_ready`。
 
 Compose 只向 `127.0.0.1:8000` 发布 API。当前没有认证或授权，不能将端口直接暴露公网。生产部署还需外部 TLS、反向代理、访问控制、密钥管理、限流和备份策略。
+
+## M8 Memory、Retrieval 与 Graph
+
+| 方法 | 路径 | 作用 |
+|---|---|---|
+| POST | `/api/v1/projects/{project_id}/retrieval/search` | 四路混合检索；返回分路计数、degraded reason、来源解释，不返回向量 |
+| GET | `/api/v1/projects/{project_id}/memory` | accepted、过去有效 memory 分页列表；默认仅 preview |
+| GET | `/api/v1/projects/{project_id}/memory/{memory_id}` | memory 详情；正文需 `include_content=true` |
+| GET | `/api/v1/projects/{project_id}/memory/status` | 索引状态、attempt 和计数 |
+| POST | `/api/v1/projects/{project_id}/memory/reindex` | 幂等重建 accepted 版本索引 |
+| GET | `/api/v1/projects/{project_id}/graph/entities` | accepted 实体列表 |
+| GET | `/api/v1/projects/{project_id}/graph/entities/{entity_id}` | 实体详情 |
+| GET | `/api/v1/projects/{project_id}/graph/relations` | 按章节边界过滤关系 |
+| GET | `/api/v1/projects/{project_id}/graph/neighbors` | 最多 2 hops 的去循环邻居查询 |
+
+`debug=true` 默认禁用；生产强制 reindex 被拒绝。所有路由只适配参数并调用 Application Service。普通响应不包含 embedding 数组、完整 prompt 或默认正文。

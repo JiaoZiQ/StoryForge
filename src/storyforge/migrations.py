@@ -1,3 +1,3 @@
 """Migration revision constants shared by readiness and deployment tooling."""
 
-MIGRATION_HEAD = "c7d4e1a2b9f0"
+MIGRATION_HEAD = "e8b4a2f7c913"

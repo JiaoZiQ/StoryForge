@@ -146,7 +146,7 @@ uv run storyforge evaluate-chapter --database .\debug.db --project-id 1 --chapte
 - 不把真实密钥、正文、SQLite 文件或带凭据 URL 提交到仓库。
 - checkpoint 文件按字节检查不包含完整正文或 `sk-` 密钥；WorkflowEvent 响应不包含正文/Payload/Prompt。
 
-## Milestone 7 本地与容器开发
+## Milestone 8 本地与容器开发
 
 锁定安装：
 
@@ -164,10 +164,20 @@ Docker 路径：
 docker compose config
 docker compose up --build -d
 docker compose exec api alembic check
-docker compose exec api storyforge demo-m7 --output json
+docker compose exec api storyforge demo-m8 --output json
 docker compose down
 ```
 
-PostgreSQL marker 只在 `STORYFORGE_POSTGRES_TEST_URL` 存在时运行，并强制数据库名以 `_test` 结尾。该测试会清空测试数据库，绝不能指向开发或生产数据库。完整命令和 PowerShell/macOS/Linux 差异见 README 与 [deployment.md](deployment.md)。
+PostgreSQL marker 只在 `STORYFORGE_POSTGRES_TEST_URL` 存在时运行，并强制数据库名以 `_test` 结尾。M8 必须使用带 `vector` extension 的 PostgreSQL 镜像；测试会清空测试数据库，绝不能指向开发或生产数据库。完整命令和 PowerShell/macOS/Linux 差异见 README 与 [deployment.md](deployment.md)。
+
+M8 聚焦测试：
+
+```powershell
+uv run pytest tests/unit/test_milestone8_embeddings_memory.py
+uv run pytest tests/unit/test_milestone8_graph_retrieval.py
+uv run pytest tests/integration/test_milestone8_memory_lifecycle.py
+uv run pytest tests/integration/test_milestone8_cli.py
+uv run pytest -m postgres --no-cov
+```
 
 `scripts/wait_for_db.py` 和 `storyforge-wait-for-db` 使用实际 `SELECT 1`、有限重试和可配置间隔，不使用固定启动 sleep。`make clean` 只清理工具缓存、coverage 与构建目录；删除 Compose volume 必须显式 `make docker-reset`。

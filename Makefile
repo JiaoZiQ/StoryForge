@@ -32,7 +32,7 @@ docker-up:
 	docker compose up --build -d
 
 docker-test:
-	docker compose exec api storyforge demo-m7 --output human
+	docker compose exec api storyforge demo-m8 --output human
 
 clean:
 	uv run python scripts/clean.py

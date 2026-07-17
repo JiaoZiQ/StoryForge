@@ -7,6 +7,7 @@ from enum import Enum as PythonEnum
 from typing import Any
 from uuid import uuid4
 
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -35,6 +36,10 @@ from storyforge.enums import (
     EvaluationStatus,
     FactStatus,
     ForeshadowingStatus,
+    GraphEntityType,
+    GraphPredicate,
+    MemoryIndexStatus,
+    MemoryStatus,
     ProjectStatus,
     WorkflowEventType,
     WorkflowRunStatus,
@@ -132,6 +137,15 @@ class Project(TimestampMixin, EntityBase):
         back_populates="project",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    memory_chunks: Mapped[list[MemoryChunk]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", passive_deletes=True
+    )
+    memory_index_records: Mapped[list[MemoryIndexRecord]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", passive_deletes=True
+    )
+    graph_entities: Mapped[list[GraphEntity]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", passive_deletes=True
     )
 
 
@@ -469,6 +483,317 @@ class ChapterVersion(EntityBase):
     conflicts: Mapped[list[Conflict]] = relationship(
         back_populates="chapter_version", passive_deletes=True
     )
+    memory_chunks: Mapped[list[MemoryChunk]] = relationship(
+        back_populates="chapter_version", cascade="all, delete-orphan", passive_deletes=True
+    )
+    memory_index_records: Mapped[list[MemoryIndexRecord]] = relationship(
+        back_populates="chapter_version", cascade="all, delete-orphan", passive_deletes=True
+    )
+    graph_entities: Mapped[list[GraphEntity]] = relationship(
+        back_populates="source_version", passive_deletes=True
+    )
+    graph_relations: Mapped[list[GraphRelation]] = relationship(
+        back_populates="source_version", passive_deletes=True
+    )
+
+
+class MemoryChunk(EntityBase):
+    """A bounded, version-aware semantic memory fragment."""
+
+    __tablename__ = "memory_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "source_type",
+            "source_id",
+            "chunk_index",
+            "content_hash",
+            name="memory_chunk_source_hash",
+        ),
+        CheckConstraint("chunk_index >= 0", name="memory_chunk_index_non_negative"),
+        CheckConstraint("token_estimate >= 0", name="memory_chunk_tokens_non_negative"),
+        CheckConstraint("character_count >= 0", name="memory_chunk_chars_non_negative"),
+        CheckConstraint("embedding_dimensions > 0", name="memory_chunk_dimensions_positive"),
+        CheckConstraint("valid_from_chapter > 0", name="memory_chunk_valid_from_positive"),
+        CheckConstraint(
+            "valid_to_chapter IS NULL OR valid_to_chapter >= valid_from_chapter",
+            name="memory_chunk_valid_range",
+        ),
+        Index(
+            "ix_memory_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ).ddl_if(dialect="postgresql"),
+    )
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    chapter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    chapter_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    source_type: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    source_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    token_estimate: Mapped[int] = mapped_column(nullable=False)
+    character_count: Mapped[int] = mapped_column(nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(
+        JSON().with_variant(VECTOR(64), "postgresql"), nullable=False
+    )
+    embedding_provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(200), nullable=False)
+    embedding_dimensions: Mapped[int] = mapped_column(nullable=False)
+    status: Mapped[MemoryStatus] = mapped_column(
+        SQLAlchemyEnum(
+            MemoryStatus,
+            name="memory_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=MemoryStatus.ACCEPTED,
+        index=True,
+        nullable=False,
+    )
+    valid_from_chapter: Mapped[int] = mapped_column(nullable=False)
+    valid_to_chapter: Mapped[int | None] = mapped_column(nullable=True)
+    details: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+
+    project: Mapped[Project] = relationship(back_populates="memory_chunks")
+    chapter_version: Mapped[ChapterVersion | None] = relationship(back_populates="memory_chunks")
+
+
+class MemoryIndexRecord(EntityBase):
+    """Auditable synchronous index attempt with explicit retry state."""
+
+    __tablename__ = "memory_index_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "chapter_version_id",
+            "embedding_provider",
+            "embedding_model",
+            name="memory_index_version",
+        ),
+        CheckConstraint("attempt_count >= 0", name="memory_index_attempt_non_negative"),
+        CheckConstraint("chunk_count >= 0", name="memory_index_chunks_non_negative"),
+    )
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    chapter_version_id: Mapped[int] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    status: Mapped[MemoryIndexStatus] = mapped_column(
+        SQLAlchemyEnum(
+            MemoryIndexStatus,
+            name="memory_index_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=MemoryIndexStatus.PENDING,
+        nullable=False,
+    )
+    embedding_provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    embedding_model: Mapped[str] = mapped_column(String(200), nullable=False)
+    embedding_dimensions: Mapped[int] = mapped_column(nullable=False)
+    attempt_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    chunk_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    graph_entity_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    graph_relation_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    project: Mapped[Project] = relationship(back_populates="memory_index_records")
+    chapter_version: Mapped[ChapterVersion] = relationship(back_populates="memory_index_records")
+
+
+class GraphEntity(EntityBase):
+    """A canonical project-scoped graph node backed by accepted story evidence."""
+
+    __tablename__ = "graph_entities"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "entity_type",
+            "normalized_name",
+            "disambiguation_key",
+            name="graph_entity_identity",
+        ),
+        CheckConstraint(
+            "confidence >= 0 AND confidence <= 1", name="graph_entity_confidence_range"
+        ),
+    )
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    entity_type: Mapped[GraphEntityType] = mapped_column(
+        SQLAlchemyEnum(
+            GraphEntityType,
+            name="graph_entity_type",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    canonical_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(200), index=True, nullable=False)
+    disambiguation_key: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_chapter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapters.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    source_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    status: Mapped[MemoryStatus] = mapped_column(
+        SQLAlchemyEnum(
+            MemoryStatus,
+            name="graph_entity_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=MemoryStatus.ACCEPTED,
+        index=True,
+        nullable=False,
+    )
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
+    aliases: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+
+    project: Mapped[Project] = relationship(back_populates="graph_entities")
+    source_version: Mapped[ChapterVersion | None] = relationship(back_populates="graph_entities")
+    outgoing_relations: Mapped[list[GraphRelation]] = relationship(
+        back_populates="subject_entity",
+        foreign_keys="GraphRelation.subject_entity_id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    incoming_relations: Mapped[list[GraphRelation]] = relationship(
+        back_populates="object_entity",
+        foreign_keys="GraphRelation.object_entity_id",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class GraphRelation(EntityBase):
+    """A bounded, explainable edge in the PostgreSQL-backed story graph."""
+
+    __tablename__ = "graph_relations"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "subject_entity_id",
+            "predicate",
+            "object_entity_id",
+            "source_version_id",
+            "evidence_hash",
+            name="graph_relation_evidence_identity",
+        ),
+        CheckConstraint(
+            "confidence >= 0 AND confidence <= 1", name="graph_relation_confidence_range"
+        ),
+        CheckConstraint("valid_from_chapter > 0", name="graph_relation_valid_from_positive"),
+        CheckConstraint(
+            "valid_to_chapter IS NULL OR valid_to_chapter >= valid_from_chapter",
+            name="graph_relation_valid_range",
+        ),
+        CheckConstraint(
+            "subject_entity_id != object_entity_id", name="graph_relation_distinct_nodes"
+        ),
+    )
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    subject_entity_id: Mapped[int] = mapped_column(
+        ForeignKey("graph_entities.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    predicate: Mapped[GraphPredicate] = mapped_column(
+        SQLAlchemyEnum(
+            GraphPredicate,
+            name="graph_predicate",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    object_entity_id: Mapped[int] = mapped_column(
+        ForeignKey("graph_entities.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    source_chapter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapters.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    source_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    valid_from_chapter: Mapped[int] = mapped_column(nullable=False)
+    valid_to_chapter: Mapped[int | None] = mapped_column(nullable=True)
+    status: Mapped[MemoryStatus] = mapped_column(
+        SQLAlchemyEnum(
+            MemoryStatus,
+            name="graph_relation_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=MemoryStatus.ACCEPTED,
+        index=True,
+        nullable=False,
+    )
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+
+    subject_entity: Mapped[GraphEntity] = relationship(
+        back_populates="outgoing_relations", foreign_keys=[subject_entity_id]
+    )
+    object_entity: Mapped[GraphEntity] = relationship(
+        back_populates="incoming_relations", foreign_keys=[object_entity_id]
+    )
+    source_version: Mapped[ChapterVersion | None] = relationship(back_populates="graph_relations")
 
 
 class Evaluation(EntityBase):

@@ -136,3 +136,53 @@ class EvaluationStatus(StrEnum):
 
     COMPLETED = "completed"
     PARTIAL_FAILED = "partial_failed"
+
+
+class MemoryStatus(StrEnum):
+    """Visibility lifecycle shared by chunks and graph records."""
+
+    CANDIDATE = "candidate"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+    DELETED = "deleted"
+
+
+class MemoryIndexStatus(StrEnum):
+    """Synchronous indexing state retained for retry and audit."""
+
+    PENDING = "pending"
+    INDEXING = "indexing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SUPERSEDED = "superseded"
+
+
+class GraphEntityType(StrEnum):
+    """Controlled entity categories for the relational story graph."""
+
+    CHARACTER = "character"
+    LOCATION = "location"
+    OBJECT = "object"
+    EVENT = "event"
+    SECRET = "secret"
+    FACTION = "faction"
+    RULE = "rule"
+    FORESHADOWING = "foreshadowing"
+    CHAPTER = "chapter"
+
+
+class GraphPredicate(StrEnum):
+    """Controlled graph edge predicates."""
+
+    APPEARS_IN = "APPEARS_IN"
+    LOCATED_AT = "LOCATED_AT"
+    KNOWS = "KNOWS"
+    OWNS = "OWNS"
+    MEMBER_OF = "MEMBER_OF"
+    CAUSED = "CAUSED"
+    PARTICIPATED_IN = "PARTICIPATED_IN"
+    FORESHADOWS = "FORESHADOWS"
+    REVEALS = "REVEALS"
+    CONFLICTS_WITH = "CONFLICTS_WITH"
+    RELATED_TO = "RELATED_TO"

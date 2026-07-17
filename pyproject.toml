@@ -27,6 +27,7 @@ dependencies = [
     "langgraph>=1.0,<2.0",
     "langgraph-checkpoint-sqlite>=3.0,<4.0",
     "openai>=2.11,<3.0",
+    "pgvector>=0.4,<1.0",
     "psycopg[binary]>=3.2,<4.0",
     "pydantic>=2.10,<3.0",
     "sqlalchemy>=2.0.40,<3.0",

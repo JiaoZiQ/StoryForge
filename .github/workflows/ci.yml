@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-bookworm
+        image: pgvector/pgvector:0.8.2-pg16-bookworm
         env:
           POSTGRES_USER: storyforge
           POSTGRES_PASSWORD: storyforge-ci-test-only
@@ -53,6 +53,9 @@ jobs:
       STORYFORGE_POSTGRES_TEST_URL: postgresql+psycopg://storyforge:storyforge-ci-test-only@127.0.0.1:5432/storyforge_test
       STORYFORGE_ENVIRONMENT: test
       STORYFORGE_LLM_PROVIDER: mock
+      STORYFORGE_EMBEDDING_PROVIDER: mock
+      STORYFORGE_EMBEDDING_MODEL: mock-hash-embedding-v1
+      STORYFORGE_EMBEDDING_DIMENSIONS: "64"
       STORYFORGE_MOCK_MODE: "true"
       STORYFORGE_CHECKPOINT_PATH: /tmp/storyforge-ci-checkpoints.sqlite3
     steps:
@@ -67,6 +70,8 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run alembic check
       - run: uv run pytest -m postgres --no-cov
+      - run: uv run alembic upgrade head
+      - run: uv run storyforge demo-m8 --output json
 
   docker-build:
     name: Build and inspect the production image
@@ -78,3 +83,4 @@ jobs:
       - run: docker run --rm storyforge:ci python --version
       - run: docker run --rm storyforge:ci python -c "import storyforge; print(storyforge.__version__)"
       - run: test "$(docker run --rm storyforge:ci id -u)" != "0"
+      - run: docker compose config --quiet

@@ -2,7 +2,7 @@
 
 ## Supported scope
 
-Milestone 7 提供可重复的单机 Docker Compose 开发/验收路径，不代表生产就绪。当前没有认证、队列、多副本共享 checkpoint、TLS、自动备份或高可用。
+Milestone 8 继续使用 M7 的单机 Docker Compose 路径，并把数据库镜像升级为 PostgreSQL 16 + pgvector 0.8.2。这不代表生产就绪；当前没有认证、队列、多副本共享 checkpoint、TLS、自动备份或高可用。
 
 ## Docker cold start
 
@@ -17,11 +17,11 @@ Invoke-RestMethod http://127.0.0.1:8000/health
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/ready
 Invoke-RestMethod http://127.0.0.1:8000/openapi.json
 docker compose exec api storyforge --help
-docker compose exec api storyforge demo-m7 --output json
+docker compose exec api storyforge demo-m8 --output json
 docker compose exec api id
 ```
 
-macOS/Linux 使用 `cp` 和 `curl`。成功状态应为 PostgreSQL healthy、migrate exited 0、API healthy；`id` 应显示 UID 10001。
+macOS/Linux 使用 `cp` 和 `curl`。成功状态应为 pgvector PostgreSQL healthy、migrate exited 0、API healthy；`id` 应显示 UID 10001。`SELECT extversion FROM pg_extension WHERE extname='vector'` 应返回 0.8.2。
 
 `docker compose down` 保留 `storyforge_postgres_data`。`docker compose down -v` 仅在明确需要永久删除本地开发数据时使用。
 
@@ -52,6 +52,10 @@ STORYFORGE_LLM_PROVIDER=openai-compatible
 STORYFORGE_LLM_MODEL=...
 STORYFORGE_LLM_BASE_URL=...
 STORYFORGE_LLM_API_KEY=...
+STORYFORGE_EMBEDDING_PROVIDER=openai-compatible
+STORYFORGE_EMBEDDING_MODEL=...
+STORYFORGE_EMBEDDING_BASE_URL=...
+STORYFORGE_EMBEDDING_API_KEY=...
 STORYFORGE_MOCK_MODE=false
 STORYFORGE_LOG_FORMAT=json
 STORYFORGE_ALLOWED_ORIGINS=https://trusted.example
@@ -66,6 +70,7 @@ STORYFORGE_ALLOWED_ORIGINS=https://trusted.example
 - `alembic current` 和 `alembic check` 用于发布前 schema 检查。
 - 结构化日志写 stdout/stderr，不在容器文件系统持久化。
 - named volume 需要部署者配置备份、恢复和容量监控。
+- memory 索引为同步、可重试流程；生产需要监控 `memory_index_records.status=failed`。
 
 ## Known limitations
 

@@ -111,6 +111,18 @@ class ForeshadowingContext(RequestModel):
     importance: str
 
 
+class MemoryContext(RequestModel):
+    """One accepted, past-only hybrid retrieval result for the writer."""
+
+    hit_id: EntityId
+    source_type: str
+    content: LongText
+    score: float = Field(ge=0, le=1)
+    source_routes: list[str] = Field(default_factory=list)
+    source_chapter: PositiveInt | None = None
+    explanation: str
+
+
 class ContextBudgetMetadata(RequestModel):
     """Auditable budget and omission information."""
 
@@ -121,6 +133,12 @@ class ContextBudgetMetadata(RequestModel):
     omitted_items: NonNegativeInt
     omitted_categories: list[str]
     mandatory_outline_exceeded_budget: bool = False
+    retrieval_version: str | None = None
+    retrieval_query: str | None = None
+    retrieval_hit_ids: list[int] = Field(default_factory=list)
+    retrieval_source_composition: dict[str, int] = Field(default_factory=dict)
+    retrieval_degraded: bool = False
+    retrieval_degraded_reasons: list[str] = Field(default_factory=list)
 
 
 class ChapterContext(RequestModel):
@@ -135,5 +153,6 @@ class ChapterContext(RequestModel):
     recent_chapters: list[RecentChapterContext] = Field(default_factory=list)
     known_facts: list[FactContext] = Field(default_factory=list)
     active_foreshadowing: list[ForeshadowingContext] = Field(default_factory=list)
+    memory_hits: list[MemoryContext] = Field(default_factory=list)
     author_secrets: list[str] = Field(default_factory=list)
     budget: ContextBudgetMetadata

@@ -116,3 +116,16 @@ uv run storyforge demo-m4 --database .\storyforge-m4-demo.sqlite3 --reset
 - `demo-m7` 使用当前 PostgreSQL 创建唯一项目、修订一次并验证 accepted facts、未来边界和四类重复计数。
 - Docker/Compose、部署、贡献、安全、行为准则、MIT License 和新电脑冷启动文档已补齐。
 - 最终全量运行收集 228 项（含真实 PostgreSQL marker），228 passed；分支覆盖率 90.01%，Ruff、strict mypy、Alembic check、Docker build 和 Compose 冷启动均通过。
+
+## Milestone 8：混合长期记忆与图谱检索
+
+状态：实现完成，独立 pgvector 冷启动验收通过。
+
+- 新增 EmbeddingProvider 抽象、确定性 MockEmbedding、OpenAI-compatible embedding 适配器和独立配置/密钥边界。
+- 新 migration `e8b4a2f7c913` 启用 pgvector 0.8.2，新增 `vector(64)` memory、索引审计、图实体/关系表与 cosine HNSW。
+- accepted ChapterVersion 自动创建同步索引；embedding 失败不回滚已接受正文，而是保存 failed 状态并允许重试。
+- MemoryChunk、GraphEntity 和 GraphRelation 均按状态、项目、章节有效期与版本过滤；重复 reindex 使用唯一约束和 upsert 保持幂等。
+- Keyword、Vector、Fact、Graph 四路召回通过 weighted RRF 融合、内容哈希/规范文本去重和确定性重排，并保留 matched sources 与解释。
+- ContextBuilder 将 hybrid memory 放在可选预算末尾，项目、当前大纲和 active rules 始终保留；vector 不可用时明确降级为 keyword + fact + graph。
+- REST API 和 CLI 提供 memory status/list/show/reindex、retrieval search、graph entities/relations/neighbors；默认不返回正文或 embedding 数组。
+- `demo-m8` 使用 PostgreSQL + MockLLM + MockEmbedding，第一章修订后接受 v2，索引并检索到第二章上下文，验证四种不可见状态和三类重复数均为 0。

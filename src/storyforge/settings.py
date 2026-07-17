@@ -38,6 +38,23 @@ class Settings(BaseModel):
     llm_max_retries: int = Field(default=2, ge=0, le=10)
     llm_repair_retries: int = Field(default=1, ge=0, le=5)
     llm_retry_base_delay_seconds: float = Field(default=0.5, ge=0, le=30)
+    embedding_provider: Literal["mock", "openai-compatible"] = "mock"
+    embedding_model: str = "mock-hash-embedding-v1"
+    embedding_base_url: str = "https://api.openai.com/v1"
+    embedding_api_key: SecretStr | None = Field(default=None, repr=False)
+    embedding_dimensions: int = Field(default=64, ge=2, le=4096)
+    embedding_batch_size: int = Field(default=32, ge=1, le=2048)
+    embedding_timeout_seconds: float = Field(default=30.0, gt=0, le=600)
+    embedding_max_retries: int = Field(default=2, ge=0, le=10)
+    vector_distance: Literal["cosine"] = "cosine"
+    retrieval_top_k: int = Field(default=20, ge=1, le=100)
+    retrieval_max_top_k: int = Field(default=100, ge=1, le=500)
+    retrieval_max_context_chars: int = Field(default=16_000, ge=500, le=100_000)
+    hybrid_keyword_weight: float = Field(default=0.20, ge=0, le=1)
+    hybrid_vector_weight: float = Field(default=0.35, ge=0, le=1)
+    hybrid_fact_weight: float = Field(default=0.25, ge=0, le=1)
+    hybrid_graph_weight: float = Field(default=0.20, ge=0, le=1)
+    retrieval_debug: bool = False
     mock_workflow_scenario: Literal["pass", "improve", "stagnate"] = "improve"
     mock_critic_scenario: Literal["normal", "death", "outline", "poor", "conflict"] = "normal"
     mock_mode: bool = True
@@ -73,6 +90,20 @@ class Settings(BaseModel):
             )
         if self.default_page_size > self.maximum_page_size:
             raise ConfigurationError("Default page size cannot exceed maximum page size")
+        if self.retrieval_top_k > self.retrieval_max_top_k:
+            raise ConfigurationError("Default retrieval top_k cannot exceed its maximum")
+        if self.embedding_dimensions != 64:
+            raise ConfigurationError("Embedding dimensions must match the database dimension 64")
+        hybrid_total = sum(
+            (
+                self.hybrid_keyword_weight,
+                self.hybrid_vector_weight,
+                self.hybrid_fact_weight,
+                self.hybrid_graph_weight,
+            )
+        )
+        if abs(hybrid_total - 1.0) > 1e-9:
+            raise ConfigurationError("Hybrid retrieval weights must sum to 1")
         database_url = make_url(normalize_database_url(self.database_url))
         if self.environment == "production" and database_url.get_backend_name() != "postgresql":
             raise ConfigurationError("Production must explicitly configure a PostgreSQL database")
@@ -82,6 +113,10 @@ class Settings(BaseModel):
             raise ConfigurationError("Production must explicitly configure a non-mock provider")
         if self.environment == "production" and self.mock_mode:
             raise ConfigurationError("Production must explicitly disable mock mode")
+        if self.environment == "production" and self.embedding_provider == "mock":
+            raise ConfigurationError(
+                "Production must explicitly configure a non-mock embedding provider"
+            )
         if self.llm_provider == "mock" and not self.mock_mode:
             raise ConfigurationError("Mock provider requires STORYFORGE_MOCK_MODE=true")
         if self.cors_allow_credentials and "*" in self.allowed_origins:
@@ -92,6 +127,18 @@ class Settings(BaseModel):
                 raise ConfigurationError("OpenAI-compatible provider requires an API key")
             if not self.llm_model or self.llm_model.startswith("replace-with"):
                 raise ConfigurationError("OpenAI-compatible provider requires a real model name")
+        if self.embedding_provider == "openai-compatible":
+            key = (
+                self.embedding_api_key.get_secret_value()
+                if self.embedding_api_key is not None
+                else ""
+            )
+            if not key:
+                raise ConfigurationError("OpenAI-compatible embedding provider requires an API key")
+            if not self.embedding_model or self.embedding_model.startswith("replace-with"):
+                raise ConfigurationError(
+                    "OpenAI-compatible embedding provider requires a real model name"
+                )
         return self
 
     @classmethod
@@ -113,6 +160,7 @@ class Settings(BaseModel):
             return default
 
         key_value = value("LLM_API_KEY", "OPENAI_API_KEY", "")
+        embedding_key_value = value("EMBEDDING_API_KEY", None, "")
         checkpoint = value("CHECKPOINT_PATH", None, "")
         environment_value = value("ENVIRONMENT", None, "development")
         if (
@@ -157,6 +205,31 @@ class Settings(BaseModel):
                         "LLM_RETRY_BASE_DELAY_SECONDS",
                         "0.5",
                     )
+                ),
+                embedding_provider=cast(
+                    Literal["mock", "openai-compatible"],
+                    value("EMBEDDING_PROVIDER", None, "mock"),
+                ),
+                embedding_model=value("EMBEDDING_MODEL", None, "mock-hash-embedding-v1"),
+                embedding_base_url=value("EMBEDDING_BASE_URL", None, "https://api.openai.com/v1"),
+                embedding_api_key=(SecretStr(embedding_key_value) if embedding_key_value else None),
+                embedding_dimensions=int(value("EMBEDDING_DIMENSIONS", None, "64")),
+                embedding_batch_size=int(value("EMBEDDING_BATCH_SIZE", None, "32")),
+                embedding_timeout_seconds=float(value("EMBEDDING_TIMEOUT", None, "30")),
+                embedding_max_retries=int(value("EMBEDDING_MAX_RETRIES", None, "2")),
+                vector_distance=cast(Literal["cosine"], value("VECTOR_DISTANCE", None, "cosine")),
+                retrieval_top_k=int(value("RETRIEVAL_TOP_K", None, "20")),
+                retrieval_max_top_k=int(value("RETRIEVAL_MAX_TOP_K", None, "100")),
+                retrieval_max_context_chars=int(
+                    value("RETRIEVAL_MAX_CONTEXT_CHARS", None, "16000")
+                ),
+                hybrid_keyword_weight=float(value("HYBRID_KEYWORD_WEIGHT", None, "0.20")),
+                hybrid_vector_weight=float(value("HYBRID_VECTOR_WEIGHT", None, "0.35")),
+                hybrid_fact_weight=float(value("HYBRID_FACT_WEIGHT", None, "0.25")),
+                hybrid_graph_weight=float(value("HYBRID_GRAPH_WEIGHT", None, "0.20")),
+                retrieval_debug=_boolean(
+                    value("RETRIEVAL_DEBUG", None, "false"),
+                    name="STORYFORGE_RETRIEVAL_DEBUG",
                 ),
                 mock_workflow_scenario=cast(
                     Literal["pass", "improve", "stagnate"],

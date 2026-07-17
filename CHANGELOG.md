@@ -6,6 +6,11 @@
 
 ### Added
 
+- M8：独立 EmbeddingProvider、确定性且无网络的 MockEmbedding，以及带批处理、维度校验、超时和脱敏异常的 OpenAI-compatible embedding provider。
+- M8：第七个 Alembic migration `e8b4a2f7c913`，在 PostgreSQL 启用 pgvector，新增 `memory_chunks`、`memory_index_records`、`graph_entities`、`graph_relations` 和 cosine HNSW 索引。
+- M8：accepted 版本的结构化切分、同步可重试索引、候选/拒绝/已替代/未来记忆隔离和重复 reindex 幂等。
+- M8：Keyword、Vector、Fact、Graph 四路检索、weighted RRF、内容去重、确定性重排、来源解释及 vector 失败降级。
+- M8：关系图谱 1/2 hop 查询、Memory/Graph/Hybrid REST API 与 CLI，以及 PostgreSQL + MockLLM + MockEmbedding `demo-m8`。
 - M7：Python 3.12.12 slim 多阶段、锁定依赖、UID 10001 非 root 的生产式 Dockerfile 与敏感文件隔离 `.dockerignore`。
 - M7：PostgreSQL 16、`pg_isready`、one-shot migration、精确 readiness 和 named volume 组成的 Docker Compose 启动链。
 - M7：development/test/production Settings、安全 CORS/Mock/开发密码校验、结构化 JSON 日志和数据库有界等待入口。
@@ -49,6 +54,8 @@
 
 ### Changed
 
+- ContextBuilder 现在将 accepted、过去章节的 hybrid hits 纳入写作上下文；项目、当前章节大纲和 active StoryRule 是强制预算项，memory 始终最后加入。
+- Compose 与 PostgreSQL CI service 改用 `pgvector/pgvector:0.8.2-pg16-bookworm`；readiness 精确要求 M8 head `e8b4a2f7c913`。
 - readiness 从“返回当前 revision”加强为“数据库 revision 必须等于代码 migration head”，过期 schema 返回统一 503。
 - README、架构、数据模型、工作流、评估、开发、API、CLI、进度和发布元数据同步到 Milestone 7。
 
@@ -62,6 +69,9 @@
 
 ### Fixed
 
+- 修复 M8 验收中 active StoryRule 在极小上下文预算下可能被检索结果挤出的缺陷。
+- 修复 HybridRetriever 启用时小于 100 字符的 ContextBuilder 预算被下游检索 schema 拒绝的问题。
+- 修复 M7→M8 migration 测试的 downgrade 代码错位，以及 HybridRetriever 新去重语义对应的过期测试断言。
 - 修复测试环境 CLI 在应用显式 `--database` 参数前读取 Settings，导致安全的“test 必须显式数据库”校验误报的问题。
 - 修复仅依靠应用查询阻止同章节并发工作流的竞态窗口。
 - 修复 BuildKit cache mount 被构建层删除而造成 Docker build 失败的问题。

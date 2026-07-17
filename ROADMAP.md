@@ -59,6 +59,16 @@
 - PostgreSQL migration/API/workflow/demo 专项测试与 quality/postgres/docker 三段 CI。
 - PostgreSQL + MockLLM `demo-m7`、冷启动、部署、安全、贡献、许可证和最终限制文档。
 
+## Milestone 8：混合长期记忆与图谱检索（已完成）
+
+- 独立 EmbeddingProvider、确定性 MockEmbedding 和 OpenAI-compatible embedding 适配器。
+- accepted ChapterVersion 的结构化切分、`vector(64)` 存储、cosine HNSW、索引状态与幂等重建。
+- PostgreSQL 关系表保存实体和受控关系；最多 2 hops，并按 accepted 状态与章节时间边界过滤。
+- Keyword、Vector、Fact、Graph 四路召回，weighted RRF 融合、内容去重、规则式重排和来源解释。
+- ContextBuilder 将 hybrid hits 放入第二章及后续上下文，同时强制保留项目、当前大纲和 active rules。
+- FastAPI/CLI memory、retrieval、graph 接口，以及 PostgreSQL + MockLLM + MockEmbedding `demo-m8`。
+- 第七个 Alembic migration `e8b4a2f7c913`，支持空库和已有 M7 数据升级。
+
 ## 后续方向
 
-第一版完成后再评估 Neo4j、pgvector、Redis、Celery、Web 前端、TTS、图片生成、PDF 与 ePub；这些不进入当前核心范围。
+后续里程碑再评估 Neo4j、Redis、Celery、Web 前端、TTS、图片生成、PDF 与 ePub；这些不进入当前核心范围。

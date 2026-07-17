@@ -174,7 +174,10 @@ def test_complete_api_path_is_typed_paginated_and_future_safe(
         for operation in path.values()
     ]
     assert len(operations) == len(set(operations))
-    assert len(openapi.json()["paths"]) == 26
+    assert len(openapi.json()["paths"]) == 35
+    assert "search_project_memory" in operations
+    assert "reindex_project_memory" in operations
+    assert "get_project_graph_neighbors" in operations
     assert all(
         operation.get("description")
         for path in openapi.json()["paths"].values()
@@ -291,6 +294,87 @@ def test_project_update_delete_and_request_limits(api_client: TestClient) -> Non
     )
     assert oversized.status_code == 413
     assert oversized.json()["error"] == "request_too_large"
+
+
+def test_milestone8_memory_retrieval_graph_and_context_routes_degrade_on_sqlite(
+    api_client: TestClient,
+) -> None:
+    project_id = _create_project(api_client, "Hybrid memory API")
+    _plan(api_client, project_id)
+    workflow = api_client.post(
+        f"/api/v1/projects/{project_id}/chapters/1/workflow",
+        json={"max_revision_attempts": 2},
+    )
+    assert workflow.status_code == 201
+    accepted_version_id = workflow.json()["accepted_version_id"]
+
+    status = api_client.get(f"/api/v1/projects/{project_id}/memory/status")
+    assert status.status_code == 200
+    assert status.json()["items"][0]["status"] == "completed"
+    memory = api_client.get(f"/api/v1/projects/{project_id}/memory?page_size=100")
+    assert memory.status_code == 200
+    assert memory.json()["meta"]["total_items"] > 0
+    assert '"embedding":' not in memory.text.casefold()
+    memory_id = memory.json()["items"][0]["id"]
+    hidden_content = api_client.get(f"/api/v1/projects/{project_id}/memory/{memory_id}")
+    assert hidden_content.json()["content"] is None
+    shown_content = api_client.get(
+        f"/api/v1/projects/{project_id}/memory/{memory_id}?include_content=true"
+    )
+    assert shown_content.json()["content"]
+
+    retrieval = api_client.post(
+        f"/api/v1/projects/{project_id}/retrieval/search",
+        json={
+            "query": "Mara brass key",
+            "current_chapter": 2,
+            "character_names": ["Mara"],
+            "top_k": 20,
+        },
+    )
+    assert retrieval.status_code == 200
+    assert retrieval.json()["degraded"] is True
+    assert retrieval.json()["degraded_reasons"] == ["vector_unavailable"]
+    assert retrieval.json()["hits"]
+    assert all(
+        item["chapter_number"] is None or item["chapter_number"] < 2
+        for item in retrieval.json()["hits"]
+    )
+    assert '"embedding":' not in retrieval.text.casefold()
+
+    entities = api_client.get(f"/api/v1/projects/{project_id}/graph/entities?page_size=100")
+    assert entities.status_code == 200
+    assert entities.json()["items"]
+    mara = next(item for item in entities.json()["items"] if item["canonical_name"] == "Mara")
+    relations = api_client.get(
+        f"/api/v1/projects/{project_id}/graph/relations",
+        params={"current_chapter": 2, "page_size": 100},
+    )
+    assert relations.status_code == 200
+    assert relations.json()["items"]
+    neighbors = api_client.get(
+        f"/api/v1/projects/{project_id}/graph/neighbors",
+        params={"entity_id": mara["id"], "current_chapter": 2, "max_hops": 2},
+    )
+    assert neighbors.status_code == 200
+    assert neighbors.json()["relations"]
+
+    reindex = api_client.post(
+        f"/api/v1/projects/{project_id}/memory/reindex",
+        json={"chapter_version_id": accepted_version_id},
+    )
+    assert reindex.status_code == 200
+    assert reindex.json()["results"][0]["status"] == "completed"
+    repeated = api_client.get(f"/api/v1/projects/{project_id}/memory?page_size=100")
+    assert repeated.json()["meta"]["total_items"] == memory.json()["meta"]["total_items"]
+
+    context = api_client.get(f"/api/v1/projects/{project_id}/chapters/2/context")
+    assert context.status_code == 200
+    assert context.json()["memory_hit_count"] > 0
+    assert context.json()["metadata"]["retrieval_degraded"] is True
+    assert context.json()["metadata"]["retrieval_query"]
+    assert context.json()["metadata"]["retrieval_hit_ids"]
+    assert context.json()["metadata"]["retrieval_source_composition"]
 
 
 class _FailingProjectService:

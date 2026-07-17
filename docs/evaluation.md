@@ -93,3 +93,5 @@ VersionComparison 保存完整维度、分差、问题变化、decision、confid
 ## M7 部署说明
 
 M7 不改变任何评估、冲突、评分或接受语义。PostgreSQL 集成与 `demo-m7` 复用同一 EvaluationService，确认两次评估绑定两个 ChapterVersion、候选/未来事实不可见且版本、评估、冲突和正式事实重复数均为 0。日志仍只记录元数据，不记录机械证据中的整章正文或 Critic Prompt。
+
+M8 同样不改变评分或通过条件。Evaluation 继续绑定具体 ChapterVersion；只有工作流接受版本后才建立公开 memory。机械/文学问题和冲突可以作为受状态保护的索引来源，但普通检索仍固定 accepted、过去章节边界，且不会在 API/CLI 暴露 embedding 数组或完整评审 Prompt。

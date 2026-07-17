@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,6 +23,7 @@ from storyforge.enums import (
     WorkflowRunStatus,
 )
 from storyforge.exceptions import EntityNotFoundError, InvalidStateError
+from storyforge.memory import MemoryIndexService
 from storyforge.models import (
     ChapterVersion,
     Conflict,
@@ -56,6 +58,8 @@ from storyforge.schemas.context import ChapterContext, ContextBuildRequest
 from storyforge.schemas.generation import FactExtractionRequest
 from storyforge.services.context_builder import ContextBuilder
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(frozen=True, slots=True)
 class VersionArtifact:
@@ -87,6 +91,7 @@ class ChapterVersionService:
         revision_agent: RevisionAgent,
         brief_builder: RevisionBriefBuilder,
         acceptance: AcceptanceEvaluator,
+        memory_index: MemoryIndexService | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._context_builder = context_builder
@@ -95,6 +100,7 @@ class ChapterVersionService:
         self._revision_agent = revision_agent
         self._brief_builder = brief_builder
         self._acceptance = acceptance
+        self._memory_index = memory_index
 
     def load_context(self, project_id: int, chapter_number: int) -> ChapterContext:
         """Delegate future-safe context construction to the existing ContextBuilder."""
@@ -521,6 +527,7 @@ class ChapterVersionService:
             if chapter is None or project is None or evaluation is None or not evaluation.passed:
                 raise InvalidStateError("Only a passing evaluated version can be accepted")
             if chapter.accepted_version_id and chapter.accepted_version_id != version.id:
+                previous_accepted_id = chapter.accepted_version_id
                 previous = ChapterVersionRepository(session).get(chapter.accepted_version_id)
                 if previous is not None:
                     previous.status = ChapterVersionStatus.SUPERSEDED
@@ -531,6 +538,8 @@ class ChapterVersionService:
                     )
                 ):
                     fact.status = FactStatus.SUPERSEDED
+                if self._memory_index is not None:
+                    self._memory_index.supersede_version_in_session(session, previous_accepted_id)
             for fact in FactRepository(session).list_for_version(version.id):
                 fact.status = FactStatus.ACCEPTED
             for fact in session.scalars(
@@ -594,6 +603,17 @@ class ChapterVersionService:
             if revision is not None:
                 revision.accepted = True
                 revision.status = "accepted"
+            if self._memory_index is not None:
+                self._memory_index.ensure_pending_in_session(session, project.id, version.id)
+        if self._memory_index is not None:
+            try:
+                self._memory_index.index_accepted_chapter_version(version_id)
+            except Exception:
+                logger.warning(
+                    "memory_index_persistence_failed version_id=%s",
+                    version_id,
+                )
+                self._memory_index.mark_version_failed(version_id, "index_persistence_error")
 
     def reject_revision(self, workflow_run_id: int, version_id: int) -> int:
         """Reject one candidate without deleting its text or evaluation history."""

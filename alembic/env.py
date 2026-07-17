@@ -16,6 +16,20 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _include_object(
+    object_: object,
+    name: str | None,
+    type_: str,
+    reflected: bool,
+    compare_to: object | None,
+) -> bool:
+    """Exclude the PostgreSQL-only HNSW index from SQLite comparisons."""
+    del object_, reflected, compare_to
+    if type_ == "index" and name == "ix_memory_chunks_embedding_hnsw":
+        return context.get_context().dialect.name == "postgresql"
+    return True
+
+
 def run_migrations_offline() -> None:
     """Generate SQL without opening a database connection."""
     database_url = get_database_url()
@@ -26,6 +40,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         render_as_batch=make_url(database_url).get_backend_name() == "sqlite",
+        include_object=_include_object,
     )
 
     with context.begin_transaction():
@@ -39,6 +54,7 @@ def _run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         compare_type=True,
         render_as_batch=connection.dialect.name == "sqlite",
+        include_object=_include_object,
     )
 
     with context.begin_transaction():

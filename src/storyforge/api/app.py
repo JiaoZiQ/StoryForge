@@ -62,8 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="StoryForge API",
         summary="Generate, evaluate, revise, and audit long-form story chapters.",
         description=(
-            "Milestone 7 packages synchronous application services behind a versioned REST API. "
-            "Chapter workflows complete before their 201 response; no background worker is implied."
+            "Milestone 8 adds accepted-only hybrid retrieval and a PostgreSQL relational graph "
+            "to the synchronous versioned REST API; no background worker is implied."
         ),
         version=__version__,
         lifespan=lifespan,
@@ -77,6 +77,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"name": "conflicts", "description": "Consistency conflict review."},
             {"name": "facts", "description": "Accepted canonical facts only."},
             {"name": "workflows", "description": "Durable synchronous workflows."},
+            {"name": "memory", "description": "Accepted semantic memory lifecycle."},
+            {"name": "retrieval", "description": "Explainable hybrid retrieval."},
+            {"name": "graph", "description": "Bounded relational story graph."},
         ],
     )
     install_http_middleware(application, configured)

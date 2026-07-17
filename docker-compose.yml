@@ -7,6 +7,9 @@ x-app-environment: &app-environment
   STORYFORGE_LLM_PROVIDER: mock
   STORYFORGE_LLM_MODEL: mock-storyforge-v1
   STORYFORGE_MOCK_MODE: "true"
+  STORYFORGE_EMBEDDING_PROVIDER: mock
+  STORYFORGE_EMBEDDING_MODEL: mock-hash-embedding-v1
+  STORYFORGE_EMBEDDING_DIMENSIONS: "64"
   STORYFORGE_AUTO_MIGRATE: "false"
   STORYFORGE_LOG_LEVEL: INFO
   STORYFORGE_LOG_FORMAT: text
@@ -16,7 +19,7 @@ x-app-environment: &app-environment
 
 services:
   postgres:
-    image: postgres:16-bookworm
+    image: pgvector/pgvector:0.8.2-pg16-bookworm
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-storyforge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-storyforge-dev-only}

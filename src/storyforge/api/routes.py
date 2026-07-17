@@ -1,4 +1,4 @@
-"""Thin HTTP routes for the Milestone 6 application services."""
+"""Thin HTTP routes for StoryForge application services through Milestone 8."""
 
 from __future__ import annotations
 
@@ -13,6 +13,8 @@ from storyforge.enums import (
     ConflictStatus,
     ConflictType,
     FactStatus,
+    GraphEntityType,
+    GraphPredicate,
     ProjectStatus,
 )
 from storyforge.schemas.api import (
@@ -29,7 +31,15 @@ from storyforge.schemas.api import (
     FactResponse,
     GenerateChapterRequest,
     GeneratePlanRequest,
+    GraphEntityResponse,
+    GraphNeighborsResponse,
+    GraphRelationResponse,
     HealthResponse,
+    MemoryDetail,
+    MemoryIndexStatusResponse,
+    MemoryReindexRequest,
+    MemoryReindexResponse,
+    MemorySummary,
     PageResponse,
     PlanResponse,
     ProjectCreateRequest,
@@ -37,6 +47,8 @@ from storyforge.schemas.api import (
     ProjectSummary,
     ProjectUpdateRequest,
     ReadinessResponse,
+    RetrievalSearchRequest,
+    RetrievalSearchResponse,
     StartWorkflowRequest,
     VersionDetail,
     VersionDiffResponse,
@@ -48,6 +60,7 @@ from storyforge.schemas.api import (
 from .dependencies import (
     ChapterServiceDep,
     EvaluationServiceDep,
+    MemoryServiceDep,
     PlanningServiceDep,
     ProjectServiceDep,
     SystemServiceDep,
@@ -609,3 +622,172 @@ def list_project_workflows(
     page_size: PageSize = 20,
 ) -> PageResponse[WorkflowStatusResponse]:
     return service.list_project_runs(project_id, page=page, page_size=page_size)
+
+
+@api_router.post(
+    "/projects/{project_id}/retrieval/search",
+    response_model=RetrievalSearchResponse,
+    tags=["retrieval"],
+    summary="Search accepted past-only story memory",
+    operation_id="search_project_memory",
+)
+def search_memory(
+    project_id: int,
+    payload: RetrievalSearchRequest,
+    service: MemoryServiceDep,
+) -> RetrievalSearchResponse:
+    return service.search(project_id, payload)
+
+
+@api_router.get(
+    "/projects/{project_id}/memory",
+    response_model=PageResponse[MemorySummary],
+    tags=["memory"],
+    summary="List accepted memory chunks",
+    operation_id="list_project_memory",
+)
+def list_memory(
+    project_id: int,
+    service: MemoryServiceDep,
+    page: Page = 1,
+    page_size: PageSize = 20,
+    source_type: str | None = None,
+    chapter_number: int | None = None,
+) -> PageResponse[MemorySummary]:
+    return service.list_memory(
+        project_id,
+        page=page,
+        page_size=page_size,
+        source_type=source_type,
+        chapter_number=chapter_number,
+    )
+
+
+@api_router.get(
+    "/projects/{project_id}/memory/status",
+    response_model=PageResponse[MemoryIndexStatusResponse],
+    tags=["memory"],
+    summary="List memory indexing attempts",
+    operation_id="list_project_memory_status",
+)
+def list_memory_status(
+    project_id: int,
+    service: MemoryServiceDep,
+    page: Page = 1,
+    page_size: PageSize = 20,
+) -> PageResponse[MemoryIndexStatusResponse]:
+    return service.list_status(project_id, page=page, page_size=page_size)
+
+
+@api_router.get(
+    "/projects/{project_id}/memory/{memory_id}",
+    response_model=MemoryDetail,
+    tags=["memory"],
+    summary="Get one accepted memory chunk",
+    operation_id="get_project_memory",
+)
+def get_memory(
+    project_id: int,
+    memory_id: int,
+    service: MemoryServiceDep,
+    include_content: bool = False,
+) -> MemoryDetail:
+    return service.get_memory(project_id, memory_id, include_content=include_content)
+
+
+@api_router.post(
+    "/projects/{project_id}/memory/reindex",
+    response_model=MemoryReindexResponse,
+    tags=["memory"],
+    summary="Synchronously reindex accepted memory",
+    operation_id="reindex_project_memory",
+)
+def reindex_memory(
+    project_id: int,
+    payload: MemoryReindexRequest,
+    service: MemoryServiceDep,
+) -> MemoryReindexResponse:
+    return service.reindex(project_id, payload)
+
+
+@api_router.get(
+    "/projects/{project_id}/graph/entities",
+    response_model=PageResponse[GraphEntityResponse],
+    tags=["graph"],
+    summary="List accepted graph entities",
+    operation_id="list_project_graph_entities",
+)
+def list_graph_entities(
+    project_id: int,
+    service: MemoryServiceDep,
+    page: Page = 1,
+    page_size: PageSize = 20,
+    entity_type: GraphEntityType | None = None,
+    search: str | None = None,
+) -> PageResponse[GraphEntityResponse]:
+    return service.list_entities(
+        project_id,
+        page=page,
+        page_size=page_size,
+        entity_type=entity_type,
+        search=search,
+    )
+
+
+@api_router.get(
+    "/projects/{project_id}/graph/entities/{entity_id}",
+    response_model=GraphEntityResponse,
+    tags=["graph"],
+    summary="Get one accepted graph entity",
+    operation_id="get_project_graph_entity",
+)
+def get_graph_entity(
+    project_id: int, entity_id: int, service: MemoryServiceDep
+) -> GraphEntityResponse:
+    return service.get_entity(project_id, entity_id)
+
+
+@api_router.get(
+    "/projects/{project_id}/graph/relations",
+    response_model=PageResponse[GraphRelationResponse],
+    tags=["graph"],
+    summary="List past-only accepted graph relations",
+    operation_id="list_project_graph_relations",
+)
+def list_graph_relations(
+    project_id: int,
+    service: MemoryServiceDep,
+    current_chapter: Annotated[int, Query(gt=0)],
+    page: Page = 1,
+    page_size: PageSize = 20,
+    predicate: GraphPredicate | None = None,
+) -> PageResponse[GraphRelationResponse]:
+    return service.list_relations(
+        project_id,
+        current_chapter=current_chapter,
+        page=page,
+        page_size=page_size,
+        predicate=predicate,
+    )
+
+
+@api_router.get(
+    "/projects/{project_id}/graph/neighbors",
+    response_model=GraphNeighborsResponse,
+    tags=["graph"],
+    summary="Expand one graph entity by one or two hops",
+    operation_id="get_project_graph_neighbors",
+)
+def graph_neighbors(
+    project_id: int,
+    service: MemoryServiceDep,
+    entity_id: Annotated[int, Query(gt=0)],
+    current_chapter: Annotated[int, Query(gt=0)],
+    max_hops: Annotated[int, Query(ge=1, le=2)] = 1,
+) -> GraphNeighborsResponse:
+    return service.neighbors(
+        project_id,
+        entity_id,
+        current_chapter=current_chapter,
+        max_hops=max_hops,
+    )
