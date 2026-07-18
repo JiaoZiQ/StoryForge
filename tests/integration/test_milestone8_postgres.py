@@ -25,6 +25,7 @@ from storyforge.enums import (
     GraphEntityType,
     GraphPredicate,
     MemoryStatus,
+    TaskType,
 )
 from storyforge.m8_demo import run_demo_m8
 from storyforge.memory import MemoryChunkRepository, MemoryIndexService
@@ -90,7 +91,7 @@ def pg_settings(tmp_path: Path) -> Settings:
 
 
 @contextmanager
-def _provider() -> Iterator[MockEmbeddingProvider]:
+def _provider(_project_id: int, _task_type: TaskType) -> Iterator[MockEmbeddingProvider]:
     yield MockEmbeddingProvider(dimensions=64)
 
 

@@ -76,6 +76,30 @@ export interface paths {
         patch: operations["update_project"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show a project budget
+         * @description Show a project budget
+         */
+        get: operations["get_project_budget"];
+        /**
+         * Set project budget limits
+         * @description Set project budget limits
+         */
+        put: operations["set_project_budget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/chapters": {
         parameters: {
             query?: never;
@@ -540,6 +564,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/model-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Select a controlled model profile
+         * @description Select a controlled model profile
+         */
+        patch: operations["set_project_model_profile"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/model-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show project model and privacy settings
+         * @description Show project model and privacy settings
+         */
+        get: operations["get_project_model_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/plan": {
         parameters: {
             query?: never;
@@ -564,6 +628,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/privacy-policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Select a project privacy policy
+         * @description Select a project privacy policy
+         */
+        patch: operations["set_project_privacy_policy"];
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/retrieval/search": {
         parameters: {
             query?: never;
@@ -578,6 +662,46 @@ export interface paths {
          * @description Search accepted past-only story memory
          */
         post: operations["search_project_memory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summarize project provider usage
+         * @description Summarize project provider usage
+         */
+        get: operations["get_project_usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/usage/calls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List content-free provider call audit records
+         * @description List content-free provider call audit records
+         */
+        get: operations["list_project_provider_calls"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -604,6 +728,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List registered provider capabilities
+         * @description List registered provider capabilities
+         */
+        get: operations["list_provider_capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/providers/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Show provider and circuit health without network probes
+         * @description Show provider and circuit health without network probes
+         */
+        get: operations["list_provider_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ready": {
         parameters: {
             query?: never;
@@ -616,6 +780,26 @@ export interface paths {
          * @description Check database and configuration readiness
          */
         get: operations["api_readiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/model-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List controlled model profiles
+         * @description List controlled model profiles
+         */
+        get: operations["list_model_profiles"];
         put?: never;
         post?: never;
         delete?: never;
@@ -704,6 +888,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflow-runs/{workflow_run_id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Summarize one workflow's provider usage
+         * @description Summarize one workflow's provider usage
+         */
+        get: operations["get_workflow_usage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -728,6 +932,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * BudgetPeriod
+         * @description Supported project-budget reset periods.
+         * @enum {string}
+         */
+        BudgetPeriod: "lifetime" | "daily" | "monthly";
         /** ChapterDetail */
         ChapterDetail: {
             accepted_version: components["schemas"]["VersionPointer"] | null;
@@ -1401,6 +1611,24 @@ export interface components {
             /** Valid To Chapter */
             valid_to_chapter: number | null;
         };
+        /**
+         * ModelProfile
+         * @description Client-selectable, registry-backed model profiles.
+         * @enum {string}
+         */
+        ModelProfile: "offline" | "economy" | "balanced" | "quality";
+        /** ModelProfileOption */
+        ModelProfileOption: {
+            /** Description */
+            description: string;
+            /** External Allowed */
+            external_allowed: boolean;
+            name: components["schemas"]["ModelProfile"];
+        };
+        /** ModelProfileUpdateRequest */
+        ModelProfileUpdateRequest: {
+            model_profile: components["schemas"]["ModelProfile"];
+        };
         /** PageMeta */
         PageMeta: {
             /** Page */
@@ -1464,6 +1692,12 @@ export interface components {
         PageResponse_ProjectSummary_: {
             /** Items */
             items: components["schemas"]["ProjectSummary"][];
+            meta: components["schemas"]["PageMeta"];
+        };
+        /** PageResponse[ProviderCallResponse] */
+        PageResponse_ProviderCallResponse_: {
+            /** Items */
+            items: components["schemas"]["ProviderCallResponse"][];
             meta: components["schemas"]["PageMeta"];
         };
         /** PageResponse[VersionSummary] */
@@ -1568,6 +1802,56 @@ export interface components {
             /** World Summary */
             world_summary: string;
         };
+        /**
+         * PrivacyPolicy
+         * @description Data-egress policy applied before provider calls.
+         * @enum {string}
+         */
+        PrivacyPolicy: "offline" | "strict" | "standard";
+        /** PrivacyPolicyUpdateRequest */
+        PrivacyPolicyUpdateRequest: {
+            privacy_policy: components["schemas"]["PrivacyPolicy"];
+        };
+        /** ProjectBudgetResponse */
+        ProjectBudgetResponse: {
+            /** Alert Thresholds */
+            alert_thresholds: string[];
+            /** Currency */
+            currency: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Hard Limit */
+            hard_limit: string;
+            period: components["schemas"]["BudgetPeriod"];
+            /** Project Id */
+            project_id: number;
+            /** Remaining Estimated */
+            remaining_estimated: string;
+            /** Reserved Estimated */
+            reserved_estimated: string;
+            /** Soft Limit */
+            soft_limit: string;
+            /** Spent Billed */
+            spent_billed: string;
+            /** Spent Estimated */
+            spent_estimated: string;
+        };
+        /** ProjectBudgetUpdateRequest */
+        ProjectBudgetUpdateRequest: {
+            /** Currency */
+            currency: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Hard Limit */
+            hard_limit: number | string;
+            /** @default lifetime */
+            period: components["schemas"]["BudgetPeriod"];
+            /** Soft Limit */
+            soft_limit: number | string;
+        };
         /** ProjectCreateRequest */
         ProjectCreateRequest: {
             /**
@@ -1643,6 +1927,13 @@ export interface components {
             /** World Summary */
             world_summary: string | null;
         };
+        /** ProjectModelSettingsResponse */
+        ProjectModelSettingsResponse: {
+            model_profile: components["schemas"]["ModelProfile"];
+            privacy_policy: components["schemas"]["PrivacyPolicy"];
+            /** Project Id */
+            project_id: number;
+        };
         /**
          * ProjectStatus
          * @description Lifecycle status for a story project.
@@ -1695,6 +1986,120 @@ export interface components {
             title?: string | null;
             /** Tone */
             tone?: string | null;
+        };
+        /** ProviderCallResponse */
+        ProviderCallResponse: {
+            /** Attempt */
+            attempt: number;
+            /** Billed Cost */
+            billed_cost: string | null;
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
+            /** Chapter Id */
+            chapter_id: number | null;
+            /** Chapter Version Id */
+            chapter_version_id: number | null;
+            /** Completed At */
+            completed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Currency */
+            currency: string;
+            /** Error Code */
+            error_code: string | null;
+            /** Estimated Cost */
+            estimated_cost: string | null;
+            /** Fallback Index */
+            fallback_index: number;
+            /** Id */
+            id: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Model */
+            model: string;
+            /** Output Tokens */
+            output_tokens: number;
+            privacy_policy: components["schemas"]["PrivacyPolicy"];
+            profile: components["schemas"]["ModelProfile"];
+            /** Project Id */
+            project_id: number | null;
+            /** Prompt Name */
+            prompt_name: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Provider */
+            provider: string;
+            /** Provider Request Id */
+            provider_request_id: string | null;
+            status: components["schemas"]["ProviderCallStatus"];
+            task_type: components["schemas"]["TaskType"];
+            /** Total Tokens */
+            total_tokens: number;
+            usage_source: components["schemas"]["TokenUsageSource"];
+            /** Workflow Run Id */
+            workflow_run_id: number | null;
+        };
+        /**
+         * ProviderCallStatus
+         * @description Durable provider-attempt state.
+         * @enum {string}
+         */
+        ProviderCallStatus: "pending" | "running" | "succeeded" | "failed" | "rate_limited" | "timed_out" | "budget_blocked" | "circuit_open" | "cancelled";
+        /** ProviderCapabilityResponse */
+        ProviderCapabilityResponse: {
+            /** Context Window */
+            context_window: number;
+            /** Embedding Dimensions */
+            embedding_dimensions: number | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Max Output Tokens */
+            max_output_tokens: number;
+            /** Model */
+            model: string;
+            /**
+             * Model Type
+             * @enum {string}
+             */
+            model_type: "chat" | "embedding";
+            /** Pricing Available */
+            pricing_available: boolean;
+            /** Provider */
+            provider: string;
+            /** Supports Embeddings */
+            supports_embeddings: boolean;
+            /** Supports Json Schema */
+            supports_json_schema: boolean;
+            /** Supports Structured Output */
+            supports_structured_output: boolean;
+        };
+        /** ProviderHealthResponse */
+        ProviderHealthResponse: {
+            /** Capabilities */
+            capabilities: string[];
+            /**
+             * Circuit Status
+             * @enum {string}
+             */
+            circuit_status: "closed" | "open" | "half_open";
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Health Status
+             * @enum {string}
+             */
+            health_status: "healthy" | "configured" | "disabled" | "unavailable";
+            /** Model */
+            model: string;
+            /** Pricing Available */
+            pricing_available: boolean;
+            /** Provider */
+            provider: string;
         };
         /** ReadinessResponse */
         ReadinessResponse: {
@@ -1810,6 +2215,49 @@ export interface components {
             pause_after_node?: string | null;
             /** Provider */
             provider?: ("mock" | "openai-compatible") | null;
+        };
+        /**
+         * TaskType
+         * @description Controlled model-routing tasks.
+         * @enum {string}
+         */
+        TaskType: "planning" | "chapter_drafting" | "fact_extraction" | "graph_extraction" | "literary_critique" | "revision" | "version_comparison" | "embedding_document" | "embedding_query";
+        /**
+         * TokenUsageSource
+         * @description Provenance of token accounting.
+         * @enum {string}
+         */
+        TokenUsageSource: "provider_reported" | "local_estimate" | "mock" | "unknown";
+        /** UsageSummaryResponse */
+        UsageSummaryResponse: {
+            /** Average Latency Ms */
+            average_latency_ms: string;
+            /** Billed Cost */
+            billed_cost: string | null;
+            /** Cached Input Tokens */
+            cached_input_tokens: number;
+            /** Calls */
+            calls: number;
+            /** Currency */
+            currency: string;
+            /** Estimated Cost */
+            estimated_cost: string | null;
+            /** Failures */
+            failures: number;
+            /** Fallback Count */
+            fallback_count: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Rate Limit Count */
+            rate_limit_count: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Timeout Count */
+            timeout_count: number;
+            /** Total Tokens */
+            total_tokens: number;
         };
         /** VersionDetail */
         VersionDetail: {
@@ -2386,6 +2834,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectDetail"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_project_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectBudgetResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_project_budget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectBudgetUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectBudgetResponse"];
                 };
             };
             /** @description Resource not found */
@@ -4156,6 +4742,144 @@ export interface operations {
             };
         };
     };
+    set_project_model_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelProfileUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectModelSettingsResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_project_model_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectModelSettingsResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_plan: {
         parameters: {
             query?: never;
@@ -4294,6 +5018,77 @@ export interface operations {
             };
         };
     };
+    set_project_privacy_policy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrivacyPolicyUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectModelSettingsResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     search_project_memory: {
         parameters: {
             query?: never;
@@ -4316,6 +5111,157 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RetrievalSearchResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_project_usage: {
+        parameters: {
+            query?: {
+                task_type?: components["schemas"]["TaskType"] | null;
+                provider?: string | null;
+                model?: string | null;
+                status?: components["schemas"]["ProviderCallStatus"] | null;
+                created_from?: string | null;
+                created_to?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageSummaryResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_project_provider_calls: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+                workflow_run_id?: number | null;
+                task_type?: components["schemas"]["TaskType"] | null;
+                provider?: string | null;
+                model?: string | null;
+                status?: components["schemas"]["ProviderCallStatus"] | null;
+                created_from?: string | null;
+                created_to?: string | null;
+            };
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponse_ProviderCallResponse_"];
                 };
             };
             /** @description Resource not found */
@@ -4435,6 +5381,136 @@ export interface operations {
             };
         };
     };
+    list_provider_capabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderCapabilityResponse"][];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_provider_health: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderHealthResponse"][];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     api_readiness: {
         parameters: {
             query?: never;
@@ -4451,6 +5527,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_model_profiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelProfileOption"][];
                 };
             };
             /** @description Resource not found */
@@ -4722,6 +5863,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkflowStatusResponse"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description State or write conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Provider timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_workflow_usage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow_run_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageSummaryResponse"];
                 };
             };
             /** @description Resource not found */

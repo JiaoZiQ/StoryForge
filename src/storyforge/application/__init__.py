@@ -4,6 +4,7 @@ from storyforge.application.chapters import ChapterApplicationService
 from storyforge.application.demo import DemoApplicationService
 from storyforge.application.evaluations import EvaluationApplicationService
 from storyforge.application.factory import DomainServiceFactory
+from storyforge.application.governance import GovernanceApplicationService
 from storyforge.application.memory import MemoryApplicationService
 from storyforge.application.planning import PlanningApplicationService
 from storyforge.application.projects import ProjectApplicationService
@@ -15,6 +16,7 @@ __all__ = [
     "DemoApplicationService",
     "DomainServiceFactory",
     "EvaluationApplicationService",
+    "GovernanceApplicationService",
     "MemoryApplicationService",
     "PlanningApplicationService",
     "ProjectApplicationService",

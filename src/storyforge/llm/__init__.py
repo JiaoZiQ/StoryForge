@@ -3,6 +3,7 @@
 from storyforge.llm.exceptions import (
     LLMAuthenticationError,
     LLMConfigurationError,
+    LLMContextLengthError,
     LLMError,
     LLMInvalidResponseError,
     LLMProviderError,
@@ -30,6 +31,7 @@ from storyforge.llm.types import (
 __all__ = [
     "LLMAuthenticationError",
     "LLMConfigurationError",
+    "LLMContextLengthError",
     "LLMError",
     "LLMInvalidResponseError",
     "LLMMessage",

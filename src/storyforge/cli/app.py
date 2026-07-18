@@ -24,6 +24,7 @@ from storyforge.cli.m6 import configure_demo_m6_alias, configure_m6_commands
 from storyforge.cli.m7 import configure_m7_commands
 from storyforge.cli.m8 import configure_m8_commands
 from storyforge.cli.m9 import configure_m9_commands
+from storyforge.cli.m10 import configure_m10_commands
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.demo import (
@@ -95,6 +96,12 @@ _GROUPED_COMMANDS = {
     "memory",
     "retrieval",
     "graph",
+    "provider",
+    "usage",
+    "budget",
+    "model-profile",
+    "privacy-policy",
+    "demo-m10",
 }
 
 
@@ -1173,6 +1180,7 @@ def _parser() -> argparse.ArgumentParser:
     configure_m7_commands(commands)
     configure_m8_commands(commands)
     configure_m9_commands(commands)
+    configure_m10_commands(commands)
     return parser
 
 

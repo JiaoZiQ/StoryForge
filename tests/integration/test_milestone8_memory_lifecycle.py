@@ -12,7 +12,7 @@ from tests._factories import create_story_graph
 
 from storyforge.database import create_session_factory
 from storyforge.embeddings import MockEmbeddingFailure, MockEmbeddingProvider
-from storyforge.enums import ChapterVersionStatus, MemoryIndexStatus, MemoryStatus
+from storyforge.enums import ChapterVersionStatus, MemoryIndexStatus, MemoryStatus, TaskType
 from storyforge.memory import MemoryChunkRepository, MemoryIndexService
 from storyforge.models import ChapterVersion, GraphRelation, MemoryChunk, MemoryIndexRecord
 from storyforge.retrieval import HybridRetrievalRequest, KeywordRetriever, VectorRetriever
@@ -20,7 +20,7 @@ from storyforge.retrieval.models import RetrieverUnavailableError
 
 
 @contextmanager
-def _mock_provider() -> Iterator[MockEmbeddingProvider]:
+def _mock_provider(_project_id: int, _task_type: TaskType) -> Iterator[MockEmbeddingProvider]:
     yield MockEmbeddingProvider(dimensions=64)
 
 
@@ -88,7 +88,7 @@ def test_memory_failure_is_retryable_and_does_not_change_accepted_version(
     )
 
     @contextmanager
-    def provider() -> Iterator[MockEmbeddingProvider]:
+    def provider(_project_id: int, _task_type: TaskType) -> Iterator[MockEmbeddingProvider]:
         yield providers.popleft()
 
     service = MemoryIndexService(

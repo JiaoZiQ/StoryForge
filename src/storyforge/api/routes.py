@@ -16,6 +16,8 @@ from storyforge.enums import (
     GraphEntityType,
     GraphPredicate,
     ProjectStatus,
+    ProviderCallStatus,
+    TaskType,
 )
 from storyforge.schemas.api import (
     ChapterDetail,
@@ -40,16 +42,26 @@ from storyforge.schemas.api import (
     MemoryReindexRequest,
     MemoryReindexResponse,
     MemorySummary,
+    ModelProfileOption,
+    ModelProfileUpdateRequest,
     PageResponse,
     PlanResponse,
+    PrivacyPolicyUpdateRequest,
+    ProjectBudgetResponse,
+    ProjectBudgetUpdateRequest,
     ProjectCreateRequest,
     ProjectDetail,
+    ProjectModelSettingsResponse,
     ProjectSummary,
     ProjectUpdateRequest,
+    ProviderCallResponse,
+    ProviderCapabilityResponse,
+    ProviderHealthResponse,
     ReadinessResponse,
     RetrievalSearchRequest,
     RetrievalSearchResponse,
     StartWorkflowRequest,
+    UsageSummaryResponse,
     VersionDetail,
     VersionDiffResponse,
     VersionSummary,
@@ -60,6 +72,7 @@ from storyforge.schemas.api import (
 from .dependencies import (
     ChapterServiceDep,
     EvaluationServiceDep,
+    GovernanceServiceDep,
     MemoryServiceDep,
     PlanningServiceDep,
     ProjectServiceDep,
@@ -76,9 +89,187 @@ ProjectStatusFilter = Annotated[ProjectStatus | None, Query(alias="status")]
 ChapterStatusFilter = Annotated[ChapterStatus | None, Query(alias="status")]
 ConflictStatusFilter = Annotated[ConflictStatus | None, Query(alias="status")]
 FactStatusFilter = Annotated[FactStatus, Query(alias="status")]
+ProviderStatusFilter = Annotated[ProviderCallStatus | None, Query(alias="status")]
 
 api_router = APIRouter(responses=ERROR_RESPONSES)
 root_router = APIRouter(responses=ERROR_RESPONSES)
+
+
+@api_router.get(
+    "/providers",
+    response_model=list[ProviderCapabilityResponse],
+    tags=["providers"],
+    summary="List registered provider capabilities",
+    operation_id="list_provider_capabilities",
+)
+def list_provider_capabilities(
+    service: GovernanceServiceDep,
+) -> list[ProviderCapabilityResponse]:
+    return service.providers()
+
+
+@api_router.get(
+    "/providers/health",
+    response_model=list[ProviderHealthResponse],
+    tags=["providers"],
+    summary="Show provider and circuit health without network probes",
+    operation_id="list_provider_health",
+)
+def list_provider_health(service: GovernanceServiceDep) -> list[ProviderHealthResponse]:
+    return service.health()
+
+
+@api_router.get(
+    "/system/model-profiles",
+    response_model=list[ModelProfileOption],
+    tags=["providers"],
+    summary="List controlled model profiles",
+    operation_id="list_model_profiles",
+)
+def list_model_profiles(service: GovernanceServiceDep) -> list[ModelProfileOption]:
+    return service.model_profiles()
+
+
+@api_router.get(
+    "/projects/{project_id}/usage",
+    response_model=UsageSummaryResponse,
+    tags=["usage"],
+    summary="Summarize project provider usage",
+    operation_id="get_project_usage",
+)
+def get_project_usage(
+    project_id: int,
+    service: GovernanceServiceDep,
+    task_type: TaskType | None = None,
+    provider: str | None = None,
+    model: str | None = None,
+    call_status: ProviderStatusFilter = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+) -> UsageSummaryResponse:
+    return service.usage_summary(
+        project_id=project_id,
+        task_type=task_type,
+        provider=provider,
+        model=model,
+        status=call_status,
+        created_from=created_from,
+        created_to=created_to,
+    )
+
+
+@api_router.get(
+    "/projects/{project_id}/usage/calls",
+    response_model=PageResponse[ProviderCallResponse],
+    tags=["usage"],
+    summary="List content-free provider call audit records",
+    operation_id="list_project_provider_calls",
+)
+def list_project_provider_calls(
+    project_id: int,
+    service: GovernanceServiceDep,
+    page: Page = 1,
+    page_size: PageSize = 20,
+    workflow_run_id: int | None = None,
+    task_type: TaskType | None = None,
+    provider: str | None = None,
+    model: str | None = None,
+    call_status: ProviderStatusFilter = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+) -> PageResponse[ProviderCallResponse]:
+    return service.usage_calls(
+        page=page,
+        page_size=page_size,
+        project_id=project_id,
+        workflow_run_id=workflow_run_id,
+        task_type=task_type,
+        provider=provider,
+        model=model,
+        status=call_status,
+        created_from=created_from,
+        created_to=created_to,
+    )
+
+
+@api_router.get(
+    "/projects/{project_id}/budget",
+    response_model=ProjectBudgetResponse,
+    tags=["usage"],
+    summary="Show a project budget",
+    operation_id="get_project_budget",
+)
+def get_project_budget(project_id: int, service: GovernanceServiceDep) -> ProjectBudgetResponse:
+    return service.budget(project_id)
+
+
+@api_router.put(
+    "/projects/{project_id}/budget",
+    response_model=ProjectBudgetResponse,
+    tags=["usage"],
+    summary="Set project budget limits",
+    operation_id="set_project_budget",
+)
+def set_project_budget(
+    project_id: int,
+    request: ProjectBudgetUpdateRequest,
+    service: GovernanceServiceDep,
+) -> ProjectBudgetResponse:
+    return service.set_budget(project_id, request)
+
+
+@api_router.get(
+    "/projects/{project_id}/model-settings",
+    response_model=ProjectModelSettingsResponse,
+    tags=["providers"],
+    summary="Show project model and privacy settings",
+    operation_id="get_project_model_settings",
+)
+def get_project_model_settings(
+    project_id: int, service: GovernanceServiceDep
+) -> ProjectModelSettingsResponse:
+    return service.model_settings(project_id)
+
+
+@api_router.patch(
+    "/projects/{project_id}/model-profile",
+    response_model=ProjectModelSettingsResponse,
+    tags=["providers"],
+    summary="Select a controlled model profile",
+    operation_id="set_project_model_profile",
+)
+def set_project_model_profile(
+    project_id: int,
+    request: ModelProfileUpdateRequest,
+    service: GovernanceServiceDep,
+) -> ProjectModelSettingsResponse:
+    return service.set_model_profile(project_id, request.model_profile)
+
+
+@api_router.patch(
+    "/projects/{project_id}/privacy-policy",
+    response_model=ProjectModelSettingsResponse,
+    tags=["providers"],
+    summary="Select a project privacy policy",
+    operation_id="set_project_privacy_policy",
+)
+def set_project_privacy_policy(
+    project_id: int,
+    request: PrivacyPolicyUpdateRequest,
+    service: GovernanceServiceDep,
+) -> ProjectModelSettingsResponse:
+    return service.set_privacy_policy(project_id, request.privacy_policy)
+
+
+@api_router.get(
+    "/workflow-runs/{workflow_run_id}/usage",
+    response_model=UsageSummaryResponse,
+    tags=["usage"],
+    summary="Summarize one workflow's provider usage",
+    operation_id="get_workflow_usage",
+)
+def get_workflow_usage(workflow_run_id: int, service: GovernanceServiceDep) -> UsageSummaryResponse:
+    return service.usage_summary(workflow_run_id=workflow_run_id)
 
 
 @root_router.get(

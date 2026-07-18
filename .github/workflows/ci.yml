@@ -11,6 +11,7 @@ permissions:
 env:
   UV_LOCKED: "1"
   UV_NO_PROGRESS: "1"
+  STORYFORGE_ENABLE_REAL_PROVIDER_TESTS: "false"
 
 jobs:
   quality:
@@ -91,6 +92,8 @@ jobs:
       STORYFORGE_EMBEDDING_MODEL: mock-hash-embedding-v1
       STORYFORGE_EMBEDDING_DIMENSIONS: "64"
       STORYFORGE_MOCK_MODE: "true"
+      STORYFORGE_MODEL_PROFILE: offline
+      STORYFORGE_PRIVACY_POLICY: offline
       STORYFORGE_CHECKPOINT_PATH: /tmp/storyforge-ci-checkpoints.sqlite3
     steps:
       - uses: actions/checkout@v6
@@ -105,7 +108,7 @@ jobs:
       - run: uv run alembic check
       - run: uv run pytest -m postgres --no-cov
       - run: uv run alembic upgrade head
-      - run: uv run storyforge demo-m8 --output json
+      - run: uv run storyforge demo-m10 --output json
 
   browser-e2e:
     name: PostgreSQL Mock browser end-to-end tests

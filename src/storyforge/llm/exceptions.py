@@ -22,10 +22,12 @@ class LLMProviderError(LLMError):
         *,
         attempts: int,
         status_code: int | None = None,
+        retry_after: float | None = None,
     ) -> None:
         super().__init__(message)
         self.attempts = attempts
         self.status_code = status_code
+        self.retry_after = retry_after
 
 
 class LLMTimeoutError(LLMProviderError):
@@ -46,6 +48,10 @@ class LLMServiceError(LLMProviderError):
 
 class LLMInvalidResponseError(LLMProviderError):
     """Raised when structured output cannot be parsed or validated."""
+
+
+class LLMContextLengthError(LLMProviderError):
+    """Raised when the selected model cannot accept the prepared context."""
 
 
 class LLMRefusalError(LLMProviderError):

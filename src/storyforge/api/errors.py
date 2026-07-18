@@ -13,7 +13,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from storyforge.exceptions import (
     AgentExecutionError,
     AlreadyExistsError,
+    BudgetBlockedError,
     ChapterGenerationError,
+    CircuitOpenError,
     ConfigurationError,
     ContextBuildError,
     DatabaseConflictError,
@@ -21,8 +23,11 @@ from storyforge.exceptions import (
     DomainValidationError,
     EntityNotFoundError,
     EvaluationError,
+    IdempotencyConflictError,
     InvalidStateError,
     PlanningValidationError,
+    PrivacyPolicyError,
+    ProviderRateLimitError,
     StoryForgeError,
     WorkflowAlreadyRunningError,
     WorkflowCancelledError,
@@ -77,6 +82,16 @@ def _mapping(exc: Exception) -> tuple[int, str, str]:
         return 409, "already_exists", str(exc)
     if isinstance(exc, DatabaseConflictError | IntegrityError):
         return 409, "database_conflict", "The requested write conflicts with existing data"
+    if isinstance(exc, BudgetBlockedError):
+        return 409, "budget_blocked", str(exc)
+    if isinstance(exc, PrivacyPolicyError):
+        return 409, "privacy_policy_blocked", str(exc)
+    if isinstance(exc, IdempotencyConflictError):
+        return 409, "provider_call_conflict", str(exc)
+    if isinstance(exc, ProviderRateLimitError):
+        return 503, "provider_rate_limited", "Local provider capacity is exhausted"
+    if isinstance(exc, CircuitOpenError):
+        return 503, "provider_circuit_open", "The configured provider circuit is open"
     if isinstance(exc, InvalidStateError):
         return 409, "state_conflict", str(exc)
     if isinstance(exc, DomainValidationError | PlanningValidationError | ContextBuildError):

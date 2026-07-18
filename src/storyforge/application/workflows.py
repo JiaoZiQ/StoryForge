@@ -71,19 +71,28 @@ class WorkflowApplicationService:
         return _workflow_status(result)
 
     def get(self, workflow_run_id: int) -> WorkflowStatusResponse:
-        with self._factory.provider("workflow") as provider:
+        project_id, chapter_number = self._workflow_scope(workflow_run_id)
+        with self._factory.provider(
+            "workflow", project_id=project_id, chapter_number=chapter_number
+        ) as provider:
             return _workflow_status(
                 self._factory.workflow_service(provider).get_status(workflow_run_id)
             )
 
     def resume(self, workflow_run_id: int) -> WorkflowStatusResponse:
-        with self._factory.provider("workflow") as provider:
+        project_id, chapter_number = self._workflow_scope(workflow_run_id)
+        with self._factory.provider(
+            "workflow", project_id=project_id, chapter_number=chapter_number
+        ) as provider:
             return _workflow_status(
                 self._factory.workflow_service(provider).resume(workflow_run_id)
             )
 
     def cancel(self, workflow_run_id: int) -> WorkflowStatusResponse:
-        with self._factory.provider("workflow") as provider:
+        project_id, chapter_number = self._workflow_scope(workflow_run_id)
+        with self._factory.provider(
+            "workflow", project_id=project_id, chapter_number=chapter_number
+        ) as provider:
             return _workflow_status(
                 self._factory.workflow_service(provider).cancel(workflow_run_id)
             )
@@ -126,9 +135,19 @@ class WorkflowApplicationService:
         return page_response(result, page=page, page_size=page_size, items=items)
 
     def _status_from_repository(self, workflow_run_id: int) -> WorkflowStatusResponse:
-        with self._factory.provider("workflow") as provider:
+        project_id, chapter_number = self._workflow_scope(workflow_run_id)
+        with self._factory.provider(
+            "workflow", project_id=project_id, chapter_number=chapter_number
+        ) as provider:
             result = self._factory.workflow_service(provider).get_status(workflow_run_id)
         return _workflow_status(result)
+
+    def _workflow_scope(self, workflow_run_id: int) -> tuple[int, int]:
+        with self._session_factory() as session:
+            workflow = WorkflowRunRepository(session).get(workflow_run_id)
+            if workflow is None:
+                raise EntityNotFoundError(f"Workflow run {workflow_run_id} was not found")
+            return workflow.project_id, workflow.chapter.chapter_number
 
     @staticmethod
     def _require_project(session: Session, project_id: int) -> None:

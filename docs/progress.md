@@ -1,5 +1,28 @@
 # 开发进度
 
+## Milestone 10：Provider 治理、成本与可靠性
+
+状态：实现完成并通过最终冷启动验收；未提交、未 push，Milestone 11 未开始。
+
+- 所有 Agent 与 embedding 入口统一经过注册、路由、隐私、预算、限流、熔断、重试和审计。
+- 新增 ProviderCall、ProjectBudget、ProviderIdempotencyRecord 及 WorkflowRun 用量聚合。
+- 新增 Provider/Usage/Budget/Profile/Privacy 的 API、CLI、Web UI 与 JSON 输出。
+- `demo-m10` 在 PostgreSQL + pgvector 上使用 MockLLM/MockEmbedding 覆盖成功、429
+  重试、超时 fallback、熔断、预算阻断和恢复无重复成本。
+- 默认测试与 Compose 禁止真实 provider smoke；真实测试只能通过显式开关和本地密钥运行。
+- 2026-07-18 独立验收：Python 全量 293 项收集，278 passed、15 个未配置本机
+  PostgreSQL URL 的 marker skipped，覆盖率 87.71%；独立 PostgreSQL marker 15 passed。
+- Ruff format/lint、strict mypy（145 个源文件）、Alembic SQLite/PostgreSQL 唯一
+  head/check、`git diff --check`、前端 22 项单元测试（96.34% statement
+  coverage）、生产 build 和 4 项 Playwright/axe 场景全部通过。
+- 两套全新 Compose project/volume 均完成冷启动；修复后第二套从零构建并 healthy，
+  `demo-m10`、重复 migration、restart 持久化、51 个唯一 OpenAPI operation ID、
+  OpenAPI/TypeScript 类型同步、镜像/日志脱敏和重复数据审计通过。
+- `demo-m10` 使用 Mock 时钟；Router 增加 fallback 结构化输出、embedding 维度和
+  长上下文能力检查；PostgreSQL 并发预算/幂等测试及 pause/resume 用量去重通过。
+- 本次验收设置 `COMPOSE_DISABLE_ENV_FILE=1` 并阻断 API/frontend 外网，未加载 API
+  Key、未调用真实 Provider、未执行 commit/push，Milestone 11 未开始。
+
 ## Milestone 0–3
 
 状态：已完成并独立验收。

@@ -67,3 +67,27 @@ class EvaluationError(StoryForgeError):
 
 class WorkflowExecutionError(StoryForgeError):
     """Raised when a durable chapter workflow cannot continue safely."""
+
+
+class ProviderGovernanceError(StoryForgeError):
+    """Base class for policy decisions made before or around a provider call."""
+
+
+class BudgetBlockedError(ProviderGovernanceError):
+    """Raised before external work when a configured hard limit would be exceeded."""
+
+
+class ProviderRateLimitError(ProviderGovernanceError):
+    """Raised when the bounded process-local limiter cannot grant capacity."""
+
+
+class CircuitOpenError(ProviderGovernanceError):
+    """Raised when a provider/model circuit rejects a probe."""
+
+
+class PrivacyPolicyError(ProviderGovernanceError):
+    """Raised when configured data-egress policy forbids the provider call."""
+
+
+class IdempotencyConflictError(ProviderGovernanceError):
+    """Raised when an identical provider request is already active."""

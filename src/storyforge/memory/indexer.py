@@ -19,6 +19,7 @@ from storyforge.enums import (
     GraphEntityType,
     MemoryIndexStatus,
     MemoryStatus,
+    TaskType,
 )
 from storyforge.exceptions import EntityNotFoundError, InvalidStateError
 from storyforge.graph import (
@@ -45,7 +46,7 @@ from storyforge.models import (
 )
 
 logger = logging.getLogger(__name__)
-ProviderFactory = Callable[[], AbstractContextManager[EmbeddingProvider]]
+ProviderFactory = Callable[[int, TaskType], AbstractContextManager[EmbeddingProvider]]
 
 
 class MemoryIndexService:
@@ -126,7 +127,7 @@ class MemoryIndexService:
             foreshadowing,
         )
         try:
-            with self._provider_factory() as provider:
+            with self._provider_factory(project_id, TaskType.EMBEDDING_DOCUMENT) as provider:
                 if provider.dimensions != self.dimensions:
                     raise ValueError("Embedding provider dimension does not match database")
                 vectors = provider.embed_texts([item[5].content for item in drafts])

@@ -6,7 +6,6 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect, text
-from tests._factories import create_story_graph
 
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.models import Base, Project
@@ -59,9 +58,17 @@ def test_milestone7_data_upgrades_to_memory_schema_without_old_migration_edits(
     config = Config(str(PROJECT_ROOT / "alembic.ini"))
     command.upgrade(config, "c7d4e1a2b9f0")
     engine = create_database_engine(database_url)
-    session_factory = create_session_factory(engine)
-    with session_factory.begin() as session:
-        project_id = create_story_graph(session).project.id
+    project_id = 1
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO projects "
+                "(id, title, genre, premise, target_chapters, target_words_per_chapter, "
+                "language, themes, additional_requirements, status, created_at, updated_at) VALUES "
+                "(1, 'M7 upgrade source', 'Mystery', 'Preserve this project', 3, 300, "
+                "'en', '[]', '', 'planned', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+            )
+        )
     engine.dispose()
 
     command.upgrade(config, "head")

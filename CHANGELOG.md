@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased — Milestone 10
+
+### Added
+
+- Central provider registry/router and governed LLM/embedding calls.
+- Privacy policies, high-confidence redaction, content-free ProviderCall audit,
+  Decimal usage pricing, project budgets, and workflow ceilings.
+- Bounded retries, explicit fallback, process-local rate limits/circuit breaker,
+  and durable idempotency claims.
+- Governance API/CLI/Web pages and PostgreSQL offline `demo-m10`.
+- Alembic revision `a91f4d2c7e10` for project settings, budgets, provider calls,
+  idempotency records, and workflow aggregates.
+
+### Fixed
+
+- M10 SQLite batch migration now preserves foreign-key children and safely
+  restores legacy chapter content during downgrade.
+- Usage API now converts between explicit response models instead of returning a
+  Pydantic cross-model validation error.
+- Embedding indexing and vector queries no longer bypass privacy, budget,
+  reliability, and usage auditing.
+- Workflow usage aggregation now follows the persisted call's workflow identity;
+  embedding budget rejections are recorded as `budget_blocked`, and workflow hard
+  limits preserve the best version for human review.
+- Long project navigation now scrolls within its dark sidebar, preserving WCAG AA
+  contrast for the Milestone 10 governance links on short viewports.
+- `demo-m10` now injects one deterministic manual clock into retry, rate-limit,
+  circuit-breaker, and total-deadline handling instead of relying on wall time.
+- Model routing now rejects structured-output-incompatible fallbacks and embedding
+  dimension mismatches; context-length failures route without retry to a registered
+  long-context fallback.
+- OpenAPI JSON and generated TypeScript types now include the Milestone 10
+  Provider/Usage/Budget/Profile/Privacy contract.
+- PostgreSQL tests now prove concurrent hard-budget reservations and identical
+  idempotency keys cannot invoke the raw provider twice; API coverage also verifies
+  checkpoint resume does not duplicate provider usage or cost.
+
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 的结构。
 
 ## [Unreleased]

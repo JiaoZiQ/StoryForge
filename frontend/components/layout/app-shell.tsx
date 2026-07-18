@@ -7,6 +7,7 @@ import { useState, type ReactNode } from "react";
 const globalLinks = [
   ["Dashboard", "/"],
   ["Projects", "/projects"],
+  ["Providers", "/providers"],
   ["System", "/system"],
 ] as const;
 const projectLinks = [
@@ -20,6 +21,9 @@ const projectLinks = [
   ["Memory", "/memory"],
   ["Retrieval", "/retrieval"],
   ["Graph", "/graph"],
+  ["Usage & Cost", "/usage"],
+  ["Budget", "/budget"],
+  ["Model Settings", "/model-settings"],
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -44,7 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </header>
       <aside
-        className={`${open ? "block" : "hidden"} bg-ink-950 px-4 py-6 text-white lg:fixed lg:inset-y-0 lg:block lg:w-64`}
+        className={`${open ? "block" : "hidden"} bg-ink-950 px-4 py-6 text-white lg:fixed lg:inset-y-0 lg:block lg:w-64 lg:overflow-y-auto`}
       >
         <Link
           href="/"
@@ -88,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </nav>
           </div>
         ) : null}
-        <p className="absolute bottom-5 text-xs text-white/45">
+        <p className="mt-8 text-xs text-white/60">
           Local / trusted network only
         </p>
       </aside>

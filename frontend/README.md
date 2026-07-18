@@ -44,3 +44,15 @@ Playwright 场景各自创建项目，不依赖执行顺序。真实 E2E 需要 
 - server proxy 只允许固定上游和有限 header，拒绝超过 1 MiB 的请求体，不转发 cookie。
 
 当前没有登录、RBAC、WebSocket、异步任务队列、多人协作或公网部署安全保证。
+
+## Milestone 10 governance pages
+
+- `/providers`: safe registry capability, health, circuit and pricing status.
+- `/projects/{id}/usage`: calls/tokens/estimated-vs-billed cost, filters and
+  accessible text breakdowns.
+- `/projects/{id}/budget`: spend, remaining amount, thresholds, blocked calls and
+  editable soft/hard limits.
+- `/projects/{id}/model-settings`: predefined model profile and privacy policy.
+
+Workflow detail includes aggregate provider usage. Keys and base URLs remain in
+the backend process and must never be exposed through `NEXT_PUBLIC_*` variables.

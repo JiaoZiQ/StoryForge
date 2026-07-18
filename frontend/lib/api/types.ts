@@ -40,3 +40,16 @@ export type GraphNeighborsResponse =
   components["schemas"]["GraphNeighborsResponse"];
 export type HealthResponse = components["schemas"]["HealthResponse"];
 export type ReadinessResponse = components["schemas"]["ReadinessResponse"];
+export type ProviderCapabilityResponse =
+  components["schemas"]["ProviderCapabilityResponse"];
+export type ProviderHealthResponse =
+  components["schemas"]["ProviderHealthResponse"];
+export type ProviderCallResponse =
+  components["schemas"]["ProviderCallResponse"];
+export type UsageSummaryResponse =
+  components["schemas"]["UsageSummaryResponse"];
+export type ProjectBudgetResponse =
+  components["schemas"]["ProjectBudgetResponse"];
+export type ProjectModelSettingsResponse =
+  components["schemas"]["ProjectModelSettingsResponse"];
+export type ModelProfileOption = components["schemas"]["ModelProfileOption"];

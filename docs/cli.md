@@ -81,3 +81,23 @@ storyforge demo-m8 --output json
 ```
 
 完整 `demo-m8` 必须在已迁移的 PostgreSQL/pgvector 上运行，并要求 MockLLM、MockEmbedding 和无 API Key。SQLite 可以运行普通命令，但 vector 路由会明确降级；JSON 仍是单一标准文档。memory 列表默认不返回完整内容，任何 CLI 输出都不返回 embedding 数组。
+
+## Milestone 10 governance commands
+
+```powershell
+storyforge provider list --output json
+storyforge provider health --output json
+storyforge usage summary --project-id 1 --output json
+storyforge usage calls --workflow-run-id 1 --output json
+storyforge budget show --project-id 1 --output json
+storyforge budget set --project-id 1 --soft-limit 1 --hard-limit 2 --yes --output json
+storyforge model-profile show --project-id 1 --output json
+storyforge model-profile set --project-id 1 --profile balanced --yes --output json
+storyforge privacy-policy set --project-id 1 --policy strict --yes --output json
+storyforge demo-m10 --output json
+```
+
+Mutating commands require `--yes`; all JSON output is a single parseable document.
+`provider smoke-test --provider openai-compatible` additionally requires
+`STORYFORGE_ENABLE_REAL_PROVIDER_TESTS=true`, uses a fixed tiny request, and is
+never part of default tests or demos.

@@ -21,6 +21,7 @@ export const queryKeys = {
     ["project", projectId, "workflows"] as const,
   workflow: (runId: number) => ["workflow", runId] as const,
   workflowEvents: (runId: number) => ["workflow", runId, "events"] as const,
+  workflowUsage: (runId: number) => ["workflow", runId, "usage"] as const,
   memory: (projectId: number, filters: object = {}) =>
     ["project", projectId, "memory", filters] as const,
   memoryStatus: (projectId: number) =>
@@ -29,4 +30,13 @@ export const queryKeys = {
     ["project", projectId, "graph-entities", search] as const,
   graphRelations: (projectId: number, chapter: number) =>
     ["project", projectId, "graph-relations", chapter] as const,
+  providers: ["providers"] as const,
+  providerHealth: ["providers", "health"] as const,
+  usage: (projectId: number) => ["project", projectId, "usage"] as const,
+  usageCalls: (projectId: number) =>
+    ["project", projectId, "usage", "calls"] as const,
+  budget: (projectId: number) => ["project", projectId, "budget"] as const,
+  modelSettings: (projectId: number) =>
+    ["project", projectId, "model-settings"] as const,
+  modelProfiles: ["system", "model-profiles"] as const,
 };

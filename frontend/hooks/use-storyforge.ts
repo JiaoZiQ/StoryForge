@@ -108,6 +108,17 @@ export const useWorkflowEvents = (runId: number, status?: string) =>
         ? false
         : 3_000,
   });
+export const useWorkflowUsage = (runId: number, status?: string) =>
+  useQuery({
+    queryKey: queryKeys.workflowUsage(runId),
+    queryFn: ({ signal }) => storyforgeApi.getWorkflowUsage(runId, signal),
+    enabled: runId > 0,
+    refetchInterval:
+      isWorkflowTerminal(status) ||
+      (typeof document !== "undefined" && document.hidden)
+        ? false
+        : 3_000,
+  });
 export const useMemory = (
   id: number,
   filters: { sourceType?: string; chapterNumber?: number } = {},
@@ -136,6 +147,45 @@ export const useGraphRelations = (id: number, chapter: number) =>
     queryFn: ({ signal }) =>
       storyforgeApi.listGraphRelations(id, chapter, signal),
     enabled: id > 0 && chapter > 0,
+  });
+export const useProviders = () =>
+  useQuery({
+    queryKey: queryKeys.providers,
+    queryFn: ({ signal }) => storyforgeApi.listProviders(signal),
+  });
+export const useProviderHealth = () =>
+  useQuery({
+    queryKey: queryKeys.providerHealth,
+    queryFn: ({ signal }) => storyforgeApi.providerHealth(signal),
+  });
+export const useUsage = (id: number) =>
+  useQuery({
+    queryKey: queryKeys.usage(id),
+    queryFn: ({ signal }) => storyforgeApi.getUsage(id, signal),
+    enabled: id > 0,
+  });
+export const useUsageCalls = (id: number) =>
+  useQuery({
+    queryKey: queryKeys.usageCalls(id),
+    queryFn: ({ signal }) => storyforgeApi.listUsageCalls(id, signal),
+    enabled: id > 0,
+  });
+export const useBudget = (id: number) =>
+  useQuery({
+    queryKey: queryKeys.budget(id),
+    queryFn: ({ signal }) => storyforgeApi.getBudget(id, signal),
+    enabled: id > 0,
+  });
+export const useModelSettings = (id: number) =>
+  useQuery({
+    queryKey: queryKeys.modelSettings(id),
+    queryFn: ({ signal }) => storyforgeApi.getModelSettings(id, signal),
+    enabled: id > 0,
+  });
+export const useModelProfiles = () =>
+  useQuery({
+    queryKey: queryKeys.modelProfiles,
+    queryFn: ({ signal }) => storyforgeApi.listModelProfiles(signal),
   });
 
 export function useCreateProject() {
@@ -228,5 +278,44 @@ export function useRetrieval(projectId: number) {
   return useMutation({
     mutationFn: (body: RetrievalSearchRequest) =>
       storyforgeApi.searchMemory(projectId, body),
+  });
+}
+export function useSetBudget(projectId: number) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      currency: string;
+      soft_limit: string;
+      hard_limit: string;
+      period: "lifetime" | "daily" | "monthly";
+      enabled: boolean;
+    }) => storyforgeApi.setBudget(projectId, body),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: queryKeys.budget(projectId) });
+    },
+  });
+}
+export function useSetModelProfile(projectId: number) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (profile: "offline" | "economy" | "balanced" | "quality") =>
+      storyforgeApi.setModelProfile(projectId, profile),
+    onSuccess: async () => {
+      await client.invalidateQueries({
+        queryKey: queryKeys.modelSettings(projectId),
+      });
+    },
+  });
+}
+export function useSetPrivacyPolicy(projectId: number) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (policy: "offline" | "strict" | "standard") =>
+      storyforgeApi.setPrivacyPolicy(projectId, policy),
+    onSuccess: async () => {
+      await client.invalidateQueries({
+        queryKey: queryKeys.modelSettings(projectId),
+      });
+    },
   });
 }

@@ -23,6 +23,7 @@ from storyforge.enums import (
 )
 from storyforge.evaluation.models import ChapterEvaluationRequest
 from storyforge.exceptions import (
+    BudgetBlockedError,
     EntityNotFoundError,
     InvalidStateError,
     WorkflowAlreadyRunningError,
@@ -112,6 +113,10 @@ class ChapterWorkflowService:
             self._invoke(state, thread_id=thread_id, pause_after=request.pause_after)
         except (EntityNotFoundError, InvalidStateError, ValueError):
             raise
+        except BudgetBlockedError as exc:
+            if not self._mark_budget_blocked_by_thread(thread_id, exc):
+                self._mark_failed_by_thread(thread_id, exc)
+                raise WorkflowExecutionError("Chapter workflow exceeded its budget safely") from exc
         except Exception as exc:
             self._mark_failed_by_thread(thread_id, exc)
             raise WorkflowExecutionError("Chapter workflow failed safely") from exc
@@ -130,6 +135,10 @@ class ChapterWorkflowService:
             thread_id = run.thread_id
         try:
             self._invoke(None, thread_id=thread_id, pause_after=None)
+        except BudgetBlockedError as exc:
+            if not self._mark_budget_blocked_by_thread(thread_id, exc):
+                self._mark_failed_by_thread(thread_id, exc)
+                raise WorkflowExecutionError("Chapter workflow exceeded its budget safely") from exc
         except Exception as exc:
             self._mark_failed_by_thread(thread_id, exc)
             raise WorkflowExecutionError("Chapter workflow resume failed safely") from exc
@@ -822,6 +831,35 @@ class ChapterWorkflowService:
                     if chapter.accepted_version_id is not None
                     else ChapterStatus.WORKFLOW_FAILED
                 )
+
+    def _mark_budget_blocked_by_thread(self, thread_id: str, error: BudgetBlockedError) -> bool:
+        """Preserve the best version and stop safely when a hard budget is reached."""
+        with self._session_factory() as session:
+            run = WorkflowRunRepository(session).get_by_thread_id(thread_id)
+            if run is None or run.status in _TERMINAL or run.best_version_id is None:
+                return False
+            workflow_run_id = run.id
+            revision_attempt = run.revision_attempt
+            best_version_id = run.best_version_id
+        self._versions.mark_needs_review(workflow_run_id)
+        with self._session_factory.begin() as session:
+            run = WorkflowRunRepository(session).get(workflow_run_id)
+            if run is None:
+                raise EntityNotFoundError("Workflow run was not found")
+            reasons = list(run.blocking_reasons)
+            if "budget_blocked" not in reasons:
+                reasons.append("budget_blocked")
+            run.blocking_reasons = reasons
+            run.error_code = type(error).__name__
+            run.error_message = redact_error(error)
+        self._record_aux_event(
+            workflow_run_id,
+            "mark_needs_human_review",
+            WorkflowEventType.WORKFLOW_COMPLETED,
+            revision_attempt,
+            version_id=best_version_id,
+        )
+        return True
 
     def _status_by_thread(self, thread_id: str) -> WorkflowStatusResult:
         with self._session_factory() as session:

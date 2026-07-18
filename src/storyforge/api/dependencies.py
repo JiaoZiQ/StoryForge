@@ -12,6 +12,7 @@ from storyforge.application import (
     ChapterApplicationService,
     DomainServiceFactory,
     EvaluationApplicationService,
+    GovernanceApplicationService,
     MemoryApplicationService,
     PlanningApplicationService,
     ProjectApplicationService,
@@ -46,10 +47,10 @@ def get_db_session(
 
 
 def get_domain_factory(
-    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
-    settings: Annotated[Settings, Depends(get_settings)],
+    request: Request,
 ) -> DomainServiceFactory:
-    return DomainServiceFactory(session_factory, settings)
+    """Reuse process-local rate-limit and circuit state across HTTP requests."""
+    return cast(DomainServiceFactory, request.app.state.domain_factory)
 
 
 def get_llm_provider(
@@ -111,6 +112,13 @@ def get_memory_service(
     return MemoryApplicationService(session_factory, factory, settings)
 
 
+def get_governance_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+    factory: Annotated[DomainServiceFactory, Depends(get_domain_factory)],
+) -> GovernanceApplicationService:
+    return GovernanceApplicationService(session_factory, factory)
+
+
 ProjectServiceDep = Annotated[ProjectApplicationService, Depends(get_project_service)]
 PlanningServiceDep = Annotated[PlanningApplicationService, Depends(get_planning_service)]
 ChapterServiceDep = Annotated[ChapterApplicationService, Depends(get_chapter_service)]
@@ -118,3 +126,4 @@ EvaluationServiceDep = Annotated[EvaluationApplicationService, Depends(get_evalu
 WorkflowServiceDep = Annotated[WorkflowApplicationService, Depends(get_workflow_service)]
 SystemServiceDep = Annotated[SystemApplicationService, Depends(get_system_service)]
 MemoryServiceDep = Annotated[MemoryApplicationService, Depends(get_memory_service)]
+GovernanceServiceDep = Annotated[GovernanceApplicationService, Depends(get_governance_service)]
