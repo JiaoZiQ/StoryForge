@@ -186,3 +186,73 @@ class GraphPredicate(StrEnum):
     REVEALS = "REVEALS"
     CONFLICTS_WITH = "CONFLICTS_WITH"
     RELATED_TO = "RELATED_TO"
+
+
+class TaskType(StrEnum):
+    """Controlled model-routing tasks."""
+
+    PLANNING = "planning"
+    CHAPTER_DRAFTING = "chapter_drafting"
+    FACT_EXTRACTION = "fact_extraction"
+    GRAPH_EXTRACTION = "graph_extraction"
+    LITERARY_CRITIQUE = "literary_critique"
+    REVISION = "revision"
+    VERSION_COMPARISON = "version_comparison"
+    EMBEDDING_DOCUMENT = "embedding_document"
+    EMBEDDING_QUERY = "embedding_query"
+
+
+class ModelProfile(StrEnum):
+    """Client-selectable, registry-backed model profiles."""
+
+    OFFLINE = "offline"
+    ECONOMY = "economy"
+    BALANCED = "balanced"
+    QUALITY = "quality"
+
+
+class PrivacyPolicy(StrEnum):
+    """Data-egress policy applied before provider calls."""
+
+    OFFLINE = "offline"
+    STRICT = "strict"
+    STANDARD = "standard"
+
+
+class ProviderCallStatus(StrEnum):
+    """Durable provider-attempt state."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    RATE_LIMITED = "rate_limited"
+    TIMED_OUT = "timed_out"
+    BUDGET_BLOCKED = "budget_blocked"
+    CIRCUIT_OPEN = "circuit_open"
+    CANCELLED = "cancelled"
+
+
+class TokenUsageSource(StrEnum):
+    """Provenance of token accounting."""
+
+    PROVIDER_REPORTED = "provider_reported"
+    LOCAL_ESTIMATE = "local_estimate"
+    MOCK = "mock"
+    UNKNOWN = "unknown"
+
+
+class BudgetPeriod(StrEnum):
+    """Supported project-budget reset periods."""
+
+    LIFETIME = "lifetime"
+    DAILY = "daily"
+    MONTHLY = "monthly"
+
+
+class IdempotencyStatus(StrEnum):
+    """Durable ownership state for one normalized provider request."""
+
+    ACTIVE = "active"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"

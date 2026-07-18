@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, SecretStr
 from storyforge.llm import (
     LLMAuthenticationError,
     LLMConfigurationError,
+    LLMContextLengthError,
     LLMInvalidResponseError,
     LLMMessage,
     LLMProviderError,
@@ -169,6 +170,32 @@ def test_success_uses_strict_schema_and_returns_metadata(
     assert response.usage.total_tokens == 18
 
 
+def test_context_length_error_is_classified_without_retry(
+    prompt_request: PromptRequest,
+) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(
+            400,
+            request=request,
+            json={
+                "error": {
+                    "message": "maximum context length exceeded",
+                    "type": "invalid_request_error",
+                    "code": "context_length_exceeded",
+                }
+            },
+        )
+
+    with _provider(handler) as provider:
+        with pytest.raises(LLMContextLengthError):
+            provider.generate(prompt_request, StructuredAnswer)
+    assert calls == 1
+
+
 def test_from_env_reads_key_base_url_and_model(prompt_request: PromptRequest) -> None:
     seen_request = False
 
@@ -239,19 +266,24 @@ def test_retryable_status_recovers(prompt_request: PromptRequest) -> None:
 
 def test_rate_limit_retries_are_bounded(prompt_request: PromptRequest) -> None:
     calls = 0
+    delays: list[float] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         nonlocal calls
         calls += 1
-        return _error(request, 429)
+        response = _error(request, 429)
+        response.headers["retry-after"] = "1.25"
+        return response
 
-    with _provider(handler, config=_config(max_retries=1)) as provider:
+    with _provider(handler, config=_config(max_retries=1), delays=delays) as provider:
         with pytest.raises(LLMRateLimitError) as caught:
             provider.generate(prompt_request, StructuredAnswer)
 
     assert calls == 2
     assert caught.value.status_code == 429
+    assert caught.value.retry_after == 1.25
     assert caught.value.attempts == 2
+    assert delays == [1.25]
 
 
 def test_invalid_json_is_repaired_with_a_bounded_retry(

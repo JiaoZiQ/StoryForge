@@ -174,7 +174,7 @@ def test_complete_api_path_is_typed_paginated_and_future_safe(
         for operation in path.values()
     ]
     assert len(operations) == len(set(operations))
-    assert len(openapi.json()["paths"]) == 35
+    assert len(openapi.json()["paths"]) == 45
     assert "search_project_memory" in operations
     assert "reindex_project_memory" in operations
     assert "get_project_graph_neighbors" in operations

@@ -7,13 +7,17 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ValidationError
 
+from storyforge.enums import TokenUsageSource
 from storyforge.llm.exceptions import (
     LLMConfigurationError,
+    LLMContextLengthError,
     LLMInvalidResponseError,
+    LLMRateLimitError,
+    LLMRefusalError,
     LLMServiceError,
     LLMTimeoutError,
 )
-from storyforge.llm.types import LLMResponse, PromptRequest, ResponseT
+from storyforge.llm.types import LLMResponse, PromptRequest, ResponseT, TokenUsage
 
 type MockPayload = BaseModel | Mapping[str, object]
 
@@ -25,6 +29,10 @@ class MockFailure(StrEnum):
     INVALID_JSON = "invalid_json"
     SCHEMA_VALIDATION = "schema_validation"
     CALL_FAILURE = "call_failure"
+    RATE_LIMIT = "rate_limit"
+    SERVER_ERROR = "server_error"
+    CONTEXT_LENGTH = "context_length"
+    CONTENT_POLICY = "content_policy"
 
 
 class MockLLMProvider:
@@ -101,6 +109,14 @@ class MockLLMProvider:
             )
         if failure is MockFailure.CALL_FAILURE:
             raise LLMServiceError("Mock LLM call failed", attempts=1)
+        if failure is MockFailure.RATE_LIMIT:
+            raise LLMRateLimitError("Mock LLM rate limited", attempts=1, status_code=429)
+        if failure is MockFailure.SERVER_ERROR:
+            raise LLMServiceError("Mock LLM service error", attempts=1, status_code=503)
+        if failure is MockFailure.CONTEXT_LENGTH:
+            raise LLMContextLengthError("Mock LLM context length exceeded", attempts=1)
+        if failure is MockFailure.CONTENT_POLICY:
+            raise LLMRefusalError("Mock LLM content policy rejection", attempts=1)
 
         configured = self._responses.get(response_model)
         if not configured:
@@ -121,4 +137,18 @@ class MockLLMProvider:
             model=self._model,
             prompt=request.prompt,
             attempts=1,
+            usage=self._usage(request, output),
+        )
+
+    @staticmethod
+    def _usage(request: PromptRequest, output: BaseModel) -> TokenUsage:
+        input_chars = sum(len(message.content) for message in request.messages)
+        output_chars = len(output.model_dump_json())
+        input_tokens = max(1, (input_chars + 3) // 4)
+        output_tokens = max(1, (output_chars + 3) // 4)
+        return TokenUsage(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            total_tokens=input_tokens + output_tokens,
+            source=TokenUsageSource.MOCK,
         )

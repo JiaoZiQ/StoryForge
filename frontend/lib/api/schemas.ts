@@ -426,3 +426,83 @@ export const readinessSchema = z.looseObject({
   migration_revision: z.string(),
   provider: z.string(),
 });
+
+export const providerCapabilitySchema = z.looseObject({
+  provider: z.string(),
+  model: z.string(),
+  model_type: z.enum(["chat", "embedding"]),
+  context_window: z.number().int(),
+  max_output_tokens: z.number().int(),
+  supports_structured_output: z.boolean(),
+  supports_json_schema: z.boolean(),
+  supports_embeddings: z.boolean(),
+  embedding_dimensions: z.number().int().nullable(),
+  enabled: z.boolean(),
+  pricing_available: z.boolean(),
+});
+export const providerHealthSchema = z.looseObject({
+  provider: z.string(),
+  model: z.string(),
+  enabled: z.boolean(),
+  health_status: z.string(),
+  circuit_status: z.enum(["closed", "open", "half_open"]),
+  pricing_available: z.boolean(),
+  capabilities: z.array(z.string()),
+});
+export const usageSummarySchema = z.looseObject({
+  calls: z.number().int(),
+  succeeded: z.number().int(),
+  failures: z.number().int(),
+  input_tokens: z.number().int(),
+  output_tokens: z.number().int(),
+  cached_input_tokens: z.number().int(),
+  total_tokens: z.number().int(),
+  estimated_cost: z.string().nullable(),
+  billed_cost: z.string().nullable(),
+  fallback_count: z.number().int(),
+  timeout_count: z.number().int(),
+  rate_limit_count: z.number().int(),
+  average_latency_ms: z.string(),
+  currency: z.string(),
+});
+export const providerCallSchema = z.looseObject({
+  id: z.number().int(),
+  task_type: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  status: z.string(),
+  attempt: z.number().int(),
+  fallback_index: z.number().int(),
+  input_tokens: z.number().int(),
+  output_tokens: z.number().int(),
+  total_tokens: z.number().int(),
+  usage_source: z.string(),
+  estimated_cost: z.string().nullable(),
+  billed_cost: z.string().nullable(),
+  currency: z.string(),
+  latency_ms: z.number().int(),
+  created_at: dateTime,
+});
+export const providerCallPageSchema = page(providerCallSchema);
+export const projectBudgetSchema = z.looseObject({
+  project_id: z.number().int(),
+  currency: z.string(),
+  soft_limit: z.string(),
+  hard_limit: z.string(),
+  period: z.string(),
+  spent_estimated: z.string(),
+  spent_billed: z.string(),
+  reserved_estimated: z.string(),
+  enabled: z.boolean(),
+  remaining_estimated: z.string(),
+});
+export const modelSettingsSchema = z.looseObject({
+  project_id: z.number().int(),
+  model_profile: z.enum(["offline", "economy", "balanced", "quality"]),
+  privacy_policy: z.enum(["offline", "strict", "standard"]),
+});
+export const modelProfileOptionSchema = z.looseObject({
+  name: z.enum(["offline", "economy", "balanced", "quality"]),
+  description: z.string(),
+  external_allowed: z.boolean(),
+});

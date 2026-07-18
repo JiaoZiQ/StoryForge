@@ -1,6 +1,16 @@
 {
   "components": {
     "schemas": {
+      "BudgetPeriod": {
+        "description": "Supported project-budget reset periods.",
+        "enum": [
+          "lifetime",
+          "daily",
+          "monthly"
+        ],
+        "title": "BudgetPeriod",
+        "type": "string"
+      },
       "ChapterDetail": {
         "properties": {
           "accepted_version": {
@@ -1898,6 +1908,52 @@
         "title": "MemorySummary",
         "type": "object"
       },
+      "ModelProfile": {
+        "description": "Client-selectable, registry-backed model profiles.",
+        "enum": [
+          "offline",
+          "economy",
+          "balanced",
+          "quality"
+        ],
+        "title": "ModelProfile",
+        "type": "string"
+      },
+      "ModelProfileOption": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "external_allowed": {
+            "title": "External Allowed",
+            "type": "boolean"
+          },
+          "name": {
+            "$ref": "#/components/schemas/ModelProfile"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "external_allowed"
+        ],
+        "title": "ModelProfileOption",
+        "type": "object"
+      },
+      "ModelProfileUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "model_profile": {
+            "$ref": "#/components/schemas/ModelProfile"
+          }
+        },
+        "required": [
+          "model_profile"
+        ],
+        "title": "ModelProfileUpdateRequest",
+        "type": "object"
+      },
       "PageMeta": {
         "properties": {
           "page": {
@@ -2104,6 +2160,26 @@
           "meta"
         ],
         "title": "PageResponse[ProjectSummary]",
+        "type": "object"
+      },
+      "PageResponse_ProviderCallResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderCallResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "required": [
+          "items",
+          "meta"
+        ],
+        "title": "PageResponse[ProviderCallResponse]",
         "type": "object"
       },
       "PageResponse_VersionSummary_": {
@@ -2419,6 +2495,154 @@
         "title": "PlanResponse",
         "type": "object"
       },
+      "PrivacyPolicy": {
+        "description": "Data-egress policy applied before provider calls.",
+        "enum": [
+          "offline",
+          "strict",
+          "standard"
+        ],
+        "title": "PrivacyPolicy",
+        "type": "string"
+      },
+      "PrivacyPolicyUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "privacy_policy": {
+            "$ref": "#/components/schemas/PrivacyPolicy"
+          }
+        },
+        "required": [
+          "privacy_policy"
+        ],
+        "title": "PrivacyPolicyUpdateRequest",
+        "type": "object"
+      },
+      "ProjectBudgetResponse": {
+        "properties": {
+          "alert_thresholds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alert Thresholds",
+            "type": "array"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "hard_limit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Hard Limit",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "remaining_estimated": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Remaining Estimated",
+            "type": "string"
+          },
+          "reserved_estimated": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Reserved Estimated",
+            "type": "string"
+          },
+          "soft_limit": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Soft Limit",
+            "type": "string"
+          },
+          "spent_billed": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Spent Billed",
+            "type": "string"
+          },
+          "spent_estimated": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Spent Estimated",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "currency",
+          "soft_limit",
+          "hard_limit",
+          "period",
+          "spent_estimated",
+          "spent_billed",
+          "reserved_estimated",
+          "alert_thresholds",
+          "enabled",
+          "remaining_estimated"
+        ],
+        "title": "ProjectBudgetResponse",
+        "type": "object"
+      },
+      "ProjectBudgetUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "maxLength": 3,
+            "minLength": 3,
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "hard_limit": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,19}0*$)\\d{0,10}\\.\\d{0,8}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Hard Limit"
+          },
+          "period": {
+            "$ref": "#/components/schemas/BudgetPeriod",
+            "default": "lifetime"
+          },
+          "soft_limit": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,19}0*$)\\d{0,10}\\.\\d{0,8}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Soft Limit"
+          }
+        },
+        "required": [
+          "currency",
+          "soft_limit",
+          "hard_limit"
+        ],
+        "title": "ProjectBudgetUpdateRequest",
+        "type": "object"
+      },
       "ProjectCreateRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2656,6 +2880,27 @@
         "title": "ProjectDetail",
         "type": "object"
       },
+      "ProjectModelSettingsResponse": {
+        "properties": {
+          "model_profile": {
+            "$ref": "#/components/schemas/ModelProfile"
+          },
+          "privacy_policy": {
+            "$ref": "#/components/schemas/PrivacyPolicy"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id",
+          "model_profile",
+          "privacy_policy"
+        ],
+        "title": "ProjectModelSettingsResponse",
+        "type": "object"
+      },
       "ProjectStatus": {
         "description": "Lifecycle status for a story project.",
         "enum": [
@@ -2847,6 +3092,363 @@
           }
         },
         "title": "ProjectUpdateRequest",
+        "type": "object"
+      },
+      "ProviderCallResponse": {
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "billed_cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billed Cost"
+          },
+          "cached_input_tokens": {
+            "title": "Cached Input Tokens",
+            "type": "integer"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Version Id"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "estimated_cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost"
+          },
+          "fallback_index": {
+            "title": "Fallback Index",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "privacy_policy": {
+            "$ref": "#/components/schemas/PrivacyPolicy"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ModelProfile"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "prompt_name": {
+            "title": "Prompt Name",
+            "type": "string"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Request Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProviderCallStatus"
+          },
+          "task_type": {
+            "$ref": "#/components/schemas/TaskType"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          },
+          "usage_source": {
+            "$ref": "#/components/schemas/TokenUsageSource"
+          },
+          "workflow_run_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Run Id"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "workflow_run_id",
+          "chapter_id",
+          "chapter_version_id",
+          "task_type",
+          "provider",
+          "model",
+          "profile",
+          "privacy_policy",
+          "prompt_name",
+          "prompt_version",
+          "status",
+          "attempt",
+          "fallback_index",
+          "input_tokens",
+          "output_tokens",
+          "cached_input_tokens",
+          "total_tokens",
+          "usage_source",
+          "estimated_cost",
+          "billed_cost",
+          "currency",
+          "latency_ms",
+          "provider_request_id",
+          "error_code",
+          "created_at",
+          "completed_at"
+        ],
+        "title": "ProviderCallResponse",
+        "type": "object"
+      },
+      "ProviderCallStatus": {
+        "description": "Durable provider-attempt state.",
+        "enum": [
+          "pending",
+          "running",
+          "succeeded",
+          "failed",
+          "rate_limited",
+          "timed_out",
+          "budget_blocked",
+          "circuit_open",
+          "cancelled"
+        ],
+        "title": "ProviderCallStatus",
+        "type": "string"
+      },
+      "ProviderCapabilityResponse": {
+        "properties": {
+          "context_window": {
+            "title": "Context Window",
+            "type": "integer"
+          },
+          "embedding_dimensions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Dimensions"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "max_output_tokens": {
+            "title": "Max Output Tokens",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "model_type": {
+            "enum": [
+              "chat",
+              "embedding"
+            ],
+            "title": "Model Type",
+            "type": "string"
+          },
+          "pricing_available": {
+            "title": "Pricing Available",
+            "type": "boolean"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "supports_embeddings": {
+            "title": "Supports Embeddings",
+            "type": "boolean"
+          },
+          "supports_json_schema": {
+            "title": "Supports Json Schema",
+            "type": "boolean"
+          },
+          "supports_structured_output": {
+            "title": "Supports Structured Output",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "model_type",
+          "context_window",
+          "max_output_tokens",
+          "supports_structured_output",
+          "supports_json_schema",
+          "supports_embeddings",
+          "embedding_dimensions",
+          "enabled",
+          "pricing_available"
+        ],
+        "title": "ProviderCapabilityResponse",
+        "type": "object"
+      },
+      "ProviderHealthResponse": {
+        "properties": {
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "circuit_status": {
+            "enum": [
+              "closed",
+              "open",
+              "half_open"
+            ],
+            "title": "Circuit Status",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "health_status": {
+            "enum": [
+              "healthy",
+              "configured",
+              "disabled",
+              "unavailable"
+            ],
+            "title": "Health Status",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "pricing_available": {
+            "title": "Pricing Available",
+            "type": "boolean"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "model",
+          "enabled",
+          "health_status",
+          "circuit_status",
+          "pricing_available",
+          "capabilities"
+        ],
+        "title": "ProviderHealthResponse",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -3175,6 +3777,128 @@
           }
         },
         "title": "StartWorkflowRequest",
+        "type": "object"
+      },
+      "TaskType": {
+        "description": "Controlled model-routing tasks.",
+        "enum": [
+          "planning",
+          "chapter_drafting",
+          "fact_extraction",
+          "graph_extraction",
+          "literary_critique",
+          "revision",
+          "version_comparison",
+          "embedding_document",
+          "embedding_query"
+        ],
+        "title": "TaskType",
+        "type": "string"
+      },
+      "TokenUsageSource": {
+        "description": "Provenance of token accounting.",
+        "enum": [
+          "provider_reported",
+          "local_estimate",
+          "mock",
+          "unknown"
+        ],
+        "title": "TokenUsageSource",
+        "type": "string"
+      },
+      "UsageSummaryResponse": {
+        "properties": {
+          "average_latency_ms": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Average Latency Ms",
+            "type": "string"
+          },
+          "billed_cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billed Cost"
+          },
+          "cached_input_tokens": {
+            "title": "Cached Input Tokens",
+            "type": "integer"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "estimated_cost": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost"
+          },
+          "failures": {
+            "title": "Failures",
+            "type": "integer"
+          },
+          "fallback_count": {
+            "title": "Fallback Count",
+            "type": "integer"
+          },
+          "input_tokens": {
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "output_tokens": {
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "rate_limit_count": {
+            "title": "Rate Limit Count",
+            "type": "integer"
+          },
+          "succeeded": {
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "timeout_count": {
+            "title": "Timeout Count",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "calls",
+          "succeeded",
+          "failures",
+          "input_tokens",
+          "output_tokens",
+          "cached_input_tokens",
+          "total_tokens",
+          "estimated_cost",
+          "billed_cost",
+          "fallback_count",
+          "timeout_count",
+          "rate_limit_count",
+          "average_latency_ms",
+          "currency"
+        ],
+        "title": "UsageSummaryResponse",
         "type": "object"
       },
       "VersionDetail": {
@@ -4453,6 +5177,180 @@
         "summary": "Update mutable project fields",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/budget": {
+      "get": {
+        "description": "Show a project budget",
+        "operationId": "get_project_budget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectBudgetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Show a project budget",
+        "tags": [
+          "usage"
+        ]
+      },
+      "put": {
+        "description": "Set project budget limits",
+        "operationId": "set_project_budget",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectBudgetUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectBudgetResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Set project budget limits",
+        "tags": [
+          "usage"
         ]
       }
     },
@@ -7485,6 +8383,182 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/model-profile": {
+      "patch": {
+        "description": "Select a controlled model profile",
+        "operationId": "set_project_model_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelProfileUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectModelSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Select a controlled model profile",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/model-settings": {
+      "get": {
+        "description": "Show project model and privacy settings",
+        "operationId": "get_project_model_settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectModelSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Show project model and privacy settings",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/plan": {
       "get": {
         "description": "Get a project plan",
@@ -7659,6 +8733,99 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/privacy-policy": {
+      "patch": {
+        "description": "Select a project privacy policy",
+        "operationId": "set_project_privacy_policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivacyPolicyUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectModelSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Select a project privacy policy",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/retrieval/search": {
       "post": {
         "description": "Search accepted past-only story memory",
@@ -7749,6 +8916,407 @@
         "summary": "Search accepted past-only story memory",
         "tags": [
           "retrieval"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/usage": {
+      "get": {
+        "description": "Summarize project provider usage",
+        "operationId": "get_project_usage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "task_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TaskType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "in": "query",
+            "name": "model",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProviderCallStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Summarize project provider usage",
+        "tags": [
+          "usage"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/usage/calls": {
+      "get": {
+        "description": "List content-free provider call audit records",
+        "operationId": "list_project_provider_calls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workflow_run_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workflow Run Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "task_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TaskType"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Task Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "provider",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "in": "query",
+            "name": "model",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Model"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProviderCallStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponse_ProviderCallResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "List content-free provider call audit records",
+        "tags": [
+          "usage"
         ]
       }
     },
@@ -7858,6 +9426,158 @@
         ]
       }
     },
+    "/api/v1/providers": {
+      "get": {
+        "description": "List registered provider capabilities",
+        "operationId": "list_provider_capabilities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderCapabilityResponse"
+                  },
+                  "title": "Response List Provider Capabilities",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "List registered provider capabilities",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/v1/providers/health": {
+      "get": {
+        "description": "Show provider and circuit health without network probes",
+        "operationId": "list_provider_health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderHealthResponse"
+                  },
+                  "title": "Response List Provider Health",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Show provider and circuit health without network probes",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
     "/api/v1/ready": {
       "get": {
         "description": "Check database and configuration readiness",
@@ -7927,6 +9647,82 @@
         "summary": "Check database and configuration readiness",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/v1/system/model-profiles": {
+      "get": {
+        "description": "List controlled model profiles",
+        "operationId": "list_model_profiles",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelProfileOption"
+                  },
+                  "title": "Response List Model Profiles",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "List controlled model profiles",
+        "tags": [
+          "providers"
         ]
       }
     },
@@ -8285,6 +10081,89 @@
         ]
       }
     },
+    "/api/v1/workflow-runs/{workflow_run_id}/usage": {
+      "get": {
+        "description": "Summarize one workflow's provider usage",
+        "operationId": "get_workflow_usage",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow_run_id",
+            "required": true,
+            "schema": {
+              "title": "Workflow Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Summarize one workflow's provider usage",
+        "tags": [
+          "usage"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "description": "Check process liveness",
@@ -8406,6 +10285,14 @@
     {
       "description": "Bounded relational story graph.",
       "name": "graph"
+    },
+    {
+      "description": "Safe model registry and health.",
+      "name": "providers"
+    },
+    {
+      "description": "Provider usage, cost, and budgets.",
+      "name": "usage"
     }
   ]
 }

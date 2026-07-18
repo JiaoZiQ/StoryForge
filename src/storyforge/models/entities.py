@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum as PythonEnum
 from typing import Any
 from uuid import uuid4
@@ -16,6 +17,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -28,6 +30,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from storyforge.enums import (
+    BudgetPeriod,
     ChapterStatus,
     ChapterVersionStatus,
     ConflictSeverity,
@@ -38,9 +41,15 @@ from storyforge.enums import (
     ForeshadowingStatus,
     GraphEntityType,
     GraphPredicate,
+    IdempotencyStatus,
     MemoryIndexStatus,
     MemoryStatus,
+    ModelProfile,
+    PrivacyPolicy,
     ProjectStatus,
+    ProviderCallStatus,
+    TaskType,
+    TokenUsageSource,
     WorkflowEventType,
     WorkflowRunStatus,
 )
@@ -89,6 +98,30 @@ class Project(TimestampMixin, EntityBase):
             length=32,
         ),
         default=ProjectStatus.CREATED,
+        nullable=False,
+    )
+    model_profile: Mapped[ModelProfile] = mapped_column(
+        SQLAlchemyEnum(
+            ModelProfile,
+            name="model_profile",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=ModelProfile.OFFLINE,
+        nullable=False,
+    )
+    privacy_policy: Mapped[PrivacyPolicy] = mapped_column(
+        SQLAlchemyEnum(
+            PrivacyPolicy,
+            name="privacy_policy",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=PrivacyPolicy.OFFLINE,
         nullable=False,
     )
 
@@ -1183,6 +1216,14 @@ class WorkflowRun(EntityBase):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )
+    provider_call_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    provider_input_tokens: Mapped[int] = mapped_column(default=0, nullable=False)
+    provider_output_tokens: Mapped[int] = mapped_column(default=0, nullable=False)
+    provider_estimated_cost: Mapped[Decimal] = mapped_column(
+        Numeric(18, 8), default=Decimal("0"), nullable=False
+    )
+    provider_fallback_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    provider_rate_limit_count: Mapped[int] = mapped_column(default=0, nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="workflow_runs")
     chapter: Mapped[Chapter] = relationship(back_populates="workflow_runs")
@@ -1275,3 +1316,192 @@ class VersionComparison(EntityBase):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )
+
+
+class ProjectBudget(TimestampMixin, EntityBase):
+    """Durable project-level cost limits and reservations."""
+
+    __tablename__ = "project_budgets"
+    __table_args__ = (
+        UniqueConstraint("project_id", name="project_budget_project"),
+        CheckConstraint("soft_limit >= 0", name="project_budget_soft_non_negative"),
+        CheckConstraint("hard_limit > 0", name="project_budget_hard_positive"),
+        CheckConstraint("soft_limit <= hard_limit", name="project_budget_limit_order"),
+        CheckConstraint("spent_estimated >= 0", name="project_budget_estimated_non_negative"),
+        CheckConstraint("spent_billed >= 0", name="project_budget_billed_non_negative"),
+        CheckConstraint("reserved_estimated >= 0", name="project_budget_reserved_non_negative"),
+    )
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    soft_limit: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    hard_limit: Mapped[Decimal] = mapped_column(Numeric(18, 8), nullable=False)
+    period: Mapped[BudgetPeriod] = mapped_column(
+        SQLAlchemyEnum(
+            BudgetPeriod,
+            name="budget_period",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=16,
+        ),
+        default=BudgetPeriod.LIFETIME,
+        nullable=False,
+    )
+    spent_estimated: Mapped[Decimal] = mapped_column(
+        Numeric(18, 8), default=Decimal("0"), nullable=False
+    )
+    spent_billed: Mapped[Decimal] = mapped_column(
+        Numeric(18, 8), default=Decimal("0"), nullable=False
+    )
+    reserved_estimated: Mapped[Decimal] = mapped_column(
+        Numeric(18, 8), default=Decimal("0"), nullable=False
+    )
+    alert_thresholds: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+
+class ProviderCall(EntityBase):
+    """Content-free audit row for one provider attempt."""
+
+    __tablename__ = "provider_calls"
+    __table_args__ = (
+        UniqueConstraint(
+            "idempotency_key",
+            "attempt",
+            "fallback_index",
+            name="provider_call_attempt_identity",
+        ),
+        CheckConstraint("attempt > 0", name="provider_call_attempt_positive"),
+        CheckConstraint("fallback_index >= 0", name="provider_call_fallback_non_negative"),
+        CheckConstraint("input_tokens >= 0", name="provider_call_input_tokens_non_negative"),
+        CheckConstraint("output_tokens >= 0", name="provider_call_output_tokens_non_negative"),
+        CheckConstraint(
+            "cached_input_tokens >= 0", name="provider_call_cached_tokens_non_negative"
+        ),
+        CheckConstraint("total_tokens >= 0", name="provider_call_total_tokens_non_negative"),
+        CheckConstraint("latency_ms >= 0", name="provider_call_latency_non_negative"),
+    )
+
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    workflow_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("workflow_runs.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    chapter_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapters.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    chapter_version_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_versions.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    task_type: Mapped[TaskType] = mapped_column(
+        SQLAlchemyEnum(
+            TaskType,
+            name="provider_task_type",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        index=True,
+        nullable=False,
+    )
+    provider: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    model: Mapped[str] = mapped_column(String(200), index=True, nullable=False)
+    profile: Mapped[ModelProfile] = mapped_column(
+        SQLAlchemyEnum(
+            ModelProfile,
+            name="provider_model_profile",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    privacy_policy: Mapped[PrivacyPolicy] = mapped_column(
+        SQLAlchemyEnum(
+            PrivacyPolicy,
+            name="provider_privacy_policy",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        nullable=False,
+    )
+    prompt_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    status: Mapped[ProviderCallStatus] = mapped_column(
+        SQLAlchemyEnum(
+            ProviderCallStatus,
+            name="provider_call_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        index=True,
+        nullable=False,
+    )
+    attempt: Mapped[int] = mapped_column(nullable=False)
+    fallback_index: Mapped[int] = mapped_column(default=0, nullable=False)
+    fallback_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    input_tokens: Mapped[int] = mapped_column(default=0, nullable=False)
+    output_tokens: Mapped[int] = mapped_column(default=0, nullable=False)
+    cached_input_tokens: Mapped[int] = mapped_column(default=0, nullable=False)
+    total_tokens: Mapped[int] = mapped_column(default=0, nullable=False)
+    usage_source: Mapped[TokenUsageSource] = mapped_column(
+        SQLAlchemyEnum(
+            TokenUsageSource,
+            name="token_usage_source",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=32,
+        ),
+        default=TokenUsageSource.UNKNOWN,
+        nullable=False,
+    )
+    estimated_cost: Mapped[Decimal | None] = mapped_column(Numeric(18, 8), nullable=True)
+    billed_cost: Mapped[Decimal | None] = mapped_column(Numeric(18, 8), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD", nullable=False)
+    pricing_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    latency_ms: Mapped[int] = mapped_column(default=0, nullable=False)
+    provider_request_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProviderIdempotencyRecord(TimestampMixin, EntityBase):
+    """Unique durable claim for a normalized provider request."""
+
+    __tablename__ = "provider_idempotency_records"
+    __table_args__ = (UniqueConstraint("idempotency_key", name="provider_idempotency_key"),)
+
+    idempotency_key: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    status: Mapped[IdempotencyStatus] = mapped_column(
+        SQLAlchemyEnum(
+            IdempotencyStatus,
+            name="provider_idempotency_status",
+            native_enum=False,
+            create_constraint=True,
+            values_callable=_enum_values,
+            length=16,
+        ),
+        default=IdempotencyStatus.ACTIVE,
+        nullable=False,
+    )
+    provider_call_id: Mapped[int | None] = mapped_column(
+        ForeignKey("provider_calls.id", ondelete="SET NULL"), nullable=True
+    )
+    response_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)

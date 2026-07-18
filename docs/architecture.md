@@ -146,3 +146,17 @@ chapter outline → RetrievalQueryBuilder
 `frontend` 是 FastAPI 的可视化适配器，不是新的领域层。页面 → TanStack Query hook → 统一 OpenAPI client → Next.js 同源 proxy → FastAPI route → Application Service；前端没有 ORM、provider 或工作流规则。OpenAPI 生成类型保证编译期路径/参数一致，Zod 校验运行时响应。正文只在显式 tab 请求；Facts、Memory、Graph 和 Context 的 accepted/过去章节过滤仍由 API/Repository 强制。
 
 Compose 使用 API、frontend 和无凭据 gateway 三个独立非 root 镜像。API/frontend 只连接 internal network；gateway 同时连接 internal 与 host ingress，只做两端口流式转发且不持有 provider key 或数据库 URL。frontend 只获得内部 API 地址，API 保持原有凭据边界。详见 [frontend.md](frontend.md) 和 [ADR 0008](decisions/0008-m9-web-control-center.md)。
+
+## M10 Provider governance boundary
+
+`DomainServiceFactory` is the composition root. Agents still depend only on the
+`LLMProvider` protocol, while `GovernedLLMProvider` performs controlled routing,
+egress policy, budget admission, reliability, usage normalization, pricing, and
+audit. `GovernedEmbeddingProvider` applies the same controls to document and query
+embeddings. API and CLI call `GovernanceApplicationService`; neither adapter reads
+ORM rows directly. Process credentials remain only in raw provider construction.
+
+The registry stores capabilities and versioned prices but never keys or sensitive
+endpoints. `ProviderCall` stores hashes and metadata rather than request/response
+bodies. Project settings are persisted; process defaults are safe offline values.
+See [ADR 0009](decisions/0009-m10-provider-governance.md).

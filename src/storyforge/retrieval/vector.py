@@ -5,6 +5,7 @@ from contextlib import AbstractContextManager
 
 from storyforge.database import SessionFactory
 from storyforge.embeddings import EmbeddingProvider
+from storyforge.enums import TaskType
 from storyforge.memory import MemoryChunkRepository
 from storyforge.retrieval.models import (
     HybridRetrievalRequest,
@@ -13,7 +14,7 @@ from storyforge.retrieval.models import (
     RetrieverUnavailableError,
 )
 
-ProviderFactory = Callable[[], AbstractContextManager[EmbeddingProvider]]
+ProviderFactory = Callable[[int, TaskType], AbstractContextManager[EmbeddingProvider]]
 
 
 class VectorRetriever:
@@ -30,7 +31,7 @@ class VectorRetriever:
 
     def retrieve(self, request: HybridRetrievalRequest) -> list[RetrievalHit]:
         try:
-            with self._provider_factory() as provider:
+            with self._provider_factory(request.project_id, TaskType.EMBEDDING_QUERY) as provider:
                 vector = provider.embed_query(request.query)
         except Exception as exc:
             raise RetrieverUnavailableError("Vector embedding is unavailable") from exc

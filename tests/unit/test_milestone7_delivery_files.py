@@ -52,7 +52,7 @@ def test_ci_has_quality_postgres_and_docker_jobs_without_real_secret() -> None:
     assert "mypy src" in content
     assert "pytest" in content
     assert "pgvector/pgvector:0.8.2-pg16-bookworm" in content
-    assert "storyforge demo-m8 --output json" in content
+    assert "storyforge demo-m10 --output json" in content
     assert "alembic upgrade head" in content
     assert "alembic check" in content
     assert "docker build" in content

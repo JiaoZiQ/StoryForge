@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from storyforge.database import SessionFactory
-from storyforge.enums import FactStatus, WorkflowRunStatus
+from storyforge.enums import FactStatus, ModelProfile, PrivacyPolicy, WorkflowRunStatus
 from storyforge.exceptions import InvalidStateError
 from storyforge.repositories import DemoAuditRepository
 from storyforge.schemas.api import (
@@ -18,6 +18,7 @@ from storyforge.settings import Settings
 from .chapters import ChapterApplicationService
 from .evaluations import EvaluationApplicationService
 from .factory import DomainServiceFactory
+from .governance import GovernanceApplicationService
 from .planning import PlanningApplicationService
 from .projects import ProjectApplicationService
 from .workflows import WorkflowApplicationService
@@ -36,7 +37,13 @@ class DemoApplicationService:
         self._evaluations = EvaluationApplicationService(session_factory, self._factory)
         self._workflows = WorkflowApplicationService(session_factory, self._factory, settings)
 
-    def run(self, *, project_title: str = "Milestone 6 offline interface") -> DemoM6Response:
+    def run(
+        self,
+        *,
+        project_title: str = "Milestone 6 offline interface",
+        model_profile: ModelProfile = ModelProfile.OFFLINE,
+        privacy_policy: PrivacyPolicy = PrivacyPolicy.OFFLINE,
+    ) -> DemoM6Response:
         project = self._projects.create(
             ProjectCreateRequest(
                 title=project_title,
@@ -50,6 +57,11 @@ class DemoApplicationService:
                 additional_requirements="Keep evidence auditable.",
             )
         )
+        governance = GovernanceApplicationService(self._session_factory, self._factory)
+        if model_profile is not ModelProfile.OFFLINE:
+            governance.set_model_profile(project.id, model_profile)
+        if privacy_policy is not PrivacyPolicy.OFFLINE:
+            governance.set_privacy_policy(project.id, privacy_policy)
         plan = self._planning.generate(project.id, GeneratePlanRequest())
         workflow = self._workflows.start(
             project.id,

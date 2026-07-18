@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from decimal import Decimal
 from pathlib import Path
 from typing import Literal, Self, cast
 
@@ -11,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from sqlalchemy import make_url
 
 from storyforge.database import normalize_database_url
+from storyforge.enums import ModelProfile, PrivacyPolicy
 from storyforge.exceptions import ConfigurationError
 
 
@@ -38,6 +40,8 @@ class Settings(BaseModel):
     llm_max_retries: int = Field(default=2, ge=0, le=10)
     llm_repair_retries: int = Field(default=1, ge=0, le=5)
     llm_retry_base_delay_seconds: float = Field(default=0.5, ge=0, le=30)
+    llm_structured_output_mode: Literal["auto", "json_schema", "json_object"] = "auto"
+    llm_max_output_tokens: int = Field(default=8_192, ge=1, le=131_072)
     embedding_provider: Literal["mock", "openai-compatible"] = "mock"
     embedding_model: str = "mock-hash-embedding-v1"
     embedding_base_url: str = "https://api.openai.com/v1"
@@ -78,6 +82,39 @@ class Settings(BaseModel):
     enable_http_logging: bool = True
     database_wait_attempts: int = Field(default=30, ge=1, le=300)
     database_wait_interval_seconds: float = Field(default=1.0, ge=0, le=30)
+    model_profile: ModelProfile = ModelProfile.OFFLINE
+    privacy_policy: PrivacyPolicy = PrivacyPolicy.OFFLINE
+    provider_config_path: Path | None = None
+    pricing_config_path: Path | None = None
+    default_currency: str = Field(default="USD", min_length=3, max_length=3)
+    project_soft_budget: Decimal = Field(default=Decimal("5.00"), ge=0)
+    project_hard_budget: Decimal = Field(default=Decimal("10.00"), gt=0)
+    workflow_max_cost: Decimal = Field(default=Decimal("2.00"), gt=0)
+    workflow_max_tokens: int = Field(default=500_000, gt=0)
+    workflow_max_provider_calls: int = Field(default=100, gt=0)
+    provider_max_retries: int = Field(default=2, ge=0, le=10)
+    provider_total_deadline_seconds: float = Field(default=120.0, gt=0, le=900)
+    rate_limit_rpm: int = Field(default=60, gt=0, le=100_000)
+    rate_limit_tpm: int = Field(default=1_000_000, gt=0)
+    provider_max_concurrency: int = Field(default=4, gt=0, le=1_000)
+    circuit_failure_threshold: int = Field(default=3, gt=0, le=100)
+    circuit_cooldown_seconds: float = Field(default=30.0, gt=0, le=3_600)
+    allow_unknown_pricing: bool = False
+    enable_real_provider_tests: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_provider_governance(cls, data: object) -> object:
+        """Choose safe profile defaults from an explicitly selected provider."""
+        if isinstance(data, dict):
+            values = dict(data)
+            provider = values.get("llm_provider", "mock")
+            if "model_profile" not in values:
+                values["model_profile"] = "offline" if provider == "mock" else "balanced"
+            if "privacy_policy" not in values:
+                values["privacy_policy"] = "offline" if provider == "mock" else "strict"
+            return values
+        return data
 
     @model_validator(mode="after")
     def validate_configuration(self) -> Self:
@@ -121,6 +158,17 @@ class Settings(BaseModel):
             raise ConfigurationError("Mock provider requires STORYFORGE_MOCK_MODE=true")
         if self.cors_allow_credentials and "*" in self.allowed_origins:
             raise ConfigurationError("Credentialed CORS cannot allow every origin")
+        if self.project_soft_budget > self.project_hard_budget:
+            raise ConfigurationError("Project soft budget cannot exceed hard budget")
+        if self.default_currency.upper() != self.default_currency:
+            raise ConfigurationError("Default currency must use uppercase ISO-style letters")
+        if (
+            self.model_profile is ModelProfile.OFFLINE
+            and self.privacy_policy is not PrivacyPolicy.OFFLINE
+        ):
+            raise ConfigurationError("Offline model profile requires offline privacy policy")
+        if self.privacy_policy is PrivacyPolicy.OFFLINE and self.llm_provider != "mock":
+            raise ConfigurationError("Offline privacy policy cannot use an external LLM provider")
         if self.llm_provider == "openai-compatible":
             key = self.llm_api_key.get_secret_value() if self.llm_api_key is not None else ""
             if not key:
@@ -162,6 +210,8 @@ class Settings(BaseModel):
         key_value = value("LLM_API_KEY", "OPENAI_API_KEY", "")
         embedding_key_value = value("EMBEDDING_API_KEY", None, "")
         checkpoint = value("CHECKPOINT_PATH", None, "")
+        provider_config = value("PROVIDER_CONFIG_PATH", None, "")
+        pricing_config = value("PRICING_CONFIG_PATH", None, "")
         environment_value = value("ENVIRONMENT", None, "development")
         if (
             environment_value == "test"
@@ -170,6 +220,7 @@ class Settings(BaseModel):
         ):
             raise ConfigurationError("Test environment requires an explicit test database URL")
         database_value = value("DATABASE_URL", "DATABASE_URL", "sqlite:///./storyforge.db")
+        llm_provider_value = value("LLM_PROVIDER", None, "mock")
         allowed_origins = tuple(
             item.strip() for item in value("ALLOWED_ORIGINS", None, "").split(",") if item.strip()
         )
@@ -182,7 +233,7 @@ class Settings(BaseModel):
                 database_url=database_value,
                 llm_provider=cast(
                     Literal["mock", "openai-compatible"],
-                    value("LLM_PROVIDER", None, "mock"),
+                    llm_provider_value,
                 ),
                 llm_model=value("LLM_MODEL", "OPENAI_MODEL", "mock-storyforge-v1"),
                 llm_api_base_url=first(
@@ -206,6 +257,11 @@ class Settings(BaseModel):
                         "0.5",
                     )
                 ),
+                llm_structured_output_mode=cast(
+                    Literal["auto", "json_schema", "json_object"],
+                    value("LLM_STRUCTURED_OUTPUT_MODE", None, "auto"),
+                ),
+                llm_max_output_tokens=int(value("LLM_MAX_OUTPUT_TOKENS", None, "8192")),
                 embedding_provider=cast(
                     Literal["mock", "openai-compatible"],
                     value("EMBEDDING_PROVIDER", None, "mock"),
@@ -301,6 +357,45 @@ class Settings(BaseModel):
                 database_wait_attempts=int(value("DATABASE_WAIT_ATTEMPTS", None, "30")),
                 database_wait_interval_seconds=float(
                     value("DATABASE_WAIT_INTERVAL_SECONDS", None, "1")
+                ),
+                model_profile=ModelProfile(
+                    value(
+                        "MODEL_PROFILE",
+                        None,
+                        "offline" if llm_provider_value == "mock" else "balanced",
+                    )
+                ),
+                privacy_policy=PrivacyPolicy(
+                    value(
+                        "PRIVACY_POLICY",
+                        None,
+                        "offline" if llm_provider_value == "mock" else "strict",
+                    )
+                ),
+                provider_config_path=Path(provider_config) if provider_config else None,
+                pricing_config_path=Path(pricing_config) if pricing_config else None,
+                default_currency=value("DEFAULT_CURRENCY", None, "USD").upper(),
+                project_soft_budget=Decimal(value("PROJECT_SOFT_BUDGET", None, "5.00")),
+                project_hard_budget=Decimal(value("PROJECT_HARD_BUDGET", None, "10.00")),
+                workflow_max_cost=Decimal(value("WORKFLOW_MAX_COST", None, "2.00")),
+                workflow_max_tokens=int(value("WORKFLOW_MAX_TOKENS", None, "500000")),
+                workflow_max_provider_calls=int(value("WORKFLOW_MAX_PROVIDER_CALLS", None, "100")),
+                provider_max_retries=int(value("PROVIDER_MAX_RETRIES", None, "2")),
+                provider_total_deadline_seconds=float(
+                    value("PROVIDER_TOTAL_DEADLINE", None, "120")
+                ),
+                rate_limit_rpm=int(value("RATE_LIMIT_RPM", None, "60")),
+                rate_limit_tpm=int(value("RATE_LIMIT_TPM", None, "1000000")),
+                provider_max_concurrency=int(value("PROVIDER_MAX_CONCURRENCY", None, "4")),
+                circuit_failure_threshold=int(value("CIRCUIT_FAILURE_THRESHOLD", None, "3")),
+                circuit_cooldown_seconds=float(value("CIRCUIT_COOLDOWN_SECONDS", None, "30")),
+                allow_unknown_pricing=_boolean(
+                    value("ALLOW_UNKNOWN_PRICING", None, "false"),
+                    name="STORYFORGE_ALLOW_UNKNOWN_PRICING",
+                ),
+                enable_real_provider_tests=_boolean(
+                    value("ENABLE_REAL_PROVIDER_TESTS", None, "false"),
+                    name="STORYFORGE_ENABLE_REAL_PROVIDER_TESTS",
                 ),
             )
         except ValueError as exc:

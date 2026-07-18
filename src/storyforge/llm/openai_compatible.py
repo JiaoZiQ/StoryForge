@@ -10,17 +10,18 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from types import TracebackType
-from typing import cast
+from typing import Literal, cast
 
 import httpx
 import openai
 from openai import OpenAI
-from openai.types.chat import ChatCompletionMessageParam
+from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 from pydantic import SecretStr, ValidationError
 
 from storyforge.llm.exceptions import (
     LLMAuthenticationError,
     LLMConfigurationError,
+    LLMContextLengthError,
     LLMInvalidResponseError,
     LLMProviderError,
     LLMRateLimitError,
@@ -51,6 +52,9 @@ class OpenAICompatibleConfig:
     max_retries: int = 2
     repair_retries: int = 1
     retry_base_delay_seconds: float = 0.5
+    structured_output_mode: Literal["auto", "json_schema", "json_object"] = "auto"
+    max_output_tokens: int = 8_192
+    provider_name: str = "openai-compatible"
 
     def __post_init__(self) -> None:
         if not self.api_key.get_secret_value():
@@ -75,6 +79,10 @@ class OpenAICompatibleConfig:
             raise LLMConfigurationError("LLM retry counts must not be negative")
         if not math.isfinite(self.retry_base_delay_seconds) or self.retry_base_delay_seconds < 0:
             raise LLMConfigurationError("LLM_RETRY_BASE_DELAY_SECONDS must not be negative")
+        if self.max_output_tokens <= 0:
+            raise LLMConfigurationError("LLM_MAX_OUTPUT_TOKENS must be positive")
+        if not self.provider_name.strip():
+            raise LLMConfigurationError("Provider name must not be empty")
 
     @classmethod
     def from_env(
@@ -101,13 +109,16 @@ class OpenAICompatibleConfig:
             max_retries=max_retries,
             repair_retries=repair_retries,
             retry_base_delay_seconds=retry_base_delay_seconds,
+            structured_output_mode=cast(
+                Literal["auto", "json_schema", "json_object"],
+                values.get("STORYFORGE_LLM_STRUCTURED_OUTPUT_MODE", "auto"),
+            ),
+            max_output_tokens=int(values.get("STORYFORGE_LLM_MAX_OUTPUT_TOKENS", "8192")),
         )
 
 
 class OpenAICompatibleProvider:
     """Call an OpenAI-compatible endpoint and return validated Pydantic output."""
-
-    provider_name = "openai-compatible"
 
     def __init__(
         self,
@@ -128,6 +139,10 @@ class OpenAICompatibleProvider:
             )
         except Exception as exc:
             raise LLMConfigurationError("Could not initialize the LLM provider") from exc
+
+    @property
+    def provider_name(self) -> str:
+        return self._config.provider_name
 
     @classmethod
     def from_env(
@@ -229,10 +244,22 @@ class OpenAICompatibleProvider:
                         "LLM provider rate limit retries exhausted",
                         attempts=attempts,
                         status_code=exc.status_code,
+                        retry_after=self._retry_after(exc),
                     ) from exc
-                self._backoff(transport_retries, attempts, "rate_limit")
+                self._backoff(
+                    transport_retries,
+                    attempts,
+                    "rate_limit",
+                    retry_after=self._retry_after(exc),
+                )
                 transport_retries += 1
             except openai.APIStatusError as exc:
+                if self._is_context_length_error(exc):
+                    raise LLMContextLengthError(
+                        "LLM provider context length was exceeded",
+                        attempts=attempts,
+                        status_code=exc.status_code,
+                    ) from exc
                 if self._is_retryable_status(exc.status_code) and (
                     transport_retries < self._config.max_retries
                 ):
@@ -287,22 +314,38 @@ class OpenAICompatibleProvider:
         response_model: type[ResponseT],
         attempts: int,
     ) -> LLMResponse[ResponseT]:
-        completion = self._client.chat.completions.parse(
-            model=self._config.model,
-            messages=messages,
-            response_format=response_model,
-        )
+        mode = self._structured_output_mode()
+        if mode == "json_schema":
+            completion = cast(
+                ChatCompletion,
+                self._client.chat.completions.parse(
+                    model=self._config.model,
+                    messages=messages,
+                    response_format=response_model,
+                    max_tokens=self._config.max_output_tokens,
+                ),
+            )
+        else:
+            completion = self._client.chat.completions.create(
+                model=self._config.model,
+                messages=messages,
+                response_format={"type": "json_object"},
+                max_tokens=self._config.max_output_tokens,
+            )
         if not completion.choices:
             raise LLMInvalidResponseError("LLM response contained no choices", attempts=attempts)
         message = completion.choices[0].message
         if message.refusal:
             raise LLMRefusalError("LLM provider refused the request", attempts=attempts)
-        if message.parsed is None:
-            raise LLMInvalidResponseError(
-                "LLM response contained no structured output",
-                attempts=attempts,
-            )
-        output = response_model.model_validate(message.parsed)
+        parsed = getattr(message, "parsed", None)
+        if parsed is None:
+            if not message.content:
+                raise LLMInvalidResponseError(
+                    "LLM response contained no structured output",
+                    attempts=attempts,
+                )
+            parsed = json.loads(message.content)
+        output = response_model.model_validate(parsed)
 
         usage = None
         if completion.usage is not None:
@@ -310,6 +353,7 @@ class OpenAICompatibleProvider:
                 input_tokens=completion.usage.prompt_tokens,
                 output_tokens=completion.usage.completion_tokens,
                 total_tokens=completion.usage.total_tokens,
+                cached_input_tokens=self._cached_tokens(completion.usage),
             )
         return LLMResponse(
             output=output,
@@ -318,11 +362,36 @@ class OpenAICompatibleProvider:
             prompt=request.prompt,
             attempts=attempts,
             usage=usage,
-            request_id=completion.id,
+            request_id=getattr(completion, "_request_id", None) or completion.id,
         )
 
-    def _backoff(self, retry_index: int, attempt: int, reason: str) -> None:
-        delay = self._config.retry_base_delay_seconds * (2**retry_index)
+    def _structured_output_mode(self) -> Literal["json_schema", "json_object"]:
+        if self._config.structured_output_mode != "auto":
+            return self._config.structured_output_mode
+        host = (httpx.URL(self._config.base_url).host or "").casefold()
+        return "json_object" if host == "api.deepseek.com" else "json_schema"
+
+    @staticmethod
+    def _cached_tokens(usage: object) -> int:
+        details = getattr(usage, "prompt_tokens_details", None)
+        cached = getattr(details, "cached_tokens", 0) if details is not None else 0
+        if not cached:
+            cached = getattr(usage, "prompt_cache_hit_tokens", 0)
+        return int(cached or 0)
+
+    def _backoff(
+        self,
+        retry_index: int,
+        attempt: int,
+        reason: str,
+        *,
+        retry_after: float | None = None,
+    ) -> None:
+        delay = (
+            retry_after
+            if retry_after is not None
+            else self._config.retry_base_delay_seconds * (2**retry_index)
+        )
         logger.warning(
             "Retrying LLM provider=%s model=%s reason=%s attempt=%d delay_seconds=%.3f",
             self.provider_name,
@@ -342,6 +411,33 @@ class OpenAICompatibleProvider:
     @staticmethod
     def _is_retryable_status(status_code: int) -> bool:
         return status_code in RETRYABLE_STATUS_CODES or status_code >= 500
+
+    @staticmethod
+    def _is_context_length_error(error: openai.APIStatusError) -> bool:
+        if error.status_code not in {400, 413}:
+            return False
+        body = getattr(error, "body", None)
+        rendered = json.dumps(body, ensure_ascii=False, default=str) if body else str(error)
+        normalized = rendered.casefold()
+        return any(
+            marker in normalized
+            for marker in (
+                "context_length",
+                "context window",
+                "maximum context",
+                "too many tokens",
+            )
+        )
+
+    @staticmethod
+    def _retry_after(error: openai.RateLimitError) -> float | None:
+        value = error.response.headers.get("retry-after")
+        if value is None:
+            return None
+        try:
+            return max(0.0, float(value))
+        except ValueError:
+            return None
 
     @staticmethod
     def _to_sdk_messages(request: PromptRequest) -> list[ChatCompletionMessageParam]:

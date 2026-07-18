@@ -83,3 +83,16 @@ STORYFORGE_INTERNAL_API_URL=http://api:8000
 ## Known limitations
 
 工作流请求同步执行；SQLite checkpoint 只适合当前单实例；Web 没有认证/RBAC；没有滚动发布、leader election 或 migration lock 服务；没有 Kubernetes、云厂商模板、Redis/Celery 或镜像自动发布。
+
+## Milestone 10 operational controls
+
+Compose remains offline/mock by default and sets `MODEL_PROFILE=offline`,
+`PRIVACY_POLICY=offline`, finite project/workflow budgets, bounded retries,
+rate/concurrency limits, and a disabled real-smoke flag. Provider health endpoints
+report configuration and process-local circuit state without making a billable
+network call. Rate limits and circuits are not distributed across replicas.
+
+Before enabling an external provider, supply a validated registry/pricing file,
+server-side secret, strict/standard policy, and explicit budget. Unknown price is
+blocked by default. Monitor `provider_calls`, budget reservations, failed usage,
+and open circuits; estimated cost is not the provider invoice.

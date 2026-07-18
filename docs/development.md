@@ -207,3 +207,20 @@ npm run test:e2e
 ```
 
 四个 Playwright 场景各自创建数据，可并行且不依赖顺序。测试运行时使用 Compose internal network、MockLLM 和 MockEmbedding，不需要 API Key；trace 关闭，仅失败 screenshot 可作为短期 artifact。`npm run generate:api` 会改写 OpenAPI/生成类型，提交前必须执行 `npm run check:api` 确认没有漂移。
+
+## Milestone 10 development
+
+Default development and every automated test use offline profiles, MockLLM and
+MockEmbedding. Keep real-provider tests disabled:
+
+```powershell
+$env:STORYFORGE_ENABLE_REAL_PROVIDER_TESTS="false"
+uv run pytest
+docker compose exec api storyforge demo-m10 --output json
+```
+
+Provider/pricing JSON is validated at startup; prices use decimal strings and an
+effective version/date. To test a real compatible provider manually, use a local
+ignored environment file, enable the explicit gate, and run only `provider
+smoke-test`. Never paste a key into source, shell history, test fixtures, or CI.
+The smoke sends a fixed tiny JSON request and no story data.

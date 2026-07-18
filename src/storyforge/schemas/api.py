@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from storyforge.enums import (
+    BudgetPeriod,
     ChapterStatus,
     ChapterVersionStatus,
     ConflictSeverity,
@@ -20,7 +22,12 @@ from storyforge.enums import (
     GraphPredicate,
     MemoryIndexStatus,
     MemoryStatus,
+    ModelProfile,
+    PrivacyPolicy,
     ProjectStatus,
+    ProviderCallStatus,
+    TaskType,
+    TokenUsageSource,
     WorkflowEventType,
     WorkflowRunStatus,
 )
@@ -614,3 +621,123 @@ class ScoreRange(RequestModel):
         ):
             raise ValueError("min_score must not exceed max_score")
         return self
+
+
+class ProviderCapabilityResponse(BaseModel):
+    provider: str
+    model: str
+    model_type: Literal["chat", "embedding"]
+    context_window: int
+    max_output_tokens: int
+    supports_structured_output: bool
+    supports_json_schema: bool
+    supports_embeddings: bool
+    embedding_dimensions: int | None
+    enabled: bool
+    pricing_available: bool
+
+
+class ProviderHealthResponse(BaseModel):
+    provider: str
+    model: str
+    enabled: bool
+    health_status: Literal["healthy", "configured", "disabled", "unavailable"]
+    circuit_status: Literal["closed", "open", "half_open"]
+    pricing_available: bool
+    capabilities: list[str]
+
+
+class ProviderCallResponse(BaseModel):
+    id: int
+    project_id: int | None
+    workflow_run_id: int | None
+    chapter_id: int | None
+    chapter_version_id: int | None
+    task_type: TaskType
+    provider: str
+    model: str
+    profile: ModelProfile
+    privacy_policy: PrivacyPolicy
+    prompt_name: str
+    prompt_version: str
+    status: ProviderCallStatus
+    attempt: int
+    fallback_index: int
+    input_tokens: int
+    output_tokens: int
+    cached_input_tokens: int
+    total_tokens: int
+    usage_source: TokenUsageSource
+    estimated_cost: Decimal | None
+    billed_cost: Decimal | None
+    currency: str
+    latency_ms: int
+    provider_request_id: str | None
+    error_code: str | None
+    created_at: datetime
+    completed_at: datetime | None
+
+
+class UsageSummaryResponse(BaseModel):
+    calls: int
+    succeeded: int
+    failures: int
+    input_tokens: int
+    output_tokens: int
+    cached_input_tokens: int
+    total_tokens: int
+    estimated_cost: Decimal | None
+    billed_cost: Decimal | None
+    fallback_count: int
+    timeout_count: int
+    rate_limit_count: int
+    average_latency_ms: Decimal
+    currency: str
+
+
+class ProjectBudgetResponse(BaseModel):
+    project_id: int
+    currency: str
+    soft_limit: Decimal
+    hard_limit: Decimal
+    period: BudgetPeriod
+    spent_estimated: Decimal
+    spent_billed: Decimal
+    reserved_estimated: Decimal
+    alert_thresholds: list[str]
+    enabled: bool
+    remaining_estimated: Decimal
+
+
+class ProjectBudgetUpdateRequest(RequestModel):
+    currency: str = Field(min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
+    soft_limit: Decimal = Field(ge=0, max_digits=18, decimal_places=8)
+    hard_limit: Decimal = Field(gt=0, max_digits=18, decimal_places=8)
+    period: BudgetPeriod = BudgetPeriod.LIFETIME
+    enabled: bool = True
+
+    @model_validator(mode="after")
+    def validate_limits(self) -> ProjectBudgetUpdateRequest:
+        if self.soft_limit > self.hard_limit:
+            raise ValueError("soft_limit must not exceed hard_limit")
+        return self
+
+
+class ProjectModelSettingsResponse(BaseModel):
+    project_id: int
+    model_profile: ModelProfile
+    privacy_policy: PrivacyPolicy
+
+
+class ModelProfileUpdateRequest(RequestModel):
+    model_profile: ModelProfile
+
+
+class PrivacyPolicyUpdateRequest(RequestModel):
+    privacy_policy: PrivacyPolicy
+
+
+class ModelProfileOption(BaseModel):
+    name: ModelProfile
+    description: str
+    external_allowed: bool

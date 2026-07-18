@@ -26,3 +26,13 @@ TanStack Query key 以 resource、project/chapter/run ID 和 filter 组成。创
 ## 限制
 
 M9 是本地/受信网络单用户控制面。没有认证、授权、CSRF 会话、多人编辑、乐观锁 UI、WebSocket、Celery/Redis 或对象存储。同步工作流期间浏览器连接必须保持，生产化需要后续明确里程碑。
+
+## M10 provider governance UI
+
+Global navigation includes Providers. Project navigation includes Usage & Cost,
+Budget and Model Settings; workflow detail shows calls, tokens, estimated cost,
+fallbacks and rate-limit counts. Usage exposes time/task/model filters and textual
+breakdowns by task, model, workflow and day. Estimated and billed values remain
+separate; unknown pricing renders as `Unknown`, never zero. Budget spend is read
+only and only limits can be submitted. No form accepts provider keys, endpoints or
+arbitrary model names. See [ui-workflows.md](ui-workflows.md).

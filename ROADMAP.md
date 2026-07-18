@@ -1,5 +1,16 @@
 # StoryForge Roadmap
 
+## Milestone 10：Provider 治理、成本与可靠性（已实现，待独立提交）
+
+- 统一 LLM/Embedding gateway、能力注册、受控 profile 与 task route。
+- offline/strict/standard 隐私策略及外发前脱敏。
+- ProviderCall、ProjectBudget、工作流用量聚合、Decimal 定价快照。
+- 有界 retry/fallback、RPM/TPM/concurrency 限制、circuit breaker 与幂等键。
+- Provider/Usage/Budget/Model Settings API、CLI 与 Web 页面。
+- PostgreSQL + pgvector + MockLLM/MockEmbedding 的 `demo-m10`。
+
+Milestone 11 未开始；本阶段不引入队列、分布式限流或认证系统。
+
 所有里程碑按顺序独立验收；完成一个阶段不会自动开始下一阶段。
 
 ## Milestone 0：仓库初始化（已完成）

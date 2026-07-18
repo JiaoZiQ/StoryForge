@@ -4,7 +4,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { storyforgeApi } from "@/lib/api/storyforge";
 import { queryKeys } from "@/lib/query/keys";
 import { workflowActions } from "@/features/shared/workflow";
-import { useWorkflow, useWorkflowEvents } from "@/hooks/use-storyforge";
+import {
+  useWorkflow,
+  useWorkflowEvents,
+  useWorkflowUsage,
+} from "@/hooks/use-storyforge";
 import { PageHeader, Section, StatCard } from "@/components/ui/page";
 import {
   ApiErrorAlert,
@@ -26,6 +30,7 @@ export function WorkflowDetail({
   const queryClient = useQueryClient();
   const workflow = useWorkflow(workflowRunId);
   const events = useWorkflowEvents(workflowRunId, workflow.data?.status);
+  const usage = useWorkflowUsage(workflowRunId, workflow.data?.status);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const resume = useMutation({
     mutationFn: () => storyforgeApi.resumeWorkflow(workflowRunId),
@@ -111,6 +116,26 @@ export function WorkflowDetail({
           value={<ScoreBadge score={data.latest_score} />}
         />
       </div>
+      {usage.data ? (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Provider calls" value={usage.data.calls} />
+          <StatCard label="Provider tokens" value={usage.data.total_tokens} />
+          <StatCard
+            label="Estimated cost"
+            value={
+              usage.data.estimated_cost == null
+                ? "Unknown"
+                : `${usage.data.currency} ${usage.data.estimated_cost}`
+            }
+            detail="Estimate, not provider billing"
+          />
+          <StatCard
+            label="Fallbacks"
+            value={usage.data.fallback_count}
+            detail={`${usage.data.rate_limit_count} rate limited`}
+          />
+        </div>
+      ) : null}
       <div className="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">
         <Section
           title="Node timeline"

@@ -141,3 +141,17 @@ M8 不改变 LangGraph 路由、评估通过条件或候选事实提升事务。
 Web 启动工作流时沿用同步 `201` 语义，完成后跳转到 WorkflowRun 页面。若未来使用 debug pause，只有 `paused` 显示 resume；`pending/running` 可协作式 cancel；completed、completed_needs_review、failed 和 cancelled 不允许 resume/cancel。详情页只在非终态每 3 秒轮询状态与事件，终态立即停止。
 
 UI 不复制评分、阻断、最佳版本或接受规则。版本 diff、Evaluation、Conflict 和 WorkflowEvent 全部查询服务端持久化结果。正文只在章节 Content tab 打开后请求；上下文、Fact、Memory/Retrieval/Graph 页面继续受 accepted 与未来章节边界保护。
+
+## M10 provider execution
+
+```text
+task classification -> profile route -> privacy decision -> price preflight
+-> project/workflow budget -> circuit + rate admission -> provider attempt
+-> retry or controlled fallback -> usage normalization -> settlement + audit
+```
+
+Budget/privacy/authentication/refusal failures do not fall back. Timeout, rate
+limit and server failures follow bounded policy. Every attempt is separate and
+workflow aggregates include failures and embeddings. A repeated persisted
+idempotency claim does not re-call or re-charge the provider; workflow/domain
+artifacts remain the source for resume output. ProviderCall never stores prose.

@@ -15,12 +15,19 @@ import {
   healthSchema,
   memoryPageSchema,
   memoryStatusPageSchema,
+  modelProfileOptionSchema,
+  modelSettingsSchema,
   planSchema,
   projectDetailSchema,
   projectPageSchema,
+  projectBudgetSchema,
+  providerCallPageSchema,
+  providerCapabilitySchema,
+  providerHealthSchema,
   readinessSchema,
   reindexSchema,
   retrievalSchema,
+  usageSummarySchema,
   versionDetailSchema,
   versionDiffSchema,
   versionPageSchema,
@@ -44,14 +51,21 @@ import type {
   MemoryIndexStatusResponse,
   MemoryReindexResponse,
   MemorySummary,
+  ModelProfileOption,
   Page,
   PlanResponse,
   ProjectCreateRequest,
   ProjectDetail,
   ProjectSummary,
+  ProjectBudgetResponse,
+  ProjectModelSettingsResponse,
+  ProviderCallResponse,
+  ProviderCapabilityResponse,
+  ProviderHealthResponse,
   ReadinessResponse,
   RetrievalSearchRequest,
   RetrievalSearchResponse,
+  UsageSummaryResponse,
   VersionDetail,
   VersionDiffResponse,
   VersionSummary,
@@ -70,6 +84,21 @@ export type ProjectListFilters = {
 };
 
 export const storyforgeApi = {
+  listProviders: (signal?: AbortSignal) =>
+    parseApiResponse<ProviderCapabilityResponse[]>(
+      rawApi.GET("/api/v1/providers", { signal }),
+      providerCapabilitySchema.array(),
+    ),
+  providerHealth: (signal?: AbortSignal) =>
+    parseApiResponse<ProviderHealthResponse[]>(
+      rawApi.GET("/api/v1/providers/health", { signal }),
+      providerHealthSchema.array(),
+    ),
+  listModelProfiles: (signal?: AbortSignal) =>
+    parseApiResponse<ModelProfileOption[]>(
+      rawApi.GET("/api/v1/system/model-profiles", { signal }),
+      modelProfileOptionSchema.array(),
+    ),
   health: () =>
     parseApiResponse<HealthResponse>(
       rawApi.GET("/api/v1/health"),
@@ -521,5 +550,87 @@ export const storyforgeApi = {
         },
       }),
       graphNeighborsSchema,
+    ),
+  getUsage: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<UsageSummaryResponse>(
+      rawApi.GET("/api/v1/projects/{project_id}/usage", {
+        signal,
+        params: { path: { project_id: projectId } },
+      }),
+      usageSummarySchema,
+    ),
+  getWorkflowUsage: (workflowRunId: number, signal?: AbortSignal) =>
+    parseApiResponse<UsageSummaryResponse>(
+      rawApi.GET("/api/v1/workflow-runs/{workflow_run_id}/usage", {
+        signal,
+        params: { path: { workflow_run_id: workflowRunId } },
+      }),
+      usageSummarySchema,
+    ),
+  listUsageCalls: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<Page<ProviderCallResponse>>(
+      rawApi.GET("/api/v1/projects/{project_id}/usage/calls", {
+        signal,
+        params: {
+          path: { project_id: projectId },
+          query: { page: 1, page_size: 100 },
+        },
+      }),
+      providerCallPageSchema,
+    ),
+  getBudget: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<ProjectBudgetResponse>(
+      rawApi.GET("/api/v1/projects/{project_id}/budget", {
+        signal,
+        params: { path: { project_id: projectId } },
+      }),
+      projectBudgetSchema,
+    ),
+  setBudget: (
+    projectId: number,
+    body: {
+      currency: string;
+      soft_limit: string;
+      hard_limit: string;
+      period: "lifetime" | "daily" | "monthly";
+      enabled: boolean;
+    },
+  ) =>
+    parseApiResponse<ProjectBudgetResponse>(
+      rawApi.PUT("/api/v1/projects/{project_id}/budget", {
+        params: { path: { project_id: projectId } },
+        body,
+      }),
+      projectBudgetSchema,
+    ),
+  getModelSettings: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<ProjectModelSettingsResponse>(
+      rawApi.GET("/api/v1/projects/{project_id}/model-settings", {
+        signal,
+        params: { path: { project_id: projectId } },
+      }),
+      modelSettingsSchema,
+    ),
+  setModelProfile: (
+    projectId: number,
+    model_profile: "offline" | "economy" | "balanced" | "quality",
+  ) =>
+    parseApiResponse<ProjectModelSettingsResponse>(
+      rawApi.PATCH("/api/v1/projects/{project_id}/model-profile", {
+        params: { path: { project_id: projectId } },
+        body: { model_profile },
+      }),
+      modelSettingsSchema,
+    ),
+  setPrivacyPolicy: (
+    projectId: number,
+    privacy_policy: "offline" | "strict" | "standard",
+  ) =>
+    parseApiResponse<ProjectModelSettingsResponse>(
+      rawApi.PATCH("/api/v1/projects/{project_id}/privacy-policy", {
+        params: { path: { project_id: projectId } },
+        body: { privacy_policy },
+      }),
+      modelSettingsSchema,
     ),
 };

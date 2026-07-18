@@ -18,7 +18,7 @@ from storyforge.database import (
     create_session_factory,
     normalize_database_url,
 )
-from storyforge.enums import MemoryStatus
+from storyforge.enums import MemoryStatus, ModelProfile, PrivacyPolicy
 from storyforge.exceptions import ConfigurationError, InvalidStateError
 from storyforge.graph import GraphEntityRepository, GraphRelationRepository
 from storyforge.memory import MemoryChunkRepository
@@ -36,7 +36,12 @@ from storyforge.schemas.retrieval import (
 from storyforge.settings import Settings
 
 
-def run_demo_m8(settings: Settings | None = None) -> DemoM8Response:
+def run_demo_m8(
+    settings: Settings | None = None,
+    *,
+    model_profile: ModelProfile = ModelProfile.OFFLINE,
+    privacy_policy: PrivacyPolicy = PrivacyPolicy.OFFLINE,
+) -> DemoM8Response:
     """Run a network-free M8 flow against a real PostgreSQL pgvector database."""
     configured = settings or Settings.from_env()
     backend = make_url(normalize_database_url(configured.database_url)).get_backend_name()
@@ -59,7 +64,9 @@ def run_demo_m8(settings: Settings | None = None) -> DemoM8Response:
             raise InvalidStateError("PostgreSQL vector extension is not enabled")
 
         demo = DemoApplicationService(session_factory, configured).run(
-            project_title=f"Milestone 8 Hybrid RAG {uuid4().hex[:12]}"
+            project_title=f"Milestone 8 Hybrid RAG {uuid4().hex[:12]}",
+            model_profile=model_profile,
+            privacy_policy=privacy_policy,
         )
         project_id = demo.project.id
         accepted_pointer = demo.chapter.accepted_version

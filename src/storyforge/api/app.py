@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 
 from storyforge import __version__
+from storyforge.application import DomainServiceFactory
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.logging_config import configure_logging
 from storyforge.settings import Settings
@@ -53,6 +54,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         application.state.settings = configured
         application.state.engine = engine
         application.state.session_factory = create_session_factory(engine)
+        application.state.domain_factory = DomainServiceFactory(
+            application.state.session_factory, configured
+        )
         try:
             yield
         finally:
@@ -80,6 +84,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"name": "memory", "description": "Accepted semantic memory lifecycle."},
             {"name": "retrieval", "description": "Explainable hybrid retrieval."},
             {"name": "graph", "description": "Bounded relational story graph."},
+            {"name": "providers", "description": "Safe model registry and health."},
+            {"name": "usage", "description": "Provider usage, cost, and budgets."},
         ],
     )
     install_http_middleware(application, configured)
@@ -88,7 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             CORSMiddleware,
             allow_origins=list(configured.allowed_origins),
             allow_credentials=configured.cors_allow_credentials,
-            allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             allow_headers=["Content-Type", "X-Request-ID"],
         )
     install_exception_handlers(application)

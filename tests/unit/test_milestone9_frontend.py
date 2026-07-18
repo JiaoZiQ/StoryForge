@@ -116,5 +116,5 @@ def test_generated_openapi_has_unique_operation_ids() -> None:
         for operation in path.values()
         if isinstance(operation, dict) and "operationId" in operation
     ]
-    assert len(operation_ids) == 40
+    assert len(operation_ids) == 51
     assert len(operation_ids) == len(set(operation_ids))
