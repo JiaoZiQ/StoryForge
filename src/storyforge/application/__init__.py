@@ -1,10 +1,13 @@
 """Application services shared by HTTP and CLI adapters."""
 
+from storyforge.application.book_queries import BookQueryApplicationService
+from storyforge.application.books import BookWorkflowApplicationService
 from storyforge.application.chapters import ChapterApplicationService
 from storyforge.application.demo import DemoApplicationService
 from storyforge.application.evaluations import EvaluationApplicationService
 from storyforge.application.factory import DomainServiceFactory
 from storyforge.application.governance import GovernanceApplicationService
+from storyforge.application.jobs import JobApplicationService
 from storyforge.application.memory import MemoryApplicationService
 from storyforge.application.planning import PlanningApplicationService
 from storyforge.application.projects import ProjectApplicationService
@@ -12,11 +15,14 @@ from storyforge.application.system import SystemApplicationService
 from storyforge.application.workflows import WorkflowApplicationService
 
 __all__ = [
+    "BookQueryApplicationService",
+    "BookWorkflowApplicationService",
     "ChapterApplicationService",
     "DemoApplicationService",
     "DomainServiceFactory",
     "EvaluationApplicationService",
     "GovernanceApplicationService",
+    "JobApplicationService",
     "MemoryApplicationService",
     "PlanningApplicationService",
     "ProjectApplicationService",

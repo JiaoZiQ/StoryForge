@@ -12,10 +12,12 @@ from pydantic import BaseModel
 from sqlalchemy import Engine
 
 from storyforge.application import DomainServiceFactory, MemoryApplicationService
+from storyforge.cli.m11 import submit_job_request
 from storyforge.database import SessionFactory, create_database_engine, create_session_factory
-from storyforge.enums import GraphEntityType, GraphPredicate
+from storyforge.enums import GraphEntityType, GraphPredicate, JobType
 from storyforge.m8_demo import run_demo_m8
 from storyforge.schemas.api import MemoryReindexRequest, RetrievalSearchRequest
+from storyforge.schemas.jobs import JobCreateRequest
 from storyforge.settings import Settings
 
 
@@ -81,6 +83,25 @@ def _memory_show(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _memory_reindex(args: argparse.Namespace) -> dict[str, object]:
+    if args.run_async:
+        payload, exit_code = submit_job_request(
+            JobCreateRequest(
+                job_type=JobType.REINDEX_MEMORY,
+                project_id=args.project_id,
+                operation="reindex",
+                payload={
+                    "chapter_version_id": args.chapter_version_id,
+                    "all_accepted_chapters": args.all_accepted_chapters,
+                    "force": args.force,
+                },
+                idempotency_key=args.idempotency_key,
+            ),
+            wait=args.wait,
+            poll_interval=args.poll_interval,
+            cancel_on_interrupt=args.cancel_on_interrupt,
+        )
+        args.result_exit_code = exit_code
+        return payload
     with _services() as services:
         return _dump(
             services.memory.reindex(
@@ -186,6 +207,11 @@ def configure_m8_commands(commands: Any) -> None:
     scope.add_argument("--chapter-version-id", type=int)
     scope.add_argument("--all-accepted-chapters", action="store_true")
     reindex.add_argument("--force", action="store_true")
+    reindex.add_argument("--async", dest="run_async", action="store_true")
+    reindex.add_argument("--wait", action="store_true")
+    reindex.add_argument("--cancel-on-interrupt", action="store_true")
+    reindex.add_argument("--poll-interval", type=float, default=0.25)
+    reindex.add_argument("--idempotency-key")
     reindex.set_defaults(handler=_memory_reindex)
 
     retrieval = commands.add_parser("retrieval", help="Run explainable hybrid retrieval")

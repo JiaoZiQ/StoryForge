@@ -22,6 +22,12 @@ EmbeddingProvider 独立于 LLMProvider。MockEmbedding 使用 SHA-256 feature h
 
 PostgreSQL migration 创建 `vector` extension、`vector(64)` 列和 `vector_cosine_ops` HNSW。VectorRetriever 使用 PostgreSQL cosine distance 运算。SQLite 只保存兼容 JSON，VectorRetriever 明确报告不可用，由 HybridRetriever 降级到其余路由。
 
+## M12 snapshot isolation
+
+Targeted chapter acceptance supersedes old memory before a replacement BookSnapshot can be
+reviewed. Candidate global revisions never enter ordinary retrieval. Snapshot analysis
+filters memory by accepted status and exact mapped ChapterVersion IDs.
+
 ## M9 Web 视图
 
 Memory 页面默认只调用 `include_content=false` 列表与索引状态接口，展示 preview、来源版本、有效期、provider/model 和重试计数。reindex 是显式 mutation，完成后只失效相关缓存。页面不接收或渲染 embedding 数组；candidate、rejected、superseded 和 future memory 仍在 repository/API 层不可见。

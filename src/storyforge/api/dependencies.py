@@ -9,10 +9,12 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from storyforge.application import (
+    BookQueryApplicationService,
     ChapterApplicationService,
     DomainServiceFactory,
     EvaluationApplicationService,
     GovernanceApplicationService,
+    JobApplicationService,
     MemoryApplicationService,
     PlanningApplicationService,
     ProjectApplicationService,
@@ -21,6 +23,7 @@ from storyforge.application import (
 )
 from storyforge.database import SessionFactory
 from storyforge.llm import LLMProvider
+from storyforge.services import BookRunService
 from storyforge.settings import Settings
 
 
@@ -119,6 +122,26 @@ def get_governance_service(
     return GovernanceApplicationService(session_factory, factory)
 
 
+def get_job_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> JobApplicationService:
+    return JobApplicationService(session_factory, settings)
+
+
+def get_book_run_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> BookRunService:
+    return BookRunService(session_factory, settings)
+
+
+def get_book_query_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+) -> BookQueryApplicationService:
+    return BookQueryApplicationService(session_factory)
+
+
 ProjectServiceDep = Annotated[ProjectApplicationService, Depends(get_project_service)]
 PlanningServiceDep = Annotated[PlanningApplicationService, Depends(get_planning_service)]
 ChapterServiceDep = Annotated[ChapterApplicationService, Depends(get_chapter_service)]
@@ -127,3 +150,6 @@ WorkflowServiceDep = Annotated[WorkflowApplicationService, Depends(get_workflow_
 SystemServiceDep = Annotated[SystemApplicationService, Depends(get_system_service)]
 MemoryServiceDep = Annotated[MemoryApplicationService, Depends(get_memory_service)]
 GovernanceServiceDep = Annotated[GovernanceApplicationService, Depends(get_governance_service)]
+JobServiceDep = Annotated[JobApplicationService, Depends(get_job_service)]
+BookRunServiceDep = Annotated[BookRunService, Depends(get_book_run_service)]
+BookQueryServiceDep = Annotated[BookQueryApplicationService, Depends(get_book_query_service)]

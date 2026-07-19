@@ -91,3 +91,35 @@ class PrivacyPolicyError(ProviderGovernanceError):
 
 class IdempotencyConflictError(ProviderGovernanceError):
     """Raised when an identical provider request is already active."""
+
+
+class JobExecutionError(StoryForgeError):
+    """Raised when an asynchronous handler cannot complete safely."""
+
+
+class JobRetryableError(JobExecutionError):
+    """Infrastructure failure that may be retried by the Job layer."""
+
+
+class JobControlSignal(JobExecutionError):
+    """Base class for cooperative control at a safe job boundary."""
+
+
+class JobCancellationRequested(JobControlSignal):
+    """Stop before the next side effect and mark the job cancelled."""
+
+
+class JobPauseRequested(JobControlSignal):
+    """Persist a checkpoint and release the job lease."""
+
+
+class QueueUnavailableError(StoryForgeError):
+    """Required queue infrastructure is unavailable."""
+
+
+class QueueBackpressureError(StoryForgeError):
+    """Queue admission was rejected before creating a Job."""
+
+    def __init__(self, message: str, *, retry_after: int = 5) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after

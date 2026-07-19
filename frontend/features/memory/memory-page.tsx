@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   useMemory,
   useMemoryStatus,
@@ -26,6 +27,7 @@ export function MemoryPage({ projectId }: { projectId: number }) {
   });
   const status = useMemoryStatus(projectId);
   const reindex = useReindexMemory(projectId);
+  const router = useRouter();
   const totalChunks =
     status.data?.items.reduce((sum, item) => sum + item.chunk_count, 0) ?? 0;
   return (
@@ -39,7 +41,11 @@ export function MemoryPage({ projectId }: { projectId: number }) {
             className="button-primary"
             type="button"
             disabled={reindex.isPending}
-            onClick={() => void reindex.mutate()}
+            onClick={() =>
+              void reindex
+                .mutateAsync()
+                .then((job) => router.push(`/jobs/${job.job_id}`))
+            }
           >
             {reindex.isPending ? "Reindexing…" : "Reindex accepted chapters"}
           </button>
@@ -47,7 +53,7 @@ export function MemoryPage({ projectId }: { projectId: number }) {
       />
       {reindex.isPending ? (
         <div className="mb-4">
-          <InlineLoading label="Synchronous indexing is running; duplicate clicks are disabled." />
+          <InlineLoading label="Creating a durable indexing job…" />
         </div>
       ) : null}
       {reindex.error ? (
@@ -60,12 +66,7 @@ export function MemoryPage({ projectId }: { projectId: number }) {
           role="status"
           className="mb-5 rounded-lg border border-teal/20 bg-emerald-50 p-4 text-teal-dark"
         >
-          Reindex completed for {reindex.data.results.length} version(s):{" "}
-          {reindex.data.results.reduce(
-            (sum, item) => sum + item.chunk_count,
-            0,
-          )}{" "}
-          chunks.
+          Reindex job #{reindex.data.job_id} was accepted. Opening Job Center…
         </section>
       ) : null}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

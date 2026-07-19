@@ -13,14 +13,17 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, make_url, select, text
+from sqlalchemy import Engine, event, make_url, select, text
 from tests._factories import create_story_graph
 
 from storyforge.api.app import create_app
+from storyforge.book import PostgresVectorRepetitionDetector
+from storyforge.book.models import SnapshotChapter
 from storyforge.cli.app import main
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.embeddings import MockEmbeddingProvider
 from storyforge.enums import (
+    ChapterStatus,
     ChapterVersionStatus,
     GraphEntityType,
     GraphPredicate,
@@ -30,7 +33,14 @@ from storyforge.enums import (
 from storyforge.m8_demo import run_demo_m8
 from storyforge.memory import MemoryChunkRepository, MemoryIndexService
 from storyforge.migrations import MIGRATION_HEAD
-from storyforge.models import Base, ChapterVersion, GraphEntity, GraphRelation, MemoryChunk
+from storyforge.models import (
+    Base,
+    Chapter,
+    ChapterVersion,
+    GraphEntity,
+    GraphRelation,
+    MemoryChunk,
+)
 from storyforge.retrieval import (
     FactRetriever,
     GraphRetriever,
@@ -209,6 +219,115 @@ def test_real_pgvector_query_is_isolated_future_safe_and_idempotent(pg_engine: E
     assert all("sentinel" not in item.content for item in filtered)
     with session_factory() as session:
         assert MemoryChunkRepository(session).duplicate_count(project_id) == 0
+
+
+def test_m12_repetition_candidates_execute_pgvector_cosine_query(pg_engine: Engine) -> None:
+    session_factory = create_session_factory(pg_engine)
+    embedding = MockEmbeddingProvider(dimensions=64).embed_query("echoed harbor scene")
+    with session_factory.begin() as session:
+        graph = create_story_graph(session)
+        project_id = graph.project.id
+        first_chapter = graph.chapter
+        first_version = graph.chapter_version
+        second_chapter = Chapter(
+            project_id=project_id,
+            chapter_number=2,
+            title="Chapter 2",
+            outline="A different scene follows.",
+            content="A similar harbor scene returns with a different consequence.",
+            summary="The harbor scene echoes.",
+            status=ChapterStatus.DRAFT,
+            version=1,
+        )
+        session.add(second_chapter)
+        session.flush()
+        second_version = ChapterVersion(
+            chapter_id=second_chapter.id,
+            version=1,
+            title=second_chapter.title,
+            content=second_chapter.content,
+            summary=second_chapter.summary or "",
+            status=ChapterVersionStatus.ACCEPTED,
+            source="test",
+            word_count=10,
+            provider="mock",
+            model="mock",
+        )
+        session.add(second_version)
+        session.flush()
+        second_chapter.current_version_id = second_version.id
+        second_chapter.accepted_version_id = second_version.id
+        for index, (chapter, version, content) in enumerate(
+            (
+                (first_chapter, first_version, "The brass harbor turns under a silent moon."),
+                (second_chapter, second_version, "The iron harbor turns beneath a quiet moon."),
+            )
+        ):
+            session.add(
+                MemoryChunk(
+                    project_id=project_id,
+                    chapter_id=chapter.id,
+                    chapter_version_id=version.id,
+                    source_type="chapter_version",
+                    source_id=str(version.id),
+                    chunk_index=0,
+                    content=content,
+                    content_hash=hashlib.sha256(content.encode()).hexdigest(),
+                    token_estimate=10,
+                    character_count=len(content),
+                    embedding=embedding,
+                    embedding_provider="mock",
+                    embedding_model="mock-hash-embedding-v1",
+                    embedding_dimensions=64,
+                    status=MemoryStatus.ACCEPTED,
+                    valid_from_chapter=index + 1,
+                )
+            )
+        chapters = [
+            SnapshotChapter(
+                chapter_id=first_chapter.id,
+                chapter_number=1,
+                chapter_version_id=first_version.id,
+                version=1,
+                title=first_version.title,
+                summary=first_version.summary,
+                word_count=first_version.word_count,
+                content=first_version.content,
+            ),
+            SnapshotChapter(
+                chapter_id=second_chapter.id,
+                chapter_number=2,
+                chapter_version_id=second_version.id,
+                version=1,
+                title=second_version.title,
+                summary=second_version.summary,
+                word_count=second_version.word_count,
+                content=second_version.content,
+            ),
+        ]
+    statements: list[str] = []
+
+    def capture_sql(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: object,
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(pg_engine, "before_cursor_execute", capture_sql)
+    try:
+        with session_factory() as session:
+            candidates = PostgresVectorRepetitionDetector().analyze(
+                session, project_id=project_id, chapters=chapters
+            )
+    finally:
+        event.remove(pg_engine, "before_cursor_execute", capture_sql)
+    assert candidates[0].code == "repetition.vector_candidate"
+    assert candidates[0].chapter_numbers == [1, 2]
+    assert any("<=>" in statement for statement in statements)
 
 
 def test_postgres_new_accepted_version_supersedes_old_memory(pg_engine: Engine) -> None:

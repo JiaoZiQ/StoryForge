@@ -34,6 +34,13 @@ _SYSTEM_PROMPTS = {
         "never use future chapter information. Do not introduce a new consistency conflict "
         "and list every material change in changes_made."
     ),
+    "book_critic": (
+        "You are StoryForge BookCriticAgent. Return only the requested BookCritique "
+        "structure. Review the compressed chapter summaries, accepted timeline, character "
+        "arc, relationship, foreshadowing, pacing, transition, repetition, and score signals. "
+        "Do not assume access to omitted manuscript text. Scores must be between 0 and 10; "
+        "chapter priorities must reference declared issue codes; a critical issue must block pass."
+    ),
 }
 
 

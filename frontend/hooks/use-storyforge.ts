@@ -9,6 +9,13 @@ import type {
 } from "@/lib/api/types";
 import { isWorkflowTerminal } from "@/features/shared/workflow";
 
+const terminalBookRun = new Set([
+  "completed",
+  "completed_needs_review",
+  "cancelled",
+  "failed",
+]);
+
 export const useProjects = (filters: ProjectListFilters = {}) =>
   useQuery({
     queryKey: queryKeys.projects(filters),
@@ -204,13 +211,7 @@ export function useGeneratePlan(projectId: number) {
     mutationFn: (replace: boolean) =>
       storyforgeApi.generatePlan(projectId, replace),
     onSuccess: async () => {
-      await Promise.all([
-        client.invalidateQueries({ queryKey: queryKeys.project(projectId) }),
-        client.invalidateQueries({ queryKey: queryKeys.plan(projectId) }),
-        client.invalidateQueries({
-          queryKey: ["project", projectId, "chapters"],
-        }),
-      ]);
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }
@@ -219,9 +220,7 @@ export function useGenerateChapter(projectId: number, chapter: number) {
   return useMutation({
     mutationFn: () => storyforgeApi.generateChapter(projectId, chapter),
     onSuccess: async () => {
-      await client.invalidateQueries({
-        queryKey: ["project", projectId, "chapter", chapter],
-      });
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }
@@ -230,12 +229,7 @@ export function useStartWorkflow(projectId: number, chapter: number) {
   return useMutation({
     mutationFn: () => storyforgeApi.startWorkflow(projectId, chapter),
     onSuccess: async () => {
-      await Promise.all([
-        client.invalidateQueries({
-          queryKey: ["project", projectId, "chapter", chapter],
-        }),
-        client.invalidateQueries({ queryKey: queryKeys.workflows(projectId) }),
-      ]);
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }
@@ -263,14 +257,7 @@ export function useReindexMemory(projectId: number) {
   return useMutation({
     mutationFn: () => storyforgeApi.reindexMemory(projectId),
     onSuccess: async () => {
-      await Promise.all([
-        client.invalidateQueries({
-          queryKey: ["project", projectId, "memory"],
-        }),
-        client.invalidateQueries({
-          queryKey: queryKeys.memoryStatus(projectId),
-        }),
-      ]);
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }
@@ -316,6 +303,117 @@ export function useSetPrivacyPolicy(projectId: number) {
       await client.invalidateQueries({
         queryKey: queryKeys.modelSettings(projectId),
       });
+    },
+  });
+}
+
+export const useBookRuns = (projectId: number) =>
+  useQuery({
+    queryKey: queryKeys.bookRuns(projectId),
+    queryFn: ({ signal }) => storyforgeApi.listBookRuns(projectId, signal),
+    enabled: projectId > 0,
+  });
+
+export const useBookRun = (runId: number) =>
+  useQuery({
+    queryKey: queryKeys.bookRun(runId),
+    queryFn: ({ signal }) => storyforgeApi.getBookRun(runId, signal),
+    enabled: runId > 0,
+    refetchInterval: (query) =>
+      terminalBookRun.has(query.state.data?.status ?? "") ? false : 3_000,
+  });
+
+export const useBookRunEvents = (runId: number, status?: string) =>
+  useQuery({
+    queryKey: queryKeys.bookRunEvents(runId),
+    queryFn: ({ signal }) => storyforgeApi.listBookRunEvents(runId, signal),
+    enabled: runId > 0,
+    refetchInterval: terminalBookRun.has(status ?? "") ? false : 3_000,
+  });
+
+export const useBookSnapshots = (projectId: number) =>
+  useQuery({
+    queryKey: queryKeys.bookSnapshots(projectId),
+    queryFn: ({ signal }) => storyforgeApi.listBookSnapshots(projectId, signal),
+    enabled: projectId > 0,
+  });
+
+export const useBookSnapshot = (snapshotId: number) =>
+  useQuery({
+    queryKey: queryKeys.bookSnapshot(snapshotId),
+    queryFn: ({ signal }) => storyforgeApi.getBookSnapshot(snapshotId, signal),
+    enabled: snapshotId > 0,
+  });
+
+export const useBookEvaluation = (snapshotId: number) =>
+  useQuery({
+    queryKey: queryKeys.bookAnalysis(snapshotId, "evaluation"),
+    queryFn: ({ signal }) =>
+      storyforgeApi.getBookEvaluation(snapshotId, signal),
+    enabled: snapshotId > 0,
+    retry: false,
+  });
+
+export const useBookTimeline = (snapshotId: number) =>
+  useQuery({
+    queryKey: queryKeys.bookAnalysis(snapshotId, "timeline"),
+    queryFn: ({ signal }) => storyforgeApi.getBookTimeline(snapshotId, signal),
+    enabled: snapshotId > 0,
+  });
+
+export const useBookAnalysis = (
+  snapshotId: number,
+  kind:
+    | "character-arcs"
+    | "relationships"
+    | "foreshadowing"
+    | "pacing"
+    | "transitions",
+) =>
+  useQuery({
+    queryKey: queryKeys.bookAnalysis(snapshotId, kind),
+    queryFn: ({ signal }) =>
+      storyforgeApi.getBookAnalysis(snapshotId, kind, signal),
+    enabled: snapshotId > 0,
+  });
+
+export const useBookRevisionPlan = (snapshotId: number) =>
+  useQuery({
+    queryKey: queryKeys.bookAnalysis(snapshotId, "revision-plan"),
+    queryFn: ({ signal }) =>
+      storyforgeApi.getBookRevisionPlan(snapshotId, signal),
+    enabled: snapshotId > 0,
+    retry: false,
+  });
+
+export function useCreateBookRun(projectId: number) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      storyforgeApi.createBookRun(
+        projectId,
+        { mode: "sequential" },
+        globalThis.crypto?.randomUUID?.() ?? `book-${Date.now()}`,
+      ),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: queryKeys.bookRuns(projectId) }),
+        client.invalidateQueries({ queryKey: ["jobs"] }),
+      ]);
+    },
+  });
+}
+
+export function useControlBookRun(projectId: number, runId: number) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (action: "pause" | "resume" | "cancel") =>
+      storyforgeApi.controlBookRun(runId, action),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: queryKeys.bookRun(runId) }),
+        client.invalidateQueries({ queryKey: queryKeys.bookRuns(projectId) }),
+      ]);
     },
   });
 }

@@ -25,6 +25,8 @@ from storyforge.cli.m7 import configure_m7_commands
 from storyforge.cli.m8 import configure_m8_commands
 from storyforge.cli.m9 import configure_m9_commands
 from storyforge.cli.m10 import configure_m10_commands
+from storyforge.cli.m11 import configure_m11_commands
+from storyforge.cli.m12 import configure_m12_commands
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.demo import (
@@ -48,6 +50,7 @@ from storyforge.exceptions import (
 )
 from storyforge.llm.exceptions import LLMError
 from storyforge.m5_demo import build_m5_provider
+from storyforge.migrations import alembic_config_path
 from storyforge.models import (
     ChapterVersion,
     Conflict,
@@ -79,7 +82,6 @@ from storyforge.services import (
 )
 from storyforge.workflows import ChapterWorkflowRequest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _GROUPED_COMMANDS = {
     "project",
     "plan",
@@ -102,6 +104,12 @@ _GROUPED_COMMANDS = {
     "model-profile",
     "privacy-policy",
     "demo-m10",
+    "job",
+    "worker",
+    "worker-status",
+    "demo-m11",
+    "book",
+    "demo-m12",
 }
 
 
@@ -114,7 +122,7 @@ def _upgrade_database(database_url: str) -> None:
     previous = os.environ.get("DATABASE_URL")
     os.environ["DATABASE_URL"] = database_url
     try:
-        command.upgrade(Config(str(PROJECT_ROOT / "alembic.ini")), "head")
+        command.upgrade(Config(str(alembic_config_path())), "head")
     finally:
         if previous is None:
             os.environ.pop("DATABASE_URL", None)
@@ -1181,6 +1189,8 @@ def _parser() -> argparse.ArgumentParser:
     configure_m8_commands(commands)
     configure_m9_commands(commands)
     configure_m10_commands(commands)
+    configure_m11_commands(commands)
+    configure_m12_commands(commands)
     return parser
 
 
@@ -1213,6 +1223,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (StoryForgeError, ValueError) as exc:
         _print_cli_error("validation_error", str(exc))
         return 2
+    except KeyboardInterrupt:
+        _print_cli_error("interrupted", "The command was interrupted")
+        return 130
     except Exception:
         _print_cli_error("internal_error", "An unexpected internal error occurred")
         return 1
@@ -1220,7 +1233,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         _print_human(payload)
     else:
         _print(payload)
-    return 0
+    return int(getattr(args, "result_exit_code", 0))
 
 
 def _print_cli_error(code: str, message: str) -> None:

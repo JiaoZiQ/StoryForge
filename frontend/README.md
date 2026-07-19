@@ -1,5 +1,13 @@
 # StoryForge Web
 
+## Milestone 12 Book workspace
+
+The project Book navigation exposes whole-book runs, live progress, immutable snapshots,
+timeline, character and relationship arcs, foreshadowing, pacing, transitions, evaluation,
+and targeted revision plans. SSE stops at terminal state and degrades to polling. Pages do
+not request manuscript content and include keyboard, loading, empty, error, and text-chart
+fallbacks. Run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build`.
+
 Milestone 9 的可信本地控制中心。它只调用 FastAPI 公开接口，不包含数据库访问、LLM SDK 或业务规则。
 
 ## 本地开发

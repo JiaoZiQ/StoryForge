@@ -1,5 +1,13 @@
 # Provider governance UI workflows
 
+## Whole-book workflow
+
+Open a project's **Book** page to create or select a run. Progress follows SSE and falls
+back to polling; terminal status stops both. The workspace tabs show content-free snapshot,
+timeline, character, relationship, foreshadowing, pacing, transition, evaluation, and
+revision-plan projections. Pause, resume, and cancel are shown only for valid states and
+surface the standard request ID on errors.
+
 The global **Providers** page shows public capabilities, pricing availability,
 configuration health and circuit state. Project navigation adds **Usage & Cost**,
 **Budget**, and **Model Settings**. Workflow detail shows aggregate provider calls,
@@ -10,3 +18,13 @@ Model settings use predefined selects and never accept a key, endpoint, or arbit
 model. Loading, error and empty states use the shared accessible UI components.
 Browser calls remain same-origin through the Next.js server proxy, and OpenAPI types
 plus Zod response validation cover all governance responses.
+
+## Asynchronous long actions
+
+Plan generation, chapter generation, full workflow, and memory reindex buttons
+submit a durable Job and navigate to its detail page. The browser no longer owns
+the lifetime of a long backend request. Job detail opens one EventSource, replays
+database events after reconnect, keeps bounded polling as a visible fallback, and
+stops both at terminal state. It then invalidates related project, chapter, and
+usage queries. Cancel and pause are cooperative; retry/discard are available only
+for dead-lettered Jobs. Job result and errors are bounded safe summaries.

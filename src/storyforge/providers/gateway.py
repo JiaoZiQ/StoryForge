@@ -62,6 +62,7 @@ class ProviderCallContext:
     workflow_run_id: int | None = None
     chapter_id: int | None = None
     chapter_version_id: int | None = None
+    idempotency_scope: str | None = None
     profile: ModelProfile = ModelProfile.OFFLINE
     privacy_policy: PrivacyPolicy = PrivacyPolicy.OFFLINE
 
@@ -410,6 +411,7 @@ class GovernedLLMProvider:
             "workflow": workflow_run_id,
             "chapter": self._context.chapter_id,
             "version": self._context.chapter_version_id,
+            "scope": self._context.idempotency_scope,
             "task": task_type,
             "profile": self._context.profile.value,
             "request_hash": request_hash,

@@ -200,6 +200,7 @@ class TaskType(StrEnum):
     VERSION_COMPARISON = "version_comparison"
     EMBEDDING_DOCUMENT = "embedding_document"
     EMBEDDING_QUERY = "embedding_query"
+    BOOK_CRITIQUE = "book_critique"
 
 
 class ModelProfile(StrEnum):
@@ -256,3 +257,137 @@ class IdempotencyStatus(StrEnum):
     ACTIVE = "active"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class JobType(StrEnum):
+    """Controlled asynchronous operations accepted by the job registry."""
+
+    GENERATE_PLAN = "generate_plan"
+    GENERATE_CHAPTER = "generate_chapter"
+    EVALUATE_CHAPTER = "evaluate_chapter"
+    RUN_CHAPTER_WORKFLOW = "run_chapter_workflow"
+    RESUME_WORKFLOW = "resume_workflow"
+    REINDEX_MEMORY = "reindex_memory"
+    RUN_RETRIEVAL_WARMUP = "run_retrieval_warmup"
+    RUN_BOOK = "run_book"
+    RESUME_BOOK = "resume_book"
+
+
+class BookRunMode(StrEnum):
+    """Supported full-book scheduling strategies."""
+
+    SEQUENTIAL = "sequential"
+    DEPENDENCY_AWARE = "dependency_aware"
+
+
+class BookRunStatus(StrEnum):
+    """Durable full-book workflow lifecycle."""
+
+    PENDING = "pending"
+    PLANNING_VALIDATION = "planning_validation"
+    GENERATING = "generating"
+    PAUSED = "paused"
+    GLOBAL_REVIEW = "global_review"
+    GLOBAL_REVISION = "global_revision"
+    COMPLETED = "completed"
+    COMPLETED_NEEDS_REVIEW = "completed_needs_review"
+    CANCEL_REQUESTED = "cancel_requested"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    BUDGET_BLOCKED = "budget_blocked"
+
+
+class BookSnapshotStatus(StrEnum):
+    """Lifecycle of an immutable chapter-version mapping."""
+
+    CANDIDATE = "candidate"
+    REVIEWED = "reviewed"
+    ACCEPTED = "accepted"
+    SUPERSEDED = "superseded"
+    NEEDS_REVIEW = "needs_review"
+
+
+class KnowledgeStatus(StrEnum):
+    """A character's relationship to a bounded fact."""
+
+    KNOWN = "known"
+    FORGOTTEN = "forgotten"
+    MISLED = "misled"
+    FALSE_BELIEF = "false_belief"
+
+
+class BookRevisionStatus(StrEnum):
+    """Execution state for a global revision plan or task."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
+class ChapterImpactStatus(StrEnum):
+    """Revalidation need after an earlier accepted chapter changes."""
+
+    UNAFFECTED = "unaffected"
+    RECHECK_REQUIRED = "recheck_required"
+    REVISION_REQUIRED = "revision_required"
+
+
+class JobStatus(StrEnum):
+    """Durable lifecycle for one asynchronous job."""
+
+    PENDING = "pending"
+    OUTBOX_PENDING = "outbox_pending"
+    QUEUED = "queued"
+    LEASED = "leased"
+    RUNNING = "running"
+    PAUSE_REQUESTED = "pause_requested"
+    PAUSED = "paused"
+    CANCEL_REQUESTED = "cancel_requested"
+    CANCELLED = "cancelled"
+    RETRY_SCHEDULED = "retry_scheduled"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    DEAD_LETTERED = "dead_lettered"
+
+
+class JobEventType(StrEnum):
+    """Stable, content-free events emitted by job execution."""
+
+    JOB_CREATED = "job_created"
+    JOB_QUEUED = "job_queued"
+    JOB_LEASED = "job_leased"
+    JOB_STARTED = "job_started"
+    PROGRESS_UPDATED = "progress_updated"
+    WORKFLOW_NODE_STARTED = "workflow_node_started"
+    WORKFLOW_NODE_COMPLETED = "workflow_node_completed"
+    RETRY_SCHEDULED = "retry_scheduled"
+    PAUSE_REQUESTED = "pause_requested"
+    JOB_PAUSED = "job_paused"
+    RESUME_REQUESTED = "resume_requested"
+    CANCEL_REQUESTED = "cancel_requested"
+    JOB_CANCELLED = "job_cancelled"
+    JOB_SUCCEEDED = "job_succeeded"
+    JOB_FAILED = "job_failed"
+    JOB_DEAD_LETTERED = "job_dead_lettered"
+    JOB_DISCARDED = "job_discarded"
+
+
+class OutboxStatus(StrEnum):
+    """Delivery status for a transactional outbox row."""
+
+    PENDING = "pending"
+    CLAIMED = "claimed"
+    PUBLISHED = "published"
+    FAILED = "failed"
+
+
+class WorkerStatus(StrEnum):
+    """Safe worker-health projection."""
+
+    STARTING = "starting"
+    IDLE = "idle"
+    BUSY = "busy"
+    STOPPING = "stopping"
+    OFFLINE = "offline"

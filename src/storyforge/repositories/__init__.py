@@ -1,6 +1,18 @@
 """Repository interfaces for StoryForge persistence."""
 
 from storyforge.repositories.base import PageSlice, Repository
+from storyforge.repositories.books import (
+    ACTIVE_BOOK_RUN_STATUSES,
+    BookEvaluationRepository,
+    BookRevisionPlanRepository,
+    BookRunRepository,
+    BookSnapshotRepository,
+    ChapterTransitionRepository,
+    CharacterArcRepository,
+    CharacterKnowledgeRepository,
+    RelationshipHistoryRepository,
+    TimelineEventRepository,
+)
 from storyforge.repositories.domain import (
     ChapterRepository,
     ChapterVersionRepository,
@@ -20,10 +32,26 @@ from storyforge.repositories.domain import (
     WorkflowEventRepository,
     WorkflowRunRepository,
 )
+from storyforge.repositories.jobs import (
+    ACTIVE_JOB_STATUSES,
+    JobEventRepository,
+    JobRepository,
+    OutboxRepository,
+    WorkerRepository,
+)
 
 __all__ = [
+    "ACTIVE_BOOK_RUN_STATUSES",
+    "ACTIVE_JOB_STATUSES",
+    "BookEvaluationRepository",
+    "BookRevisionPlanRepository",
+    "BookRunRepository",
+    "BookSnapshotRepository",
     "ChapterRepository",
+    "ChapterTransitionRepository",
     "ChapterVersionRepository",
+    "CharacterArcRepository",
+    "CharacterKnowledgeRepository",
     "CharacterRepository",
     "ConflictRepository",
     "DemoAuditRepository",
@@ -31,14 +59,20 @@ __all__ = [
     "EvaluationRepository",
     "FactRepository",
     "ForeshadowingRepository",
+    "JobEventRepository",
+    "JobRepository",
     "LocationRepository",
+    "OutboxRepository",
     "PageSlice",
     "ProjectRepository",
+    "RelationshipHistoryRepository",
     "Repository",
     "RevisionRepository",
     "StoryRuleRepository",
     "SystemRepository",
+    "TimelineEventRepository",
     "VersionComparisonRepository",
+    "WorkerRepository",
     "WorkflowEventRepository",
     "WorkflowRunRepository",
 ]

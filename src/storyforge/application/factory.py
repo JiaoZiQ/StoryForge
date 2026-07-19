@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy import make_url
+from sqlalchemy.orm import Session
 
-from storyforge.agents import CriticAgent, FactExtractorAgent, RevisionAgent, WriterAgent
+from storyforge.agents import (
+    BookCriticAgent,
+    CriticAgent,
+    FactExtractorAgent,
+    RevisionAgent,
+    WriterAgent,
+)
+from storyforge.book import BookEvaluationScorer, BookRevisionPlanner, BookScoringConfig
+from storyforge.book.mock import build_book_critic_provider
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import SessionFactory
 from storyforge.demo import build_critic_provider, build_demo_provider
@@ -31,7 +40,13 @@ from storyforge.providers import (
     ProviderCallContext,
     build_provider_registry,
 )
-from storyforge.reliability import CircuitBreaker, ProviderRateLimiter, RetryPolicy
+from storyforge.reliability import (
+    CircuitBreaker,
+    ProviderRateLimiter,
+    RedisCircuitBreaker,
+    RedisProviderRateLimiter,
+    RetryPolicy,
+)
 from storyforge.repositories import ChapterRepository, ProjectRepository
 from storyforge.retrieval import (
     FactRetriever,
@@ -43,6 +58,7 @@ from storyforge.retrieval import (
 )
 from storyforge.revision import AcceptanceEvaluator, RevisionBriefBuilder
 from storyforge.services import (
+    BookAnalysisService,
     ChapterGenerationService,
     ChapterVersionService,
     ChapterWorkflowService,
@@ -61,15 +77,34 @@ class DomainServiceFactory:
         self.settings = settings
         self.provider_registry = build_provider_registry(settings)
         self.model_router = ModelRouter(self.provider_registry, settings)
-        self.rate_limiter = ProviderRateLimiter(
-            requests_per_minute=settings.rate_limit_rpm,
-            tokens_per_minute=settings.rate_limit_tpm,
-            max_concurrency=settings.provider_max_concurrency,
-        )
-        self.circuit_breaker = CircuitBreaker(
-            failure_threshold=settings.circuit_failure_threshold,
-            cooldown_seconds=settings.circuit_cooldown_seconds,
-        )
+        self.rate_limiter: ProviderRateLimiter
+        self.circuit_breaker: CircuitBreaker
+        if settings.distributed_rate_limit_enabled:
+            self.rate_limiter = RedisProviderRateLimiter(
+                settings.redis_url,
+                prefix=settings.queue_prefix,
+                requests_per_minute=settings.rate_limit_rpm,
+                tokens_per_minute=settings.rate_limit_tpm,
+                max_concurrency=settings.provider_max_concurrency,
+            )
+        else:
+            self.rate_limiter = ProviderRateLimiter(
+                requests_per_minute=settings.rate_limit_rpm,
+                tokens_per_minute=settings.rate_limit_tpm,
+                max_concurrency=settings.provider_max_concurrency,
+            )
+        if settings.distributed_circuit_enabled:
+            self.circuit_breaker = RedisCircuitBreaker(
+                settings.redis_url,
+                prefix=settings.queue_prefix,
+                failure_threshold=settings.circuit_failure_threshold,
+                cooldown_seconds=settings.circuit_cooldown_seconds,
+            )
+        else:
+            self.circuit_breaker = CircuitBreaker(
+                failure_threshold=settings.circuit_failure_threshold,
+                cooldown_seconds=settings.circuit_cooldown_seconds,
+            )
 
     def validate_provider(self, override: str | None) -> None:
         if override is not None and override != self.settings.llm_provider:
@@ -91,6 +126,7 @@ class DomainServiceFactory:
         *,
         project_id: int | None = None,
         chapter_number: int | None = None,
+        idempotency_scope: str | None = None,
         override: str | None = None,
     ) -> Iterator[LLMProvider]:
         """Yield a provider and close real HTTP resources deterministically."""
@@ -110,7 +146,12 @@ class DomainServiceFactory:
             elif purpose == "evaluation":
                 raw_provider = build_critic_provider(self.settings.mock_critic_scenario)
             elif purpose == "workflow":
-                raw_provider = build_m5_provider(self.settings.mock_workflow_scenario)
+                raw_provider = build_m5_provider(
+                    self.settings.mock_workflow_scenario,
+                    self.project_target(project_id) if project_id is not None else 3,
+                )
+            elif purpose == "book_critic":
+                raw_provider = build_book_critic_provider()
             else:
                 raise DomainValidationError(f"Unsupported provider purpose: {purpose}")
         else:
@@ -132,7 +173,11 @@ class DomainServiceFactory:
                 )
             )
 
-        context = self.provider_call_context(project_id, chapter_number)
+        context = self.provider_call_context(
+            project_id,
+            chapter_number,
+            idempotency_scope=idempotency_scope,
+        )
         providers: dict[tuple[str, str], LLMProvider] = {}
         if self.settings.llm_provider == "mock":
             providers[("mock", "mock-storyforge-v1")] = raw_provider
@@ -161,7 +206,11 @@ class DomainServiceFactory:
                 raw_provider.close()
 
     def provider_call_context(
-        self, project_id: int | None, chapter_number: int | None
+        self,
+        project_id: int | None,
+        chapter_number: int | None,
+        *,
+        idempotency_scope: str | None = None,
     ) -> ProviderCallContext:
         """Resolve persisted project policy and optional chapter identity."""
         profile = self.settings.model_profile
@@ -180,6 +229,7 @@ class DomainServiceFactory:
         return ProviderCallContext(
             project_id=project_id,
             chapter_id=chapter_id,
+            idempotency_scope=idempotency_scope,
             profile=profile,
             privacy_policy=privacy,
         )
@@ -202,7 +252,31 @@ class DomainServiceFactory:
             EvaluationScorer(),
         )
 
-    def workflow_service(self, provider: LLMProvider) -> ChapterWorkflowService:
+    def book_analysis_service(self, provider: LLMProvider) -> BookAnalysisService:
+        return BookAnalysisService(
+            self.session_factory,
+            BookCriticAgent(provider, build_prompt_registry()),
+            BookEvaluationScorer(
+                BookScoringConfig(
+                    pass_score=self.settings.book_min_pass_score,
+                    minimum_foreshadowing_payoff_rate=(
+                        self.settings.book_min_foreshadowing_payoff_rate
+                    ),
+                )
+            ),
+            BookRevisionPlanner(
+                maximum_chapters=self.settings.book_max_revision_chapters_per_round
+            ),
+        )
+
+    def workflow_service(
+        self,
+        provider: LLMProvider,
+        *,
+        control_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
+        initialized_callback: Callable[[Session, int], None] | None = None,
+    ) -> ChapterWorkflowService:
         registry = build_prompt_registry()
         versions = ChapterVersionService(
             self.session_factory,
@@ -219,6 +293,9 @@ class DomainServiceFactory:
             versions,
             self.evaluation_service(provider),
             self.checkpoint_path(),
+            control_callback=control_callback,
+            progress_callback=progress_callback,
+            initialized_callback=initialized_callback,
         )
 
     def memory_index_service(self) -> MemoryIndexService:

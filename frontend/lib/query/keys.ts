@@ -39,4 +39,15 @@ export const queryKeys = {
   modelSettings: (projectId: number) =>
     ["project", projectId, "model-settings"] as const,
   modelProfiles: ["system", "model-profiles"] as const,
+  jobs: (filters: object = {}) => ["jobs", filters] as const,
+  job: (jobId: number) => ["job", jobId] as const,
+  jobEvents: (jobId: number) => ["job", jobId, "events"] as const,
+  bookRuns: (projectId: number) => ["project", projectId, "book-runs"] as const,
+  bookRun: (runId: number) => ["book-run", runId] as const,
+  bookRunEvents: (runId: number) => ["book-run", runId, "events"] as const,
+  bookSnapshots: (projectId: number) =>
+    ["project", projectId, "book-snapshots"] as const,
+  bookSnapshot: (snapshotId: number) => ["book-snapshot", snapshotId] as const,
+  bookAnalysis: (snapshotId: number, kind: string) =>
+    ["book-snapshot", snapshotId, kind] as const,
 };

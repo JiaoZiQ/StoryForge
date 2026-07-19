@@ -1,8 +1,32 @@
 # Deployment and cold start
 
+## M12 distributed cold start
+
+Run migration before readiness, then API, frontend/gateway, two dispatchers, and two
+workers. Use an explicit safe env file so Compose does not auto-load a local `.env`:
+
+```powershell
+docker compose --env-file .env.example config --quiet
+docker compose --env-file .env.example build --no-cache
+docker compose --env-file .env.example up -d --scale dispatcher=2 --scale worker=2
+docker compose --env-file .env.example exec api storyforge demo-m12 --output json
+```
+
+Runtime services are on the internal network and use Mock providers without API keys for
+acceptance. PostgreSQL and checkpoint volumes are durable; Redis loss is recoverable from
+Job/Outbox state. Recreate the Compose project and named volumes for an independent cold
+start. Do not expose PostgreSQL or Redis publicly in production.
+
+## M11 services
+
+Compose adds internal Redis, an outbox dispatcher, and two non-root workers. Migration
+and Redis gate startup; queue readiness checks Redis. Expiring leases recover work.
+
 ## Supported scope
 
-Milestone 9 在 M8 PostgreSQL 16 + pgvector Compose 路径上增加 Next.js Web 服务、internal backend network 和无凭据本机 gateway。这不代表生产就绪；当前没有认证、队列、多副本共享 checkpoint、TLS、自动备份或高可用。
+Milestone 11 在 PostgreSQL 16 + pgvector Compose 路径上增加内部 Redis、事务
+outbox dispatcher、双 worker 和 Next.js Job Center。这不代表生产就绪；当前没有
+认证、多租户、跨主机 LangGraph checkpoint、TLS、自动备份或高可用。
 
 ## Docker cold start
 
@@ -18,12 +42,15 @@ Invoke-RestMethod http://127.0.0.1:8000/api/v1/ready
 Invoke-RestMethod http://127.0.0.1:8000/openapi.json
 Invoke-WebRequest http://127.0.0.1:3000
 docker compose exec api storyforge --help
-docker compose exec api storyforge demo-m9 --frontend-url http://localhost:3000 --output json
+docker compose exec -T api storyforge demo-m11
+docker compose exec -T api storyforge worker-status
 docker compose exec api id
 docker compose exec frontend id
 ```
 
-macOS/Linux 使用 `cp` 和 `curl`。成功状态应为 pgvector PostgreSQL healthy、migrate exited 0、API healthy、frontend healthy；两个 `id` 都应显示 UID 10001。`SELECT extversion FROM pg_extension WHERE extname='vector'` 应返回 0.8.2。
+macOS/Linux 使用 `cp` 和 `curl`。成功状态应为 pgvector PostgreSQL、Redis、API、
+frontend、dispatcher 和两个 worker healthy，migrate exited 0；两个 `id` 都应显示
+UID 10001。`SELECT extversion FROM pg_extension WHERE extname='vector'` 应返回 0.8.2。
 
 `docker compose down` 保留 `storyforge_postgres_data`。`docker compose down -v` 仅在明确需要永久删除本地开发数据时使用。
 
@@ -46,7 +73,11 @@ npm run dev
 
 Compose 采用独立 migration service：PostgreSQL 通过 `pg_isready` 后，migrate 使用实际连接重试并执行 `alembic upgrade head`；只有退出码 0 才启动 API。API healthcheck 调用 readiness，所以 migration 不完整时不会 healthy；frontend 又等待 API healthy。重复 upgrade head 是幂等操作。
 
-API、migration 和 frontend 只加入 `internal: true` 的 backend network，因此 Mock provider 进程无公网出口。无凭据 Node gateway 同时连接 backend 与普通 ingress network，把 3000/8000 端口发布到 `127.0.0.1`；PostgreSQL 仅为本地诊断同时发布 54329。镜像构建阶段可以从 registry 安装锁定依赖，但 `.dockerignore` 排除 `.env`、Git 历史、本地数据库、测试 artifact 和 node_modules。
+API、migration、frontend、Redis、dispatcher 和 worker 只加入 `internal: true` 的
+backend network，因此 Mock provider 进程无公网出口。无凭据 Node gateway 同时连接
+backend 与普通 ingress network，把 3000/8000 端口发布到 `127.0.0.1`；PostgreSQL
+仅为本地诊断加入 ingress 并发布 54329。镜像构建阶段可以从 registry 安装锁定依赖，
+但 `.dockerignore` 排除 `.env`、Git 历史、本地数据库、测试 artifact 和 node_modules。
 
 ## Production configuration
 
@@ -82,7 +113,8 @@ STORYFORGE_INTERNAL_API_URL=http://api:8000
 
 ## Known limitations
 
-工作流请求同步执行；SQLite checkpoint 只适合当前单实例；Web 没有认证/RBAC；没有滚动发布、leader election 或 migration lock 服务；没有 Kubernetes、云厂商模板、Redis/Celery 或镜像自动发布。
+长任务由 Redis/Dramatiq worker 异步执行；PostgreSQL 仍是 Job 与业务状态权威。
+当前没有认证/RBAC、Kubernetes、滚动发布、leader election 或 migration lock 服务。
 
 ## Milestone 10 operational controls
 
@@ -90,7 +122,8 @@ Compose remains offline/mock by default and sets `MODEL_PROFILE=offline`,
 `PRIVACY_POLICY=offline`, finite project/workflow budgets, bounded retries,
 rate/concurrency limits, and a disabled real-smoke flag. Provider health endpoints
 report configuration and process-local circuit state without making a billable
-network call. Rate limits and circuits are not distributed across replicas.
+network call. Queue-mode rate limits and circuits are shared across workers through
+Redis; development inline mode may explicitly use process-local fallback.
 
 Before enabling an external provider, supply a validated registry/pricing file,
 server-side secret, strict/standard policy, and explicit budget. Unknown price is

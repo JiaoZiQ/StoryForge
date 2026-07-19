@@ -8,7 +8,6 @@ import {
   evaluationDetailSchema,
   evaluationPageSchema,
   factPageSchema,
-  generationSchema,
   graphEntityPageSchema,
   graphNeighborsSchema,
   graphRelationPageSchema,
@@ -25,7 +24,6 @@ import {
   providerCapabilitySchema,
   providerHealthSchema,
   readinessSchema,
-  reindexSchema,
   retrievalSchema,
   usageSummarySchema,
   versionDetailSchema,
@@ -34,10 +32,23 @@ import {
   workflowEventPageSchema,
   workflowPageSchema,
   workflowSchema,
+  jobSchema,
+  jobAcceptedSchema,
+  jobPageSchema,
+  jobEventPageSchema,
+  queueHealthSchema,
+  bookRunAcceptedSchema,
+  bookRunPageSchema,
+  bookRunSchema,
+  bookSnapshotPageSchema,
+  bookSnapshotSchema,
+  bookEvaluationSchema,
+  bookAnalysisSchema,
+  timelinePageSchema,
+  bookRevisionPlanSchema,
 } from "./schemas";
 import type {
   ChapterDetail,
-  ChapterGenerationResponse,
   ChapterSummary,
   ConflictResponse,
   ContextSummary,
@@ -49,7 +60,6 @@ import type {
   GraphRelationResponse,
   HealthResponse,
   MemoryIndexStatusResponse,
-  MemoryReindexResponse,
   MemorySummary,
   ModelProfileOption,
   Page,
@@ -71,6 +81,22 @@ import type {
   VersionSummary,
   WorkflowEventResponse,
   WorkflowStatusResponse,
+  JobResponse,
+  JobAcceptedResponse,
+  JobCreateRequest,
+  JobPageResponse,
+  JobEventPageResponse,
+  QueueHealthResponse,
+  BookRunCreateRequest,
+  BookRunAcceptedResponse,
+  BookRunResponse,
+  BookRunPageResponse,
+  BookSnapshotResponse,
+  BookSnapshotPageResponse,
+  BookEvaluationResponse,
+  BookAnalysisResponse,
+  TimelinePageResponse,
+  BookRevisionPlanResponse,
 } from "./types";
 
 export type ProjectListFilters = {
@@ -84,6 +110,76 @@ export type ProjectListFilters = {
 };
 
 export const storyforgeApi = {
+  createJob: (body: JobCreateRequest, signal?: AbortSignal) =>
+    parseApiResponse<JobAcceptedResponse>(
+      rawApi.POST("/api/v1/jobs", { body, signal }),
+      jobAcceptedSchema,
+    ),
+  listJobs: (
+    filters: {
+      status?: string;
+      jobType?: string;
+      projectId?: number;
+      chapterNumber?: number;
+      createdFrom?: string;
+      createdTo?: string;
+    } = {},
+    signal?: AbortSignal,
+  ) =>
+    parseApiResponse<JobPageResponse>(
+      rawApi.GET("/api/v1/jobs", {
+        signal,
+        params: {
+          query: {
+            page: 1,
+            page_size: 100,
+            status: filters.status as JobResponse["status"] | undefined,
+            job_type: filters.jobType as JobResponse["job_type"] | undefined,
+            project_id: filters.projectId,
+            chapter_number: filters.chapterNumber,
+            created_from: filters.createdFrom,
+            created_to: filters.createdTo,
+          },
+        },
+      }),
+      jobPageSchema,
+    ),
+  getJob: (jobId: number, signal?: AbortSignal) =>
+    parseApiResponse<JobResponse>(
+      rawApi.GET("/api/v1/jobs/{job_id}", {
+        signal,
+        params: { path: { job_id: jobId } },
+      }),
+      jobSchema,
+    ),
+  queueHealth: (signal?: AbortSignal) =>
+    parseApiResponse<QueueHealthResponse>(
+      rawApi.GET("/api/v1/queue/health", { signal }),
+      queueHealthSchema,
+    ),
+  listJobEvents: (jobId: number, signal?: AbortSignal) =>
+    parseApiResponse<JobEventPageResponse>(
+      rawApi.GET("/api/v1/jobs/{job_id}/events", {
+        signal,
+        params: { path: { job_id: jobId }, query: { page: 1, page_size: 500 } },
+      }),
+      jobEventPageSchema,
+    ),
+  controlJob: (
+    jobId: number,
+    action: "cancel" | "pause" | "resume" | "retry" | "discard",
+  ) => {
+    const path = `/api/v1/jobs/${jobId}/${action}`;
+    return fetch(`/backend${path}`, { method: "POST" }).then(
+      async (response) => {
+        const payload: unknown = await response.json();
+        const parsed = jobSchema.safeParse(payload);
+        if (!response.ok || !parsed.success)
+          throw new Error("Job control failed");
+        return parsed.data as JobResponse;
+      },
+    );
+  },
   listProviders: (signal?: AbortSignal) =>
     parseApiResponse<ProviderCapabilityResponse[]>(
       rawApi.GET("/api/v1/providers", { signal }),
@@ -153,13 +249,15 @@ export const storyforgeApi = {
     replaceExisting = false,
     signal?: AbortSignal,
   ) =>
-    parseApiResponse<PlanResponse>(
-      rawApi.POST("/api/v1/projects/{project_id}/plan", {
-        signal,
-        params: { path: { project_id: projectId } },
-        body: { replace_existing: replaceExisting },
-      }),
-      planSchema,
+    storyforgeApi.createJob(
+      {
+        job_type: "generate_plan",
+        project_id: projectId,
+        operation: "generate",
+        payload: { replace_existing: replaceExisting },
+        priority: 5,
+      },
+      signal,
     ),
   listChapters: (
     projectId: number,
@@ -217,34 +315,23 @@ export const storyforgeApi = {
       contextSchema,
     ),
   generateChapter: (projectId: number, chapterNumber: number) =>
-    parseApiResponse<ChapterGenerationResponse>(
-      rawApi.POST(
-        "/api/v1/projects/{project_id}/chapters/{chapter_number}/generate",
-        {
-          params: {
-            path: { project_id: projectId, chapter_number: chapterNumber },
-          },
-          body: { regenerate: false, max_context_chars: 24000 },
-        },
-      ),
-      generationSchema,
-    ),
+    storyforgeApi.createJob({
+      job_type: "generate_chapter",
+      project_id: projectId,
+      chapter_number: chapterNumber,
+      operation: "generate",
+      payload: { regenerate: false, max_context_chars: 24000 },
+      priority: 5,
+    }),
   startWorkflow: (projectId: number, chapterNumber: number) =>
-    parseApiResponse<WorkflowStatusResponse>(
-      rawApi.POST(
-        "/api/v1/projects/{project_id}/chapters/{chapter_number}/workflow",
-        {
-          params: {
-            path: { project_id: projectId, chapter_number: chapterNumber },
-          },
-          body: {
-            operation: "generate_evaluate_revise",
-            max_revision_attempts: 3,
-          },
-        },
-      ),
-      workflowSchema,
-    ),
+    storyforgeApi.createJob({
+      job_type: "run_chapter_workflow",
+      project_id: projectId,
+      chapter_number: chapterNumber,
+      operation: "generate_evaluate_revise",
+      payload: { max_revision_attempts: 3 },
+      priority: 5,
+    }),
   listVersions: (
     projectId: number,
     chapterNumber: number,
@@ -493,13 +580,13 @@ export const storyforgeApi = {
       memoryStatusPageSchema,
     ),
   reindexMemory: (projectId: number) =>
-    parseApiResponse<MemoryReindexResponse>(
-      rawApi.POST("/api/v1/projects/{project_id}/memory/reindex", {
-        params: { path: { project_id: projectId } },
-        body: { all_accepted_chapters: true, force: false },
-      }),
-      reindexSchema,
-    ),
+    storyforgeApi.createJob({
+      job_type: "reindex_memory",
+      project_id: projectId,
+      operation: "reindex",
+      payload: { all_accepted_chapters: true, force: false },
+      priority: 5,
+    }),
   listGraphEntities: (
     projectId: number,
     search?: string,
@@ -632,5 +719,162 @@ export const storyforgeApi = {
         body: { privacy_policy },
       }),
       modelSettingsSchema,
+    ),
+  createBookRun: (
+    projectId: number,
+    body: BookRunCreateRequest,
+    idempotencyKey: string,
+  ) =>
+    parseApiResponse<BookRunAcceptedResponse>(
+      rawApi.POST("/api/v1/projects/{project_id}/book-runs", {
+        params: { path: { project_id: projectId } },
+        body,
+        headers: { "Idempotency-Key": idempotencyKey },
+      }),
+      bookRunAcceptedSchema,
+    ),
+  listBookRuns: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookRunPageResponse>(
+      rawApi.GET("/api/v1/projects/{project_id}/book-runs", {
+        signal,
+        params: {
+          path: { project_id: projectId },
+          query: { page: 1, page_size: 100 },
+        },
+      }),
+      bookRunPageSchema,
+    ),
+  getBookRun: (runId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookRunResponse>(
+      rawApi.GET("/api/v1/book-runs/{book_run_id}", {
+        signal,
+        params: { path: { book_run_id: runId } },
+      }),
+      bookRunSchema,
+    ),
+  controlBookRun: (runId: number, action: "pause" | "resume" | "cancel") => {
+    const params = { path: { book_run_id: runId } };
+    if (action === "pause")
+      return parseApiResponse<BookRunResponse>(
+        rawApi.POST("/api/v1/book-runs/{book_run_id}/pause", { params }),
+        bookRunSchema,
+      );
+    if (action === "cancel")
+      return parseApiResponse<BookRunResponse>(
+        rawApi.POST("/api/v1/book-runs/{book_run_id}/cancel", { params }),
+        bookRunSchema,
+      );
+    return parseApiResponse<BookRunResponse>(
+      rawApi.POST("/api/v1/book-runs/{book_run_id}/resume", {
+        params,
+        body: {},
+      }),
+      bookRunSchema,
+    );
+  },
+  listBookRunEvents: (runId: number, signal?: AbortSignal) =>
+    parseApiResponse<JobEventPageResponse>(
+      rawApi.GET("/api/v1/book-runs/{book_run_id}/events", {
+        signal,
+        params: {
+          path: { book_run_id: runId },
+          query: { page: 1, page_size: 500 },
+        },
+      }),
+      jobEventPageSchema,
+    ),
+  listBookSnapshots: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookSnapshotPageResponse>(
+      rawApi.GET("/api/v1/projects/{project_id}/book-snapshots", {
+        signal,
+        params: { path: { project_id: projectId } },
+      }),
+      bookSnapshotPageSchema,
+    ),
+  getBookSnapshot: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookSnapshotResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}", {
+        signal,
+        params: { path: { snapshot_id: snapshotId } },
+      }),
+      bookSnapshotSchema,
+    ),
+  getBookEvaluation: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookEvaluationResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/evaluation", {
+        signal,
+        params: { path: { snapshot_id: snapshotId } },
+      }),
+      bookEvaluationSchema,
+    ),
+  getBookTimeline: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<TimelinePageResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/timeline", {
+        signal,
+        params: {
+          path: { snapshot_id: snapshotId },
+          query: { page: 1, page_size: 500 },
+        },
+      }),
+      timelinePageSchema,
+    ),
+  getBookAnalysis: (
+    snapshotId: number,
+    kind:
+      | "character-arcs"
+      | "relationships"
+      | "foreshadowing"
+      | "pacing"
+      | "transitions",
+    signal?: AbortSignal,
+  ) => {
+    const params = { path: { snapshot_id: snapshotId } };
+    if (kind === "character-arcs")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/character-arcs", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    if (kind === "relationships")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/relationships", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    if (kind === "foreshadowing")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/foreshadowing", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    if (kind === "pacing")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/pacing", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    return parseApiResponse<BookAnalysisResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/transitions", {
+        signal,
+        params,
+      }),
+      bookAnalysisSchema,
+    );
+  },
+  getBookRevisionPlan: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookRevisionPlanResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/revision-plan", {
+        signal,
+        params: { path: { snapshot_id: snapshotId } },
+      }),
+      bookRevisionPlanSchema,
     ),
 };

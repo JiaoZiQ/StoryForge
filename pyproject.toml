@@ -22,6 +22,7 @@ classifiers = [
 
 dependencies = [
     "alembic>=1.15,<2.0",
+    "dramatiq[redis]>=2.0,<3.0",
     "fastapi>=0.115,<1.0",
     "httpx>=0.28,<1.0",
     "langgraph>=1.0,<2.0",
@@ -45,6 +46,9 @@ storyforge-api = "storyforge.runtime:api_main"
 storyforge-migrate = "storyforge.runtime:migrate_main"
 storyforge-wait-for-db = "storyforge.runtime:wait_for_db_main"
 storyforge-healthcheck = "storyforge.runtime:healthcheck_main"
+storyforge-dispatcher = "storyforge.runtime:dispatcher_main"
+storyforge-worker = "storyforge.runtime:worker_main"
+storyforge-queue-healthcheck = "storyforge.runtime:queue_healthcheck_main"
 
 [dependency-groups]
 dev = [

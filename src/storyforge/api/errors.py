@@ -28,6 +28,8 @@ from storyforge.exceptions import (
     PlanningValidationError,
     PrivacyPolicyError,
     ProviderRateLimitError,
+    QueueBackpressureError,
+    QueueUnavailableError,
     StoryForgeError,
     WorkflowAlreadyRunningError,
     WorkflowCancelledError,
@@ -90,6 +92,10 @@ def _mapping(exc: Exception) -> tuple[int, str, str]:
         return 409, "provider_call_conflict", str(exc)
     if isinstance(exc, ProviderRateLimitError):
         return 503, "provider_rate_limited", "Local provider capacity is exhausted"
+    if isinstance(exc, QueueBackpressureError):
+        return 429, "queue_backpressure", str(exc)
+    if isinstance(exc, QueueUnavailableError):
+        return 503, "queue_unavailable", "The asynchronous queue is unavailable"
     if isinstance(exc, CircuitOpenError):
         return 503, "provider_circuit_open", "The configured provider circuit is open"
     if isinstance(exc, InvalidStateError):
@@ -139,7 +145,10 @@ def install_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(LLMConfigurationError)
     async def known_error(request: Request, exc: Exception) -> JSONResponse:
         status_code, code, message = _mapping(exc)
-        return _response(request, status_code=status_code, code=code, message=message)
+        response = _response(request, status_code=status_code, code=code, message=message)
+        if isinstance(exc, QueueBackpressureError):
+            response.headers["Retry-After"] = str(exc.retry_after)
+        return response
 
     @app.exception_handler(IntegrityError)
     async def integrity_error(request: Request, exc: IntegrityError) -> JSONResponse:
@@ -183,6 +192,7 @@ def install_exception_handlers(app: FastAPI) -> None:
 ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     404: {"model": ErrorResponse, "description": "Resource not found"},
     409: {"model": ErrorResponse, "description": "State or write conflict"},
+    429: {"model": ErrorResponse, "description": "Queue backpressure"},
     422: {"model": ErrorResponse, "description": "Validation failed"},
     503: {"model": ErrorResponse, "description": "Dependency unavailable"},
     504: {"model": ErrorResponse, "description": "Provider timeout"},

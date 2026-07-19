@@ -1,5 +1,27 @@
 # 数据模型
 
+## M12 whole-book tables
+
+- `book_runs`: one active run per project, top Job link, chapter/job maps, progress,
+  periodic summaries, budgets, checkpoint node, and safe terminal/error state.
+- `book_snapshots`: immutable number, chapter-version JSON map, stable hash, aggregate
+  counts, and accepted/superseded lifecycle; it stores no manuscript body.
+- `timeline_events`, `character_arc_points`, `character_knowledge`, and
+  `relationship_history`: snapshot-scoped accepted evidence with version links.
+- `chapter_transition_evaluations`, `book_evaluations`, `book_revision_plans`, and
+  `book_revision_tasks`: versioned global scoring and bounded rework history.
+
+Analysis rows cascade from their snapshot. Facts and memory must be `accepted` and match a
+version frozen in the snapshot. Candidate, rejected, superseded, and future records are
+excluded by data-layer queries. Migration `3f86e80e0e51` upgrades M11 data and keeps one
+Alembic head.
+
+## M11 queue data
+
+`jobs` stores safe operation metadata and leases; `job_events` stores ordered progress;
+`outbox_messages` records enqueue intent; `worker_records` stores safe heartbeats.
+Unique keys and the active-chapter index prevent duplicates. Head: `b61d3f7a2c10`.
+
 主键沿用 Milestone 1 的自增整数。SQLite 是默认开发数据库；PostgreSQL 使用同一 SQLAlchemy metadata。
 
 ## M6 变化

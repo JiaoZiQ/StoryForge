@@ -1,5 +1,56 @@
 # Changelog
 
+## Unreleased — Milestone 12
+
+### Added
+
+- PostgreSQL-authoritative BookRun, immutable BookSnapshot, periodic global checks, and
+  migration `3f86e80e0e51`.
+- Accepted-version timeline, character arcs, explicit knowledge boundaries, relationship
+  history, foreshadowing, transitions, pacing, exact/n-gram repetition, and PostgreSQL
+  pgvector repetition candidates.
+- Governed compressed BookCritic, weighted BookEvaluation, bounded deterministic revision
+  plans, targeted immutable chapter rework, and affected-future-chapter tracking.
+- Whole-book Job/SSE/API/CLI/Web surfaces and offline five-chapter `demo-m12` with pause,
+  lease recovery, budget resume, and duplicate/isolation audits.
+
+### Fixed
+
+- Namespaced `STORYFORGE_DATABASE_URL` now takes precedence over legacy `DATABASE_URL`, so
+  Alembic, API, workers, and demos cannot silently address different databases.
+- SQLite M11-to-M12 migration preserves existing JobEvent audit rows while replacing the
+  parent jobs table in batch mode.
+- Concurrent Job events allocate their sequence atomically; targeted global revisions use
+  scoped provider idempotency and cannot replay another BookRun's critic response.
+
+## Unreleased — Milestone 11
+
+### Added
+
+- Job, JobEvent, transactional OutboxMessage, WorkerRecord, and migration `b61d3f7a2c10`.
+- Redis/Dramatiq dispatcher and leased workers with recovery, bounded retry, and DLQ.
+- Job API/CLI/Web Center, SSE replay, distributed rate/circuit state, and `demo-m11`.
+
+### Fixed
+
+- Dispatcher now recovers expired leases automatically instead of relying on an
+  operator or demo call.
+- Worker identity includes the container hostname, and concurrent heartbeat writes
+  use atomic database upserts without leaking Dramatiq tracebacks.
+- Idle Dramatiq subprocesses now register at boot and emit periodic keepalives;
+  stale records are projected as offline without overwriting active Job ownership.
+- Redis event notifications now wake SSE followers while PostgreSQL remains the
+  durable replay authority; polling remains the degradation path.
+- Queue health CLI now probes Redis instead of reporting queue mode as unavailable.
+- WorkflowRun is linked to its Job in the initialization transaction, so a worker
+  crash can recover the exact LangGraph thread without duplicating provider usage.
+- API and workers share the single-host checkpoint volume; Mock revision selection
+  is request-deterministic across fresh worker processes.
+- Cancelling a paused or pre-accept Job now cancels its linked workflow and releases
+  the chapter without promoting candidate facts.
+- Installed CLI commands locate the packaged Alembic configuration outside an
+  editable source checkout.
+
 ## Unreleased — Milestone 10
 
 ### Added

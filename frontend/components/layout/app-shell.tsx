@@ -8,6 +8,7 @@ const globalLinks = [
   ["Dashboard", "/"],
   ["Projects", "/projects"],
   ["Providers", "/providers"],
+  ["Jobs", "/jobs"],
   ["System", "/system"],
 ] as const;
 const projectLinks = [
@@ -15,6 +16,7 @@ const projectLinks = [
   ["Plan", "/plan"],
   ["Chapters", "/chapters"],
   ["Workflow", "/workflow"],
+  ["Book", "/book"],
   ["Evaluations", "/evaluations"],
   ["Conflicts", "/conflicts"],
   ["Facts", "/facts"],

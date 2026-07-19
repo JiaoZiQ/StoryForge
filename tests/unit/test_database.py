@@ -17,8 +17,17 @@ from storyforge.models import Project
 
 def test_database_url_defaults_to_sqlite(monkeypatch: pytest.MonkeyPatch) -> None:
     """Local development should require no external database service."""
+    monkeypatch.delenv("STORYFORGE_DATABASE_URL", raising=False)
     monkeypatch.delenv("DATABASE_URL", raising=False)
     assert get_database_url() == DEFAULT_DATABASE_URL
+
+
+def test_storyforge_database_url_takes_precedence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Migrations and the application must resolve the same namespaced URL."""
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///legacy.db")
+    monkeypatch.setenv("STORYFORGE_DATABASE_URL", "sqlite:///namespaced.db")
+
+    assert get_database_url() == "sqlite:///namespaced.db"
 
 
 @pytest.mark.parametrize("scheme", ["postgres://", "postgresql://"])

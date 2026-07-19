@@ -82,6 +82,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+      redis:
+        image: redis:7.4.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     env:
       DATABASE_URL: postgresql+psycopg://storyforge:storyforge-ci-test-only@127.0.0.1:5432/storyforge_test
       STORYFORGE_DATABASE_URL: postgresql+psycopg://storyforge:storyforge-ci-test-only@127.0.0.1:5432/storyforge_test
@@ -95,6 +104,12 @@ jobs:
       STORYFORGE_MODEL_PROFILE: offline
       STORYFORGE_PRIVACY_POLICY: offline
       STORYFORGE_CHECKPOINT_PATH: /tmp/storyforge-ci-checkpoints.sqlite3
+      STORYFORGE_JOB_EXECUTION_MODE: queue
+      STORYFORGE_REDIS_URL: redis://127.0.0.1:6379/0
+      STORYFORGE_QUEUE_PREFIX: storyforge-ci
+      STORYFORGE_WORKER_CONCURRENCY: "2"
+      STORYFORGE_DISTRIBUTED_RATE_LIMIT_ENABLED: "true"
+      STORYFORGE_DISTRIBUTED_CIRCUIT_ENABLED: "true"
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -109,6 +124,22 @@ jobs:
       - run: uv run pytest -m postgres --no-cov
       - run: uv run alembic upgrade head
       - run: uv run storyforge demo-m10 --output json
+      - name: Start asynchronous dispatcher and workers
+        run: |
+          uv run storyforge-dispatcher > /tmp/storyforge-dispatcher.log 2>&1 &
+          echo $! > /tmp/storyforge-dispatcher.pid
+          uv run storyforge-worker > /tmp/storyforge-worker-1.log 2>&1 &
+          echo $! > /tmp/storyforge-worker-1.pid
+          uv run storyforge-worker > /tmp/storyforge-worker-2.log 2>&1 &
+          echo $! > /tmp/storyforge-worker-2.pid
+      - run: uv run storyforge demo-m11 --output json
+      - if: failure()
+        run: cat /tmp/storyforge-dispatcher.log /tmp/storyforge-worker-1.log /tmp/storyforge-worker-2.log
+      - if: always()
+        run: |
+          test ! -f /tmp/storyforge-dispatcher.pid || kill "$(cat /tmp/storyforge-dispatcher.pid)" || true
+          test ! -f /tmp/storyforge-worker-1.pid || kill "$(cat /tmp/storyforge-worker-1.pid)" || true
+          test ! -f /tmp/storyforge-worker-2.pid || kill "$(cat /tmp/storyforge-worker-2.pid)" || true
 
   browser-e2e:
     name: PostgreSQL Mock browser end-to-end tests

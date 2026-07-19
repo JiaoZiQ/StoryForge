@@ -67,7 +67,11 @@ export function ChapterDetailView({
   };
   const runWorkflow = async () => {
     const result = await workflow.mutateAsync();
-    router.push(`/projects/${projectId}/workflow/${result.workflow_run_id}`);
+    router.push(`/jobs/${result.job_id}`);
+  };
+  const generateDraft = async () => {
+    const result = await generate.mutateAsync();
+    router.push(`/jobs/${result.job_id}`);
   };
   return (
     <>
@@ -81,7 +85,7 @@ export function ChapterDetailView({
               className="button-secondary"
               type="button"
               disabled={generate.isPending || workflow.isPending}
-              onClick={() => void generate.mutate()}
+              onClick={() => void generateDraft()}
             >
               {generate.isPending ? "Generating…" : "Generate draft"}
             </button>
@@ -98,7 +102,7 @@ export function ChapterDetailView({
       />
       {generate.isPending || workflow.isPending ? (
         <div className="mb-4">
-          <InlineLoading label="The current operation is synchronous; keep this page open until it completes." />
+          <InlineLoading label="Creating a durable background job…" />
         </div>
       ) : null}
       {generate.error ? (

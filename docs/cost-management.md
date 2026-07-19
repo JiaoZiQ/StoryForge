@@ -1,5 +1,10 @@
 # Usage, pricing, and budgets
 
+BookRun adds hard estimated-cost, token, and provider-call ceilings shared by all child
+workflows plus bounded global review/revision estimates. Checks happen before calls.
+Budget-blocked runs retain their best snapshot and can resume after a limit increase without
+double-counting usage.
+
 Every provider attempt records token counts and provenance (`provider_reported`,
 `local_estimate`, `mock`, or `unknown`). Pricing uses Python `Decimal` and an
 immutable snapshot containing provider/model, per-million rates, currency, version,

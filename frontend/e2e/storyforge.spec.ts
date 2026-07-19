@@ -19,9 +19,15 @@ test("creates a project and generates its plan from the UI", async ({
   await page.getByRole("button", { name: "Create project" }).click();
   await expect(page).toHaveURL(/\/projects\/\d+$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+  const projectId = Number(page.url().match(/\/projects\/(\d+)$/)?.[1]);
 
   await page.getByRole("link", { name: "View plan" }).click();
   await page.getByRole("button", { name: "Generate plan" }).click();
+  await expect(page).toHaveURL(/\/jobs\/\d+$/);
+  await expect(page.getByText("Job succeeded")).toBeVisible({
+    timeout: 60_000,
+  });
+  await page.goto(`/projects/${projectId}/plan`);
   await expect(page.getByRole("heading", { name: "Story plan" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Chapter outline" }),
@@ -42,7 +48,17 @@ test("runs a revision workflow and exposes immutable evaluation history", async 
   const project = await createPlannedProject(request, "workflow");
   await page.goto(`/projects/${project.id}/chapters/1`);
   await page.getByRole("button", { name: "Run full workflow" }).click();
-  await expect(page).toHaveURL(/\/workflow\/\d+$/);
+  await expect(page).toHaveURL(/\/jobs\/\d+$/);
+  const jobId = Number(page.url().match(/\/jobs\/(\d+)$/)?.[1]);
+  await expect(page.getByText("Job succeeded")).toBeVisible({
+    timeout: 60_000,
+  });
+  const job = await apiJson<{
+    result: { resource_ids: { workflow_run_id: number } };
+  }>(request, "get", `/backend/api/v1/jobs/${jobId}`);
+  await page.goto(
+    `/projects/${project.id}/workflow/${job.result.resource_ids.workflow_run_id}`,
+  );
   await expect(
     page.getByText("Status: Completed", { exact: true }),
   ).toBeVisible();
@@ -120,4 +136,95 @@ test("filters and resolves a persisted consistency conflict", async ({
   await expect(
     firstConflict.getByText("Resolved", { exact: true }),
   ).toBeVisible();
+});
+
+test("submits an asynchronous job and replays its durable timeline", async ({
+  page,
+  request,
+}) => {
+  const project = await createPlannedProject(request, "async-job");
+  const response = await request.post("/backend/api/v1/jobs", {
+    data: {
+      job_type: "run_retrieval_warmup",
+      project_id: project.id,
+      operation: "browser-e2e",
+      payload: { query: "chapter memory", current_chapter: 1 },
+      idempotency_key: `browser-job-${project.id}`,
+      priority: 5,
+    },
+  });
+  expect(response.status()).toBe(202);
+  const accepted = (await response.json()) as { job_id: number };
+  await expect
+    .poll(async () => {
+      const detail = await request.get(
+        `/backend/api/v1/jobs/${accepted.job_id}`,
+      );
+      return ((await detail.json()) as { status: string }).status;
+    })
+    .toBe("succeeded");
+
+  await page.goto("/jobs");
+  await page.getByRole("link", { name: `#${accepted.job_id}` }).click();
+  await expect(
+    page.getByRole("heading", { name: `Job #${accepted.job_id}` }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
+  await expect(page.getByText("Job succeeded")).toBeVisible();
+
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(
+    accessibility.violations.filter((item) =>
+      ["critical", "serious"].includes(item.impact ?? ""),
+    ),
+  ).toEqual([]);
+});
+
+test("tracks a whole-book run and exposes text-backed global analysis", async ({
+  page,
+  request,
+}) => {
+  const project = await createPlannedProject(request, "whole-book");
+  const response = await request.post(
+    `/backend/api/v1/projects/${project.id}/book-runs`,
+    {
+      headers: { "Idempotency-Key": `browser-book-${project.id}` },
+      data: { mode: "sequential" },
+    },
+  );
+  expect(response.status()).toBe(202);
+  const accepted = (await response.json()) as { book_run_id: number };
+  await expect
+    .poll(
+      async () => {
+        const detail = await request.get(
+          `/backend/api/v1/book-runs/${accepted.book_run_id}`,
+        );
+        return ((await detail.json()) as { status: string }).status;
+      },
+      { timeout: 120_000 },
+    )
+    .toMatch(/completed|completed_needs_review/);
+
+  await page.goto(`/projects/${project.id}/book/${accepted.book_run_id}`);
+  await expect(
+    page.getByRole("heading", { name: `Book run #${accepted.book_run_id}` }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Transport: stopped", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Snapshot" }).click();
+  await expect(page.getByText(/Snapshot #/)).toBeVisible();
+  await page.getByRole("tab", { name: "Pacing" }).click();
+  await expect(page.getByRole("heading", { name: "Pacing" })).toBeVisible();
+  await expect(
+    page.getByText("Every visual value is also available as text."),
+  ).toBeVisible();
+
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(
+    accessibility.violations.filter((item) =>
+      ["critical", "serious"].includes(item.impact ?? ""),
+    ),
+  ).toEqual([]);
 });

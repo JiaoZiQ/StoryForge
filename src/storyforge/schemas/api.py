@@ -429,6 +429,7 @@ class ReadinessResponse(BaseModel):
     database: Literal["ok"]
     migration_revision: str
     provider: str
+    queue: Literal["ok", "inline"] = "inline"
 
 
 class DemoEvaluationSummary(EvaluationSummary):

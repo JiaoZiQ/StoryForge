@@ -1,5 +1,9 @@
 # Provider registry and gateway
 
+M12 adds the structured `BOOK_CRITIQUE` task. BookCritic and all child chapter agents route
+through the same registry/gateway; no whole-book service directly invokes a raw provider.
+Mock profiles are deterministic and offline.
+
 Milestone 10 centralizes LLM and embedding calls behind a validated registry and
 governed gateway. A capability declares provider/model identity, type, context and
 output limits, structured-output or embedding support, enabled state, external

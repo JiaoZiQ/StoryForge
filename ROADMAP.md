@@ -1,6 +1,23 @@
 # StoryForge Roadmap
 
-## Milestone 10：Provider 治理、成本与可靠性（已实现，待独立提交）
+## Milestone 12: whole-book generation and global revision (implemented)
+
+- Durable BookRun/BookSnapshot models, sequential and bounded dependency-aware scheduling.
+- Accepted-only timeline, character/knowledge/relationship arcs, foreshadowing,
+  transitions, pacing, and local plus PostgreSQL pgvector repetition candidates.
+- Compressed governed BookCritic, deterministic book scoring, targeted revision plans,
+  affected-chapter rechecks, bounded global rounds, shared budgets, pause/resume/cancel.
+- Job/SSE/API/CLI/Web integration and offline five-chapter `demo-m12`.
+- Milestone 13 is not started.
+
+## Milestone 11: asynchronous jobs and distributed reliability (implemented and accepted)
+
+- PostgreSQL-authoritative jobs/events/outbox/workers; Redis transports Job IDs only.
+- Leases, recovery, bounded retry, DLQ, cooperative controls, and replayable SSE.
+- Job API/CLI/Web Center and distributed provider rate/circuit state.
+- Offline `demo-m11`; Milestone 12 is not started.
+
+## Milestone 10：Provider 治理、成本与可靠性（已实现并独立提交）
 
 - 统一 LLM/Embedding gateway、能力注册、受控 profile 与 task route。
 - offline/strict/standard 隐私策略及外发前脱敏。
@@ -8,8 +25,6 @@
 - 有界 retry/fallback、RPM/TPM/concurrency 限制、circuit breaker 与幂等键。
 - Provider/Usage/Budget/Model Settings API、CLI 与 Web 页面。
 - PostgreSQL + pgvector + MockLLM/MockEmbedding 的 `demo-m10`。
-
-Milestone 11 未开始；本阶段不引入队列、分布式限流或认证系统。
 
 所有里程碑按顺序独立验收；完成一个阶段不会自动开始下一阶段。
 
