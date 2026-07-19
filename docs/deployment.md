@@ -1,5 +1,22 @@
 # Deployment and cold start
 
+## M12 distributed cold start
+
+Run migration before readiness, then API, frontend/gateway, two dispatchers, and two
+workers. Use an explicit safe env file so Compose does not auto-load a local `.env`:
+
+```powershell
+docker compose --env-file .env.example config --quiet
+docker compose --env-file .env.example build --no-cache
+docker compose --env-file .env.example up -d --scale dispatcher=2 --scale worker=2
+docker compose --env-file .env.example exec api storyforge demo-m12 --output json
+```
+
+Runtime services are on the internal network and use Mock providers without API keys for
+acceptance. PostgreSQL and checkpoint volumes are durable; Redis loss is recoverable from
+Job/Outbox state. Recreate the Compose project and named volumes for an independent cold
+start. Do not expose PostgreSQL or Redis publicly in production.
+
 ## M11 services
 
 Compose adds internal Redis, an outbox dispatcher, and two non-root workers. Migration

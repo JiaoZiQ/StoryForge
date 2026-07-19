@@ -37,6 +37,15 @@ import {
   jobPageSchema,
   jobEventPageSchema,
   queueHealthSchema,
+  bookRunAcceptedSchema,
+  bookRunPageSchema,
+  bookRunSchema,
+  bookSnapshotPageSchema,
+  bookSnapshotSchema,
+  bookEvaluationSchema,
+  bookAnalysisSchema,
+  timelinePageSchema,
+  bookRevisionPlanSchema,
 } from "./schemas";
 import type {
   ChapterDetail,
@@ -78,6 +87,16 @@ import type {
   JobPageResponse,
   JobEventPageResponse,
   QueueHealthResponse,
+  BookRunCreateRequest,
+  BookRunAcceptedResponse,
+  BookRunResponse,
+  BookRunPageResponse,
+  BookSnapshotResponse,
+  BookSnapshotPageResponse,
+  BookEvaluationResponse,
+  BookAnalysisResponse,
+  TimelinePageResponse,
+  BookRevisionPlanResponse,
 } from "./types";
 
 export type ProjectListFilters = {
@@ -700,5 +719,162 @@ export const storyforgeApi = {
         body: { privacy_policy },
       }),
       modelSettingsSchema,
+    ),
+  createBookRun: (
+    projectId: number,
+    body: BookRunCreateRequest,
+    idempotencyKey: string,
+  ) =>
+    parseApiResponse<BookRunAcceptedResponse>(
+      rawApi.POST("/api/v1/projects/{project_id}/book-runs", {
+        params: { path: { project_id: projectId } },
+        body,
+        headers: { "Idempotency-Key": idempotencyKey },
+      }),
+      bookRunAcceptedSchema,
+    ),
+  listBookRuns: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookRunPageResponse>(
+      rawApi.GET("/api/v1/projects/{project_id}/book-runs", {
+        signal,
+        params: {
+          path: { project_id: projectId },
+          query: { page: 1, page_size: 100 },
+        },
+      }),
+      bookRunPageSchema,
+    ),
+  getBookRun: (runId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookRunResponse>(
+      rawApi.GET("/api/v1/book-runs/{book_run_id}", {
+        signal,
+        params: { path: { book_run_id: runId } },
+      }),
+      bookRunSchema,
+    ),
+  controlBookRun: (runId: number, action: "pause" | "resume" | "cancel") => {
+    const params = { path: { book_run_id: runId } };
+    if (action === "pause")
+      return parseApiResponse<BookRunResponse>(
+        rawApi.POST("/api/v1/book-runs/{book_run_id}/pause", { params }),
+        bookRunSchema,
+      );
+    if (action === "cancel")
+      return parseApiResponse<BookRunResponse>(
+        rawApi.POST("/api/v1/book-runs/{book_run_id}/cancel", { params }),
+        bookRunSchema,
+      );
+    return parseApiResponse<BookRunResponse>(
+      rawApi.POST("/api/v1/book-runs/{book_run_id}/resume", {
+        params,
+        body: {},
+      }),
+      bookRunSchema,
+    );
+  },
+  listBookRunEvents: (runId: number, signal?: AbortSignal) =>
+    parseApiResponse<JobEventPageResponse>(
+      rawApi.GET("/api/v1/book-runs/{book_run_id}/events", {
+        signal,
+        params: {
+          path: { book_run_id: runId },
+          query: { page: 1, page_size: 500 },
+        },
+      }),
+      jobEventPageSchema,
+    ),
+  listBookSnapshots: (projectId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookSnapshotPageResponse>(
+      rawApi.GET("/api/v1/projects/{project_id}/book-snapshots", {
+        signal,
+        params: { path: { project_id: projectId } },
+      }),
+      bookSnapshotPageSchema,
+    ),
+  getBookSnapshot: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookSnapshotResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}", {
+        signal,
+        params: { path: { snapshot_id: snapshotId } },
+      }),
+      bookSnapshotSchema,
+    ),
+  getBookEvaluation: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookEvaluationResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/evaluation", {
+        signal,
+        params: { path: { snapshot_id: snapshotId } },
+      }),
+      bookEvaluationSchema,
+    ),
+  getBookTimeline: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<TimelinePageResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/timeline", {
+        signal,
+        params: {
+          path: { snapshot_id: snapshotId },
+          query: { page: 1, page_size: 500 },
+        },
+      }),
+      timelinePageSchema,
+    ),
+  getBookAnalysis: (
+    snapshotId: number,
+    kind:
+      | "character-arcs"
+      | "relationships"
+      | "foreshadowing"
+      | "pacing"
+      | "transitions",
+    signal?: AbortSignal,
+  ) => {
+    const params = { path: { snapshot_id: snapshotId } };
+    if (kind === "character-arcs")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/character-arcs", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    if (kind === "relationships")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/relationships", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    if (kind === "foreshadowing")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/foreshadowing", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    if (kind === "pacing")
+      return parseApiResponse<BookAnalysisResponse>(
+        rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/pacing", {
+          signal,
+          params,
+        }),
+        bookAnalysisSchema,
+      );
+    return parseApiResponse<BookAnalysisResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/transitions", {
+        signal,
+        params,
+      }),
+      bookAnalysisSchema,
+    );
+  },
+  getBookRevisionPlan: (snapshotId: number, signal?: AbortSignal) =>
+    parseApiResponse<BookRevisionPlanResponse>(
+      rawApi.GET("/api/v1/book-snapshots/{snapshot_id}/revision-plan", {
+        signal,
+        params: { path: { snapshot_id: snapshotId } },
+      }),
+      bookRevisionPlanSchema,
     ),
 };

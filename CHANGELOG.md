@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased — Milestone 12
+
+### Added
+
+- PostgreSQL-authoritative BookRun, immutable BookSnapshot, periodic global checks, and
+  migration `3f86e80e0e51`.
+- Accepted-version timeline, character arcs, explicit knowledge boundaries, relationship
+  history, foreshadowing, transitions, pacing, exact/n-gram repetition, and PostgreSQL
+  pgvector repetition candidates.
+- Governed compressed BookCritic, weighted BookEvaluation, bounded deterministic revision
+  plans, targeted immutable chapter rework, and affected-future-chapter tracking.
+- Whole-book Job/SSE/API/CLI/Web surfaces and offline five-chapter `demo-m12` with pause,
+  lease recovery, budget resume, and duplicate/isolation audits.
+
+### Fixed
+
+- Namespaced `STORYFORGE_DATABASE_URL` now takes precedence over legacy `DATABASE_URL`, so
+  Alembic, API, workers, and demos cannot silently address different databases.
+- SQLite M11-to-M12 migration preserves existing JobEvent audit rows while replacing the
+  parent jobs table in batch mode.
+- Concurrent Job events allocate their sequence atomically; targeted global revisions use
+  scoped provider idempotency and cannot replay another BookRun's critic response.
+
 ## Unreleased — Milestone 11
 
 ### Added

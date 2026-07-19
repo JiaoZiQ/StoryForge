@@ -1,5 +1,13 @@
 # Provider governance UI workflows
 
+## Whole-book workflow
+
+Open a project's **Book** page to create or select a run. Progress follows SSE and falls
+back to polling; terminal status stops both. The workspace tabs show content-free snapshot,
+timeline, character, relationship, foreshadowing, pacing, transition, evaluation, and
+revision-plan projections. Pause, resume, and cancel are shown only for valid states and
+surface the standard request ID on errors.
+
 The global **Providers** page shows public capabilities, pricing availability,
 configuration health and circuit state. Project navigation adds **Usage & Cost**,
 **Budget**, and **Model Settings**. Workflow detail shows aggregate provider calls,

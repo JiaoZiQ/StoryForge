@@ -9,6 +9,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from storyforge.application import (
+    BookQueryApplicationService,
     ChapterApplicationService,
     DomainServiceFactory,
     EvaluationApplicationService,
@@ -22,6 +23,7 @@ from storyforge.application import (
 )
 from storyforge.database import SessionFactory
 from storyforge.llm import LLMProvider
+from storyforge.services import BookRunService
 from storyforge.settings import Settings
 
 
@@ -127,6 +129,19 @@ def get_job_service(
     return JobApplicationService(session_factory, settings)
 
 
+def get_book_run_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> BookRunService:
+    return BookRunService(session_factory, settings)
+
+
+def get_book_query_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+) -> BookQueryApplicationService:
+    return BookQueryApplicationService(session_factory)
+
+
 ProjectServiceDep = Annotated[ProjectApplicationService, Depends(get_project_service)]
 PlanningServiceDep = Annotated[PlanningApplicationService, Depends(get_planning_service)]
 ChapterServiceDep = Annotated[ChapterApplicationService, Depends(get_chapter_service)]
@@ -136,3 +151,5 @@ SystemServiceDep = Annotated[SystemApplicationService, Depends(get_system_servic
 MemoryServiceDep = Annotated[MemoryApplicationService, Depends(get_memory_service)]
 GovernanceServiceDep = Annotated[GovernanceApplicationService, Depends(get_governance_service)]
 JobServiceDep = Annotated[JobApplicationService, Depends(get_job_service)]
+BookRunServiceDep = Annotated[BookRunService, Depends(get_book_run_service)]
+BookQueryServiceDep = Annotated[BookQueryApplicationService, Depends(get_book_query_service)]

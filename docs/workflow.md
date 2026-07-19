@@ -1,5 +1,20 @@
 # StoryForge 工作流
 
+## M12 book scheduler state machine
+
+```text
+initialize -> validate plan -> schedule chapter Job -> wait for terminal child event
+  -> update progress -> periodic accepted-only global check -> next chapter
+  -> freeze BookSnapshot -> global rules -> governed BookCritic -> score
+  -> accept | targeted revision -> rebuild/recheck | needs review
+```
+
+Chapter bodies are accepted sequentially. A worker restart resumes the top Job from its
+persisted node and child Job map; child LangGraph checkpoints prevent duplicate versions,
+provider calls, evaluations, facts, memory, or cost. Pause and budget block stop at safe
+boundaries. Cancel stops creating child Jobs and never promotes unfinished candidates.
+Critical periodic timeline findings pause later generation.
+
 ## M11 Job wrapper
 
 Queued work invokes the existing LangGraph service. Controls run before side effects;

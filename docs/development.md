@@ -1,5 +1,29 @@
 # 开发指南
 
+## M12 development checks
+
+Use deterministic MockLLM, MockEmbedding, Mock Provider, and injected clocks in tests.
+SQLite covers local rules and migration compatibility; PostgreSQL markers prove the real
+pgvector cosine operator and distributed persistence.
+
+```powershell
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy src
+uv run pytest
+uv run alembic check
+git diff --check
+cd frontend
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Never add generated prose, `.env`, databases, Redis data, checkpoints, coverage output, or
+`docs/ui/` to a Milestone commit.
+
 ## M11 development
 
 Use inline mode for SQLite tests. Queue mode requires PostgreSQL/Redis, one dispatcher,

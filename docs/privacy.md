@@ -1,5 +1,10 @@
 # Provider privacy and redaction
 
+BookCritic receives compressed summaries and bounded issue excerpts, not an unconditional
+manuscript. Book Job/SSE/Redis payloads and ProviderCall audits exclude prose, prompts,
+embeddings, credentials, and Authorization. Snapshot APIs return version maps and analysis
+summaries only.
+
 Privacy is enforced before any external call:
 
 - `offline`: external LLM and embedding egress is blocked.

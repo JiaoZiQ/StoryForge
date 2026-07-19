@@ -446,6 +446,8 @@ class ChapterWorkflowService:
             critical_conflicts = evaluation.get("critical_conflicts", 0)
             if state.get("errors"):
                 route = "fail"
+            elif state["operation"] == "targeted_revision" and state["revision_attempt"] == 0:
+                route = "revise"
             elif bool(evaluation.get("passed")) and not state.get("blocking_reasons"):
                 route = "accept"
             elif recommendation == "reject":
@@ -477,6 +479,7 @@ class ChapterWorkflowService:
                 evaluation_id=evaluation_id,
                 revision_attempt=state["revision_attempt"] + 1,
                 previous_improved=previous_improved,
+                include_source_version_facts=state["operation"] != "targeted_revision",
             )
             return {
                 "current_version_id": source_version_id,

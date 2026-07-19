@@ -1,5 +1,17 @@
 # REST API
 
+## M12 Book API
+
+`POST /api/v1/projects/{project_id}/book-runs` returns HTTP 202 and supports
+`Idempotency-Key`. One active run per project is reused for an idempotent request. Run
+list/detail and pause/resume/cancel endpoints use the standard error document.
+`/events` pages durable events and `/events/stream` supports `Last-Event-ID`; neither sends
+prose.
+
+Snapshot endpoints expose only version maps, hashes, summaries, evaluation, timeline,
+character arcs, relationships, foreshadowing, pacing, transitions, and revision plans.
+Timeline is paginated. No endpoint returns a whole manuscript or default chapter body.
+
 ## M11 Job API
 
 `POST /api/v1/jobs` returns 202. SSE replays `Last-Event-ID`. Controls use the central

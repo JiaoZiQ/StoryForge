@@ -55,6 +55,16 @@ def execute_workflow_job(job_id: int) -> None:
 
 
 @dramatiq.actor(
+    actor_name="storyforge_execute_book_job",
+    queue_name=f"{settings.queue_prefix}.book",
+    max_retries=0,
+    time_limit=settings.job_default_timeout * 1000,
+)
+def execute_book_job(job_id: int) -> None:
+    _execute(job_id)
+
+
+@dramatiq.actor(
     actor_name="storyforge_execute_indexing_job",
     queue_name=f"{settings.queue_prefix}.indexing",
     max_retries=0,

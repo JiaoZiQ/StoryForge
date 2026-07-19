@@ -1,5 +1,62 @@
 # StoryForge
 
+> Milestone 12 extends the accepted single-chapter workflow into a durable whole-book
+> run. It remains an engineering prototype: it does not claim publication-quality
+> autonomous writing, has no authentication, and does not export PDF, DOCX, or ePub.
+
+## Milestone 12 whole-book workflow
+
+`BookRun` is a PostgreSQL-authoritative top-level Job. The default `sequential` mode
+accepts chapters in order; `dependency_aware` only permits bounded preparation work in
+parallel because later prose depends on earlier accepted facts. Each chapter still uses
+the M5 chapter workflow, immutable `ChapterVersion` history, governed providers, the M8
+memory/graph index, and the M11 Job/Outbox/lease/SSE reliability boundary.
+
+After every configured chapter interval and at completion, StoryForge checks the global
+timeline, character state/knowledge/relationship arcs, foreshadowing, adjacent-chapter
+transitions, pacing, and repeated scenes. PostgreSQL uses pgvector cosine distance for
+semantic repetition candidates; a high similarity is evidence for review, not an
+automatic verdict. The full-book critic receives compressed summaries and rule results,
+never the unconditional manuscript.
+
+An immutable `BookSnapshot` stores only a stable chapter-to-version map and content hash.
+Critical global conflicts, a weak ending, a broken key character arc, or insufficient
+important-foreshadowing payoff block automatic acceptance. A bounded revision plan
+selects only priority chapters, preserves old accepted versions, marks affected later
+chapters for recheck, and stops at the configured global-round or budget limit.
+
+Book runs can be watched, paused, resumed, or cancelled through API, CLI, or the Web
+Book workspace. PostgreSQL is authoritative; Redis messages contain only safe Job IDs.
+Resume reuses completed chapter jobs, provider idempotency records, evaluations, facts,
+memory, snapshots, and costs.
+
+```powershell
+# Local offline smoke (SQLite fallback; Mock providers only)
+uv sync --locked --all-groups
+uv run alembic upgrade head
+uv run storyforge demo-m12 --output human
+
+# PostgreSQL + Redis distributed demo
+docker compose --env-file .env.example up --build -d --scale dispatcher=2 --scale worker=2
+docker compose --env-file .env.example exec api storyforge demo-m12 --output human
+
+# Public CLI surface
+uv run storyforge book run --project-id 1 --wait
+uv run storyforge book status --book-run-id 1 --output json
+uv run storyforge book watch --book-run-id 1
+uv run storyforge book snapshots --project-id 1
+uv run storyforge book timeline --snapshot-id 1
+uv run storyforge book characters --snapshot-id 1
+uv run storyforge book foreshadowing --snapshot-id 1
+uv run storyforge book pacing --snapshot-id 1
+uv run storyforge book revision-plan --snapshot-id 1
+```
+
+Book budgets cap estimated cost, total tokens, provider calls, per-chapter work, global
+review, and global revision. Mock mode requires no API key and never calls the network.
+See [book runs](docs/book-runs.md), [book evaluation](docs/book-evaluation.md), and
+[book revision](docs/book-revision.md) for exact state, scoring, and recovery rules.
+
 > Milestone 11 adds durable asynchronous jobs, a PostgreSQL transactional outbox,
 > Redis/Dramatiq workers, replayable SSE progress, leases, and dead-letter handling.
 > Mock execution remains offline; Milestone 12 has not started.

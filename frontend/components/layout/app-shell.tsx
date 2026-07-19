@@ -16,6 +16,7 @@ const projectLinks = [
   ["Plan", "/plan"],
   ["Chapters", "/chapters"],
   ["Workflow", "/workflow"],
+  ["Book", "/book"],
   ["Evaluations", "/evaluations"],
   ["Conflicts", "/conflicts"],
   ["Facts", "/facts"],

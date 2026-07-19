@@ -1,5 +1,15 @@
 # StoryForge 架构
 
+## M12 whole-book boundary
+
+`BookWorkflowApplicationService` is a durable scheduler state machine above the existing
+chapter LangGraph. It creates or reuses child Jobs and calls chapter services; it never
+copies chapter rules into the scheduler. `PeriodicBookChecker` and `BookAnalysisService`
+read only accepted versions. `BookCriticAgent` uses the governed Provider Router with a
+compressed typed context. Repositories own SQL; API and CLI remain adapters. A
+BookSnapshot freezes version IDs rather than prose. PostgreSQL owns run/checkpoint/audit
+state and Redis is only transport and wake-up infrastructure.
+
 ## M11 asynchronous boundary
 
 Adapters call `JobApplicationService`; `JobService` atomically persists Job, JobEvent,

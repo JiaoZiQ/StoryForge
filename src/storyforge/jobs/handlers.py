@@ -8,6 +8,7 @@ from typing import Literal, cast
 from sqlalchemy.orm import Session
 
 from storyforge.application import (
+    BookWorkflowApplicationService,
     ChapterApplicationService,
     EvaluationApplicationService,
     MemoryApplicationService,
@@ -27,6 +28,7 @@ from storyforge.schemas.api import (
     MemoryReindexRequest,
     RetrievalSearchRequest,
 )
+from storyforge.services.book_runs import BookRunService
 from storyforge.services.jobs import JobService
 from storyforge.settings import Settings
 from storyforge.workflows import ChapterWorkflowRequest
@@ -103,6 +105,8 @@ class JobHandlers:
             JobType.RESUME_WORKFLOW: self._resume_workflow,
             JobType.REINDEX_MEMORY: self._reindex_memory,
             JobType.RUN_RETRIEVAL_WARMUP: self._retrieval_warmup,
+            JobType.RUN_BOOK: self._run_book,
+            JobType.RESUME_BOOK: self._run_book,
         }
 
     def handle(self, job: Job, context: JobExecutionContext) -> JobHandlerResult:
@@ -243,6 +247,38 @@ class JobHandlers:
             metadata={"hit_count": len(response.hits), "degraded": response.degraded},
         )
 
+    def _run_book(self, job: Job, context: JobExecutionContext) -> JobHandlerResult:
+        run_id = job.book_run_id or _positive_payload_id(job, "book_run_id")
+        runs = BookRunService(self._session_factory, self._settings)
+        context.check_control("initialize_book_run")
+        try:
+            result = BookWorkflowApplicationService(
+                self._session_factory, self._factory, self._settings
+            ).execute(
+                run_id,
+                control_callback=context.check_control,
+                progress_callback=context.workflow_progress,
+            )
+        except JobPauseRequested:
+            runs.mark_paused(run_id)
+            raise
+        except JobCancellationRequested:
+            runs.mark_cancelled(run_id)
+            raise
+        except Exception as exc:
+            runs.mark_failed(run_id, exc)
+            raise
+        snapshot_value = result.get("snapshot_id")
+        snapshot_id = snapshot_value if isinstance(snapshot_value, int) else None
+        return JobHandlerResult(
+            resource_ids={
+                "book_run_id": run_id,
+                "snapshot_id": snapshot_id,
+            },
+            summary="Book workflow completed",
+            metadata=result,
+        )
+
     def _link_workflow(self, job_id: int, workflow_run_id: int) -> None:
         with self._session_factory.begin() as session:
             self._link_workflow_in_session(session, job_id, workflow_run_id)
@@ -264,6 +300,13 @@ def _chapter_number(job: Job) -> int:
     value = job.payload.get("chapter_number")
     if not isinstance(value, int) or value <= 0:
         raise ValueError("Job requires a positive chapter_number")
+    return value
+
+
+def _positive_payload_id(job: Job, field: str) -> int:
+    value = job.payload.get(field)
+    if not isinstance(value, int) or value <= 0:
+        raise ValueError(f"Job requires a positive {field}")
     return value
 
 

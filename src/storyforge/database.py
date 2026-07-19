@@ -29,7 +29,9 @@ def normalize_database_url(database_url: str) -> str:
 
 def get_database_url() -> str:
     """Read the database URL dynamically so tests and migrations can override it."""
-    return normalize_database_url(os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL))
+    return normalize_database_url(
+        os.getenv("STORYFORGE_DATABASE_URL") or os.getenv("DATABASE_URL") or DEFAULT_DATABASE_URL
+    )
 
 
 def _enable_sqlite_foreign_keys(

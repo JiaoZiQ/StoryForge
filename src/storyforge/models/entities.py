@@ -1526,6 +1526,7 @@ class Job(TimestampMixin, EntityBase):
         Index("ix_jobs_status_available_priority", "status", "available_at", "priority"),
         Index("ix_jobs_project_status", "project_id", "status"),
         Index("ix_jobs_chapter_status", "chapter_id", "status"),
+        Index("ix_jobs_book_run_status", "book_run_id", "status"),
         Index("ix_jobs_lease_expires_at", "lease_expires_at"),
         Index(
             "uq_jobs_active_chapter",
@@ -1552,6 +1553,12 @@ class Job(TimestampMixin, EntityBase):
     )
     workflow_run_id: Mapped[int | None] = mapped_column(
         ForeignKey("workflow_runs.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    book_run_id: Mapped[int | None] = mapped_column(
+        ForeignKey("book_runs.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    parent_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("jobs.id", ondelete="SET NULL"), index=True, nullable=True
     )
     job_type: Mapped[JobType] = mapped_column(
         SQLAlchemyEnum(
@@ -1589,6 +1596,7 @@ class Job(TimestampMixin, EntityBase):
     current_step: Mapped[str | None] = mapped_column(String(100), nullable=True)
     attempt: Mapped[int] = mapped_column(default=0, nullable=False)
     max_attempts: Mapped[int] = mapped_column(default=3, nullable=False)
+    event_sequence: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
     available_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now, server_default=func.now(), nullable=False
     )

@@ -17,6 +17,7 @@ from storyforge.database import create_database_engine, create_session_factory
 from storyforge.logging_config import configure_logging
 from storyforge.settings import Settings
 
+from .book_routes import book_router
 from .errors import install_exception_handlers
 from .job_routes import job_router
 from .middleware import install_http_middleware
@@ -90,6 +91,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"name": "providers", "description": "Safe model registry and health."},
             {"name": "usage", "description": "Provider usage, cost, and budgets."},
             {"name": "jobs", "description": "Asynchronous work and durable progress."},
+            {"name": "books", "description": "Whole-book generation and global analysis."},
         ],
     )
     install_http_middleware(application, configured)
@@ -105,6 +107,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(root_router)
     application.include_router(api_router, prefix=configured.api_prefix)
     application.include_router(job_router, prefix=configured.api_prefix)
+    application.include_router(book_router, prefix=configured.api_prefix)
     return application
 
 

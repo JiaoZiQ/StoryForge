@@ -1,5 +1,17 @@
 # 开发进度
 
+## Milestone 12: whole-book generation and global revision
+
+Status: implementation complete; independent quality and two-environment cold-start
+acceptance is recorded in the final delivery report. M11 is independently committed as
+`c179cf243b6b0f79c0ad240640a9b0790b7904a1`; M12 remains uncommitted and unpushed.
+
+- BookRun/BookSnapshot, global analysis, BookCritic/scoring, targeted revision, shared
+  budget, pause/resume/cancel, recovery, Job/SSE/API/CLI/Web, and `demo-m12` are present.
+- Candidate/rejected/superseded/future data are excluded; snapshots store version IDs, not
+  bodies; provider and Job idempotency prevent duplicate calls and charges.
+- `docs/ui/` remains user-owned and untracked. Milestone 13 is not started.
+
 ## Milestone 11：异步任务与分布式可靠性
 
 状态：实现完成并通过两套全新 Compose/volume 的独立冷启动验收；准备独立提交、未

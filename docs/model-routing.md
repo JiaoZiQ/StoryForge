@@ -1,5 +1,10 @@
 # Model routing
 
+BookCritic routing requires structured output and a compressed global context. Its
+idempotency scope includes BookRun identity so retries reuse the same call without allowing
+one run to replay another run's result. Fallback revalidates privacy, capability, budget,
+rate, and circuit state.
+
 Routing is by controlled `TaskType` plus project `ModelProfile`, never by an
 arbitrary client model string. Tasks include planning, drafting, fact extraction,
 critique, revision, version comparison, document embedding and query embedding.

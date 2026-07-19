@@ -158,18 +158,15 @@ class JobEventRepository(Repository[JobEvent]):
         super().__init__(session, JobEvent)
 
     def add_ordered(self, event: JobEvent) -> JobEvent:
-        self.session.scalar(select(Job.id).where(Job.id == event.job_id).with_for_update())
-        event.sequence = (
-            int(
-                self.session.scalar(
-                    select(func.coalesce(func.max(JobEvent.sequence), 0)).where(
-                        JobEvent.job_id == event.job_id
-                    )
-                )
-                or 0
-            )
-            + 1
+        sequence = self.session.scalar(
+            update(Job)
+            .where(Job.id == event.job_id)
+            .values(event_sequence=Job.event_sequence + 1)
+            .returning(Job.event_sequence)
         )
+        if sequence is None:
+            raise ValueError(f"Job {event.job_id} was not found for event allocation")
+        event.sequence = int(sequence)
         return self.add(event)
 
     def list_after(

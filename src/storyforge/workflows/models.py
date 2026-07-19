@@ -14,7 +14,7 @@ class ChapterWorkflowRequest(RequestModel):
 
     project_id: EntityId
     chapter_number: PositiveInt
-    operation: Literal["generate", "evaluate_existing"] = "generate"
+    operation: Literal["generate", "evaluate_existing", "targeted_revision"] = "generate"
     max_revision_attempts: NonNegativeInt = Field(default=2, le=10)
     pause_after: str | None = Field(default=None, max_length=100)
 

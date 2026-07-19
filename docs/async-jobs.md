@@ -1,5 +1,10 @@
 # Asynchronous jobs
 
+Milestone 12 adds `RUN_BOOK` and `RESUME_BOOK` top Jobs. A BookRun links child chapter
+workflow Jobs with deterministic idempotency keys. PostgreSQL remains authoritative and a
+top-worker lease recovery resumes from the persisted node/child map without duplicating
+versions, evaluations, snapshots, provider calls, or cost.
+
 Milestone 11 moves long-running planning, chapter generation/evaluation, workflows,
 and memory reindexing behind durable Jobs. PostgreSQL is the authority for Job,
 JobEvent, OutboxMessage, workflow, version, fact, usage, and cost state. Redis is a

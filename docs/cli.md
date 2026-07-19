@@ -1,5 +1,14 @@
 # CLI
 
+## M12 commands
+
+`storyforge book` provides `run`, `list`, `status`, `watch`, `pause`, `resume`, `cancel`,
+`snapshots`, `evaluation`, `timeline`, `characters`, `relationships`, `foreshadowing`,
+`pacing`, `transitions`, and `revision-plan`. Query commands support human and strict JSON
+output. `run --wait` follows the run; `watch` uses SSE with polling fallback. Ctrl+C stops
+the watcher but does not cancel the server task. Output includes progress and cost, never
+the manuscript. `storyforge demo-m12` is deterministic and offline.
+
 ## M11 commands
 
 Use the following M11 commands. JSON is a single parseable document; the demo uses

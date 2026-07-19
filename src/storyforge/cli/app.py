@@ -26,6 +26,7 @@ from storyforge.cli.m8 import configure_m8_commands
 from storyforge.cli.m9 import configure_m9_commands
 from storyforge.cli.m10 import configure_m10_commands
 from storyforge.cli.m11 import configure_m11_commands
+from storyforge.cli.m12 import configure_m12_commands
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.demo import (
@@ -107,6 +108,8 @@ _GROUPED_COMMANDS = {
     "worker",
     "worker-status",
     "demo-m11",
+    "book",
+    "demo-m12",
 }
 
 
@@ -1187,6 +1190,7 @@ def _parser() -> argparse.ArgumentParser:
     configure_m9_commands(commands)
     configure_m10_commands(commands)
     configure_m11_commands(commands)
+    configure_m12_commands(commands)
     return parser
 
 

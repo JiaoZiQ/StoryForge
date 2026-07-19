@@ -1,5 +1,12 @@
 # Provider reliability
 
+## M12 whole-book replay
+
+The top scheduler is an idempotent PostgreSQL state machine over M11 Jobs and M5 chapter
+checkpoints. Its child Job map, accepted chapter state, snapshot content hash, evaluation
+version, and provider idempotency scope make worker crash recovery replay-safe. Redis loss
+is recovered from Outbox and Job state.
+
 ## M11 distributed guarantees
 
 At-least-once delivery is made effect-safe through leases, unique keys, and domain

@@ -59,6 +59,7 @@ class DramatiqJobBroker:
         actor_name = {
             "workflow": "storyforge_execute_workflow_job",
             "indexing": "storyforge_execute_indexing_job",
+            "book": "storyforge_execute_book_job",
         }.get(suffix, "storyforge_execute_default_job")
         message: dramatiq.Message[Any] = dramatiq.Message(
             queue_name=queue_name,

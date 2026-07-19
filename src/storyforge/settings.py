@@ -119,6 +119,18 @@ class Settings(BaseModel):
     sse_max_connections: int = Field(default=100, ge=1, le=10_000)
     distributed_rate_limit_enabled: bool = False
     distributed_circuit_enabled: bool = False
+    book_default_mode: Literal["sequential", "dependency_aware"] = "sequential"
+    book_max_active_runs_per_project: int = Field(default=1, ge=1, le=1)
+    book_chapter_concurrency: int = Field(default=1, ge=1, le=4)
+    book_global_check_interval: int = Field(default=3, ge=1, le=20)
+    book_max_chapter_retries: int = Field(default=2, ge=0, le=10)
+    book_max_global_revision_rounds: int = Field(default=2, ge=0, le=5)
+    book_max_revision_chapters_per_round: int = Field(default=3, ge=1, le=10)
+    book_min_pass_score: float = Field(default=7.0, ge=0, le=10)
+    book_min_foreshadowing_payoff_rate: float = Field(default=0.6, ge=0, le=1)
+    book_max_cost: Decimal = Field(default=Decimal("5.00"), gt=0)
+    book_max_tokens: int = Field(default=1_000_000, gt=0)
+    book_max_provider_calls: int = Field(default=250, gt=0)
 
     @model_validator(mode="before")
     @classmethod
@@ -194,6 +206,8 @@ class Settings(BaseModel):
             raise ConfigurationError("Worker heartbeat must be shorter than the job lease")
         if self.worker_offline_after_seconds <= self.worker_heartbeat_seconds:
             raise ConfigurationError("Worker offline threshold must exceed the heartbeat interval")
+        if self.book_default_mode == "sequential" and self.book_chapter_concurrency != 1:
+            raise ConfigurationError("Sequential book mode requires chapter concurrency one")
         if self.environment == "production" and self.job_execution_mode != "queue":
             raise ConfigurationError("Production must use queued job execution")
         if self.environment == "production" and not self.distributed_rate_limit_enabled:
@@ -476,6 +490,29 @@ class Settings(BaseModel):
                     ),
                     name="STORYFORGE_DISTRIBUTED_CIRCUIT_ENABLED",
                 ),
+                book_default_mode=cast(
+                    Literal["sequential", "dependency_aware"],
+                    value("BOOK_DEFAULT_MODE", None, "sequential"),
+                ),
+                book_max_active_runs_per_project=int(
+                    value("BOOK_MAX_ACTIVE_RUNS_PER_PROJECT", None, "1")
+                ),
+                book_chapter_concurrency=int(value("BOOK_CHAPTER_CONCURRENCY", None, "1")),
+                book_global_check_interval=int(value("BOOK_GLOBAL_CHECK_INTERVAL", None, "3")),
+                book_max_chapter_retries=int(value("BOOK_MAX_CHAPTER_RETRIES", None, "2")),
+                book_max_global_revision_rounds=int(
+                    value("BOOK_MAX_GLOBAL_REVISION_ROUNDS", None, "2")
+                ),
+                book_max_revision_chapters_per_round=int(
+                    value("BOOK_MAX_REVISION_CHAPTERS_PER_ROUND", None, "3")
+                ),
+                book_min_pass_score=float(value("BOOK_MIN_PASS_SCORE", None, "7.0")),
+                book_min_foreshadowing_payoff_rate=float(
+                    value("BOOK_MIN_FORESHADOWING_PAYOFF_RATE", None, "0.6")
+                ),
+                book_max_cost=Decimal(value("BOOK_MAX_COST", None, "5.00")),
+                book_max_tokens=int(value("BOOK_MAX_TOKENS", None, "1000000")),
+                book_max_provider_calls=int(value("BOOK_MAX_PROVIDER_CALLS", None, "250")),
             )
         except ValueError as exc:
             raise ConfigurationError("StoryForge numeric or enum settings are invalid") from exc

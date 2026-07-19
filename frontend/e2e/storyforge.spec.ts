@@ -179,3 +179,52 @@ test("submits an asynchronous job and replays its durable timeline", async ({
     ),
   ).toEqual([]);
 });
+
+test("tracks a whole-book run and exposes text-backed global analysis", async ({
+  page,
+  request,
+}) => {
+  const project = await createPlannedProject(request, "whole-book");
+  const response = await request.post(
+    `/backend/api/v1/projects/${project.id}/book-runs`,
+    {
+      headers: { "Idempotency-Key": `browser-book-${project.id}` },
+      data: { mode: "sequential" },
+    },
+  );
+  expect(response.status()).toBe(202);
+  const accepted = (await response.json()) as { book_run_id: number };
+  await expect
+    .poll(
+      async () => {
+        const detail = await request.get(
+          `/backend/api/v1/book-runs/${accepted.book_run_id}`,
+        );
+        return ((await detail.json()) as { status: string }).status;
+      },
+      { timeout: 120_000 },
+    )
+    .toMatch(/completed|completed_needs_review/);
+
+  await page.goto(`/projects/${project.id}/book/${accepted.book_run_id}`);
+  await expect(
+    page.getByRole("heading", { name: `Book run #${accepted.book_run_id}` }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Transport: stopped", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Snapshot" }).click();
+  await expect(page.getByText(/Snapshot #/)).toBeVisible();
+  await page.getByRole("tab", { name: "Pacing" }).click();
+  await expect(page.getByRole("heading", { name: "Pacing" })).toBeVisible();
+  await expect(
+    page.getByText("Every visual value is also available as text."),
+  ).toBeVisible();
+
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(
+    accessibility.violations.filter((item) =>
+      ["critical", "serious"].includes(item.impact ?? ""),
+    ),
+  ).toEqual([]);
+});

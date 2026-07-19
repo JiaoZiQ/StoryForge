@@ -200,6 +200,7 @@ class TaskType(StrEnum):
     VERSION_COMPARISON = "version_comparison"
     EMBEDDING_DOCUMENT = "embedding_document"
     EMBEDDING_QUERY = "embedding_query"
+    BOOK_CRITIQUE = "book_critique"
 
 
 class ModelProfile(StrEnum):
@@ -268,6 +269,69 @@ class JobType(StrEnum):
     RESUME_WORKFLOW = "resume_workflow"
     REINDEX_MEMORY = "reindex_memory"
     RUN_RETRIEVAL_WARMUP = "run_retrieval_warmup"
+    RUN_BOOK = "run_book"
+    RESUME_BOOK = "resume_book"
+
+
+class BookRunMode(StrEnum):
+    """Supported full-book scheduling strategies."""
+
+    SEQUENTIAL = "sequential"
+    DEPENDENCY_AWARE = "dependency_aware"
+
+
+class BookRunStatus(StrEnum):
+    """Durable full-book workflow lifecycle."""
+
+    PENDING = "pending"
+    PLANNING_VALIDATION = "planning_validation"
+    GENERATING = "generating"
+    PAUSED = "paused"
+    GLOBAL_REVIEW = "global_review"
+    GLOBAL_REVISION = "global_revision"
+    COMPLETED = "completed"
+    COMPLETED_NEEDS_REVIEW = "completed_needs_review"
+    CANCEL_REQUESTED = "cancel_requested"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    BUDGET_BLOCKED = "budget_blocked"
+
+
+class BookSnapshotStatus(StrEnum):
+    """Lifecycle of an immutable chapter-version mapping."""
+
+    CANDIDATE = "candidate"
+    REVIEWED = "reviewed"
+    ACCEPTED = "accepted"
+    SUPERSEDED = "superseded"
+    NEEDS_REVIEW = "needs_review"
+
+
+class KnowledgeStatus(StrEnum):
+    """A character's relationship to a bounded fact."""
+
+    KNOWN = "known"
+    FORGOTTEN = "forgotten"
+    MISLED = "misled"
+    FALSE_BELIEF = "false_belief"
+
+
+class BookRevisionStatus(StrEnum):
+    """Execution state for a global revision plan or task."""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+    FAILED = "failed"
+
+
+class ChapterImpactStatus(StrEnum):
+    """Revalidation need after an earlier accepted chapter changes."""
+
+    UNAFFECTED = "unaffected"
+    RECHECK_REQUIRED = "recheck_required"
+    REVISION_REQUIRED = "revision_required"
 
 
 class JobStatus(StrEnum):

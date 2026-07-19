@@ -1,5 +1,10 @@
 # Queue, dispatcher, and workers
 
+BookRun payloads contain only the BookRun ID. Dispatchers never publish manuscript text or
+analysis context to Redis. Chapter completion is persisted before the top scheduler can
+advance, and two workers may recover leases but unique keys keep each business effect
+single.
+
 StoryForge uses Dramatiq 2 with Redis 7.4 as the transport. Celery and RQ were
 considered; Dramatiq provides the required worker model with a smaller operational
 surface. A custom database queue was rejected because it would duplicate broker

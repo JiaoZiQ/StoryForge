@@ -9,7 +9,15 @@ from pathlib import Path
 from sqlalchemy import make_url
 from sqlalchemy.orm import Session
 
-from storyforge.agents import CriticAgent, FactExtractorAgent, RevisionAgent, WriterAgent
+from storyforge.agents import (
+    BookCriticAgent,
+    CriticAgent,
+    FactExtractorAgent,
+    RevisionAgent,
+    WriterAgent,
+)
+from storyforge.book import BookEvaluationScorer, BookRevisionPlanner, BookScoringConfig
+from storyforge.book.mock import build_book_critic_provider
 from storyforge.consistency import ConsistencyChecker
 from storyforge.database import SessionFactory
 from storyforge.demo import build_critic_provider, build_demo_provider
@@ -50,6 +58,7 @@ from storyforge.retrieval import (
 )
 from storyforge.revision import AcceptanceEvaluator, RevisionBriefBuilder
 from storyforge.services import (
+    BookAnalysisService,
     ChapterGenerationService,
     ChapterVersionService,
     ChapterWorkflowService,
@@ -117,6 +126,7 @@ class DomainServiceFactory:
         *,
         project_id: int | None = None,
         chapter_number: int | None = None,
+        idempotency_scope: str | None = None,
         override: str | None = None,
     ) -> Iterator[LLMProvider]:
         """Yield a provider and close real HTTP resources deterministically."""
@@ -136,7 +146,12 @@ class DomainServiceFactory:
             elif purpose == "evaluation":
                 raw_provider = build_critic_provider(self.settings.mock_critic_scenario)
             elif purpose == "workflow":
-                raw_provider = build_m5_provider(self.settings.mock_workflow_scenario)
+                raw_provider = build_m5_provider(
+                    self.settings.mock_workflow_scenario,
+                    self.project_target(project_id) if project_id is not None else 3,
+                )
+            elif purpose == "book_critic":
+                raw_provider = build_book_critic_provider()
             else:
                 raise DomainValidationError(f"Unsupported provider purpose: {purpose}")
         else:
@@ -158,7 +173,11 @@ class DomainServiceFactory:
                 )
             )
 
-        context = self.provider_call_context(project_id, chapter_number)
+        context = self.provider_call_context(
+            project_id,
+            chapter_number,
+            idempotency_scope=idempotency_scope,
+        )
         providers: dict[tuple[str, str], LLMProvider] = {}
         if self.settings.llm_provider == "mock":
             providers[("mock", "mock-storyforge-v1")] = raw_provider
@@ -187,7 +206,11 @@ class DomainServiceFactory:
                 raw_provider.close()
 
     def provider_call_context(
-        self, project_id: int | None, chapter_number: int | None
+        self,
+        project_id: int | None,
+        chapter_number: int | None,
+        *,
+        idempotency_scope: str | None = None,
     ) -> ProviderCallContext:
         """Resolve persisted project policy and optional chapter identity."""
         profile = self.settings.model_profile
@@ -206,6 +229,7 @@ class DomainServiceFactory:
         return ProviderCallContext(
             project_id=project_id,
             chapter_id=chapter_id,
+            idempotency_scope=idempotency_scope,
             profile=profile,
             privacy_policy=privacy,
         )
@@ -226,6 +250,23 @@ class DomainServiceFactory:
             ConsistencyChecker(),
             CriticAgent(provider, build_prompt_registry()),
             EvaluationScorer(),
+        )
+
+    def book_analysis_service(self, provider: LLMProvider) -> BookAnalysisService:
+        return BookAnalysisService(
+            self.session_factory,
+            BookCriticAgent(provider, build_prompt_registry()),
+            BookEvaluationScorer(
+                BookScoringConfig(
+                    pass_score=self.settings.book_min_pass_score,
+                    minimum_foreshadowing_payoff_rate=(
+                        self.settings.book_min_foreshadowing_payoff_rate
+                    ),
+                )
+            ),
+            BookRevisionPlanner(
+                maximum_chapters=self.settings.book_max_revision_chapters_per_round
+            ),
         )
 
     def workflow_service(

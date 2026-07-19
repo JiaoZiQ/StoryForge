@@ -85,6 +85,28 @@ _DEFINITIONS = {
             resumable=False,
             idempotent=True,
         ),
+        JobDefinition(
+            job_type=JobType.RUN_BOOK,
+            handler_name="run_book",
+            queue_name="storyforge.book",
+            max_attempts=3,
+            timeout_seconds=86_400,
+            retry_policy="infrastructure_only",
+            cancellable=True,
+            resumable=True,
+            idempotent=True,
+        ),
+        JobDefinition(
+            job_type=JobType.RESUME_BOOK,
+            handler_name="resume_book",
+            queue_name="storyforge.book",
+            max_attempts=3,
+            timeout_seconds=86_400,
+            retry_policy="infrastructure_only",
+            cancellable=True,
+            resumable=True,
+            idempotent=True,
+        ),
     )
 }
 

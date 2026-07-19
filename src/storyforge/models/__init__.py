@@ -1,6 +1,18 @@
 """Persistence models exposed by StoryForge."""
 
 from storyforge.models.base import Base, EntityBase, TimestampMixin
+from storyforge.models.books import (
+    BookEvaluation,
+    BookRevisionPlan,
+    BookRevisionTask,
+    BookRun,
+    BookSnapshot,
+    ChapterTransitionEvaluation,
+    CharacterArcPoint,
+    CharacterKnowledge,
+    RelationshipHistory,
+    TimelineEvent,
+)
 from storyforge.models.entities import (
     Chapter,
     ChapterVersion,
@@ -32,9 +44,17 @@ from storyforge.models.entities import (
 
 __all__ = [
     "Base",
+    "BookEvaluation",
+    "BookRevisionPlan",
+    "BookRevisionTask",
+    "BookRun",
+    "BookSnapshot",
     "Chapter",
+    "ChapterTransitionEvaluation",
     "ChapterVersion",
     "Character",
+    "CharacterArcPoint",
+    "CharacterKnowledge",
     "Conflict",
     "EntityBase",
     "Evaluation",
@@ -53,8 +73,10 @@ __all__ = [
     "ProjectBudget",
     "ProviderCall",
     "ProviderIdempotencyRecord",
+    "RelationshipHistory",
     "Revision",
     "StoryRule",
+    "TimelineEvent",
     "TimestampMixin",
     "VersionComparison",
     "WorkerRecord",

@@ -14,6 +14,7 @@ _PROMPT_TASKS = {
     "fact_extractor": TaskType.FACT_EXTRACTION,
     "critic": TaskType.LITERARY_CRITIQUE,
     "revision": TaskType.REVISION,
+    "book_critic": TaskType.BOOK_CRITIQUE,
     "provider.smoke": TaskType.LITERARY_CRITIQUE,
 }
 

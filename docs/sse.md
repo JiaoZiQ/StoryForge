@@ -1,5 +1,10 @@
 # Job progress over SSE
 
+BookRun has the same durable event and replay contract at
+`/api/v1/book-runs/{book_run_id}/events/stream`. Events contain safe progress, node, chapter,
+snapshot, and status identifiers, not prose. Terminal states close the stream; CLI and Web
+fall back to polling after a transport failure.
+
 `GET /api/v1/jobs/{job_id}/events/stream` is a one-way Server-Sent Events stream.
 PostgreSQL JobEvent rows are the replay authority. The server first returns rows
 after `Last-Event-ID`, then uses Redis Pub/Sub only as a wake-up hint and rechecks

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-MIGRATION_HEAD = "b61d3f7a2c10"
+MIGRATION_HEAD = "3f86e80e0e51"
 
 
 def alembic_config_path() -> Path:

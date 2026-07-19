@@ -61,3 +61,21 @@ export type JobPageResponse = components["schemas"]["JobPageResponse"];
 export type JobEventPageResponse =
   components["schemas"]["JobEventPageResponse"];
 export type QueueHealthResponse = components["schemas"]["QueueHealthResponse"];
+export type BookRunCreateRequest =
+  components["schemas"]["BookRunCreateRequest"];
+export type BookRunAcceptedResponse =
+  components["schemas"]["BookRunAcceptedResponse"];
+export type BookRunResponse = components["schemas"]["BookRunResponse"];
+export type BookRunPageResponse = components["schemas"]["BookRunPageResponse"];
+export type BookSnapshotResponse =
+  components["schemas"]["BookSnapshotResponse"];
+export type BookSnapshotPageResponse =
+  components["schemas"]["BookSnapshotPageResponse"];
+export type BookEvaluationResponse =
+  components["schemas"]["BookEvaluationResponse"];
+export type BookAnalysisResponse =
+  components["schemas"]["BookAnalysisResponse"];
+export type TimelinePageResponse =
+  components["schemas"]["TimelinePageResponse"];
+export type BookRevisionPlanResponse =
+  components["schemas"]["BookRevisionPlanResponse"];

@@ -17,7 +17,7 @@ from storyforge.cli.app import main as cli_main
 from storyforge.database import create_database_engine, create_session_factory
 from storyforge.enums import ChapterStatus, JobStatus, JobType, WorkerStatus, WorkflowRunStatus
 from storyforge.exceptions import DomainValidationError, InvalidStateError, QueueBackpressureError
-from storyforge.jobs.broker import InMemoryJobBroker
+from storyforge.jobs.broker import DramatiqJobBroker, InMemoryJobBroker
 from storyforge.jobs.dispatcher import OutboxDispatcher
 from storyforge.jobs.handlers import JobHandlers
 from storyforge.jobs.transitions import transition_job
@@ -55,6 +55,18 @@ def _request(project_id: int, *, key: str = "same") -> JobCreateRequest:
         payload={"query": "test", "current_chapter": 1, "top_k": 3},
         idempotency_key=key,
     )
+
+
+def test_book_queue_is_dispatched_to_registered_book_actor(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    transport = DramatiqJobBroker("redis://127.0.0.1:1/0", namespace="storyforge")
+    messages = []
+    monkeypatch.setattr(transport.broker, "enqueue", lambda message: messages.append(message))
+
+    transport.enqueue(42, "storyforge.book", timeout_seconds=60)
+
+    assert len(messages) == 1
+    assert messages[0].actor_name == "storyforge_execute_book_job"
+    assert messages[0].queue_name == "storyforge.book"
 
 
 def test_job_and_outbox_are_atomic_and_idempotent(db_engine) -> None:  # type: ignore[no-untyped-def]

@@ -275,6 +275,7 @@ class ChapterVersionService:
         evaluation_id: int,
         revision_attempt: int,
         previous_improved: bool | None,
+        include_source_version_facts: bool = True,
     ) -> RevisionBrief:
         """Build a bounded brief from persisted M4 issues and conflicts."""
         with self._session_factory() as session:
@@ -323,15 +324,14 @@ class ChapterVersionService:
                             source="blocking",
                         )
                     )
-            accepted_facts = list(
-                session.scalars(
-                    select(Fact).where(
-                        Fact.project_id == project.id,
-                        Fact.status == FactStatus.ACCEPTED,
-                        Fact.valid_from_chapter <= chapter.chapter_number,
-                    )
-                )
+            fact_query = select(Fact).where(
+                Fact.project_id == project.id,
+                Fact.status == FactStatus.ACCEPTED,
+                Fact.valid_from_chapter <= chapter.chapter_number,
             )
+            if not include_source_version_facts:
+                fact_query = fact_query.where(Fact.chapter_version_id != source_version_id)
+            accepted_facts = list(session.scalars(fact_query))
             must_preserve = [
                 f"{item.subject} | {item.predicate} | {item.object}" for item in accepted_facts
             ]

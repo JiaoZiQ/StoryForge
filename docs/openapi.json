@@ -1,6 +1,823 @@
 {
   "components": {
     "schemas": {
+      "BookAnalysisResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "snapshot_id": {
+            "title": "Snapshot Id",
+            "type": "integer"
+          },
+          "summary": {
+            "additionalProperties": true,
+            "title": "Summary",
+            "type": "object"
+          }
+        },
+        "required": [
+          "snapshot_id",
+          "kind",
+          "summary",
+          "items"
+        ],
+        "title": "BookAnalysisResponse",
+        "type": "object"
+      },
+      "BookEvaluationResponse": {
+        "properties": {
+          "blocking_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blocking Reasons",
+            "type": "array"
+          },
+          "book_snapshot_id": {
+            "title": "Book Snapshot Id",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dimension_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Dimension Scores",
+            "type": "object"
+          },
+          "evaluation_version": {
+            "title": "Evaluation Version",
+            "type": "integer"
+          },
+          "evaluator_versions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Evaluator Versions",
+            "type": "object"
+          },
+          "final_score": {
+            "title": "Final Score",
+            "type": "number"
+          },
+          "global_issues": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Global Issues",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          },
+          "priority_chapters": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Priority Chapters",
+            "type": "array"
+          },
+          "prompt_versions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Prompt Versions",
+            "type": "object"
+          },
+          "recommended_action": {
+            "title": "Recommended Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "book_snapshot_id",
+          "evaluation_version",
+          "final_score",
+          "passed",
+          "dimension_scores",
+          "blocking_reasons",
+          "recommended_action",
+          "priority_chapters",
+          "global_issues",
+          "evaluator_versions",
+          "prompt_versions",
+          "created_at"
+        ],
+        "title": "BookEvaluationResponse",
+        "type": "object"
+      },
+      "BookRevisionPlanResponse": {
+        "properties": {
+          "book_snapshot_id": {
+            "title": "Book Snapshot Id",
+            "type": "integer"
+          },
+          "dependency_order": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Dependency Order",
+            "type": "array"
+          },
+          "estimated_calls": {
+            "title": "Estimated Calls",
+            "type": "integer"
+          },
+          "estimated_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Estimated Cost",
+            "type": "string"
+          },
+          "estimated_tokens": {
+            "title": "Estimated Tokens",
+            "type": "integer"
+          },
+          "global_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Global Constraints",
+            "type": "array"
+          },
+          "global_objectives": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Global Objectives",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "must_preserve": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Must Preserve",
+            "type": "array"
+          },
+          "revision_round": {
+            "title": "Revision Round",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "tasks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "book_snapshot_id",
+          "revision_round",
+          "global_objectives",
+          "dependency_order",
+          "must_preserve",
+          "global_constraints",
+          "estimated_calls",
+          "estimated_tokens",
+          "estimated_cost",
+          "status",
+          "tasks"
+        ],
+        "title": "BookRevisionPlanResponse",
+        "type": "object"
+      },
+      "BookRunAcceptedResponse": {
+        "properties": {
+          "book_run_id": {
+            "title": "Book Run Id",
+            "type": "integer"
+          },
+          "events_url": {
+            "title": "Events Url",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "integer"
+          },
+          "reused": {
+            "title": "Reused",
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookRunStatus"
+          },
+          "status_url": {
+            "title": "Status Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "book_run_id",
+          "job_id",
+          "reused",
+          "status",
+          "status_url",
+          "events_url"
+        ],
+        "title": "BookRunAcceptedResponse",
+        "type": "object"
+      },
+      "BookRunCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "max_chapter_retries": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Chapter Retries"
+          },
+          "max_estimated_cost": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Estimated Cost"
+          },
+          "max_global_revision_rounds": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Global Revision Rounds"
+          },
+          "max_provider_calls": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Provider Calls"
+          },
+          "max_total_tokens": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Total Tokens"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/BookRunMode",
+            "default": "sequential"
+          },
+          "model_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "privacy_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PrivacyPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "BookRunCreateRequest",
+        "type": "object"
+      },
+      "BookRunMode": {
+        "description": "Supported full-book scheduling strategies.",
+        "enum": [
+          "sequential",
+          "dependency_aware"
+        ],
+        "title": "BookRunMode",
+        "type": "string"
+      },
+      "BookRunPageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BookRunResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total_items": {
+            "title": "Total Items",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total_items",
+          "total_pages"
+        ],
+        "title": "BookRunPageResponse",
+        "type": "object"
+      },
+      "BookRunResponse": {
+        "properties": {
+          "accepted_chapters": {
+            "title": "Accepted Chapters",
+            "type": "integer"
+          },
+          "best_snapshot_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Snapshot Id"
+          },
+          "blocking_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blocking Reasons",
+            "type": "array"
+          },
+          "book_snapshot_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Snapshot Id"
+          },
+          "chapter_status": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Chapter Status",
+            "type": "object"
+          },
+          "completed_chapters": {
+            "title": "Completed Chapters",
+            "type": "integer"
+          },
+          "current_chapter_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Chapter Number"
+          },
+          "current_global_revision_round": {
+            "title": "Current Global Revision Round",
+            "type": "integer"
+          },
+          "current_node": {
+            "title": "Current Node",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "failed_chapters": {
+            "title": "Failed Chapters",
+            "type": "integer"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "max_global_revision_rounds": {
+            "title": "Max Global Revision Rounds",
+            "type": "integer"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/BookRunMode"
+          },
+          "needs_review_chapters": {
+            "title": "Needs Review Chapters",
+            "type": "integer"
+          },
+          "periodic_checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Periodic Checks",
+            "type": "array"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "integer"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "provider_calls": {
+            "title": "Provider Calls",
+            "type": "integer"
+          },
+          "remaining_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Remaining Cost",
+            "type": "string"
+          },
+          "remaining_provider_calls": {
+            "title": "Remaining Provider Calls",
+            "type": "integer"
+          },
+          "remaining_tokens": {
+            "title": "Remaining Tokens",
+            "type": "integer"
+          },
+          "spent_cost": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Spent Cost",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookRunStatus"
+          },
+          "total_chapters": {
+            "title": "Total Chapters",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "used_tokens": {
+            "title": "Used Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "job_id",
+          "status",
+          "mode",
+          "total_chapters",
+          "completed_chapters",
+          "accepted_chapters",
+          "failed_chapters",
+          "needs_review_chapters",
+          "current_chapter_number",
+          "current_global_revision_round",
+          "max_global_revision_rounds",
+          "current_node",
+          "progress",
+          "book_snapshot_id",
+          "best_snapshot_id",
+          "blocking_reasons",
+          "chapter_status",
+          "periodic_checks",
+          "spent_cost",
+          "remaining_cost",
+          "used_tokens",
+          "remaining_tokens",
+          "provider_calls",
+          "remaining_provider_calls",
+          "started_at",
+          "updated_at",
+          "finished_at",
+          "error_code",
+          "error_message"
+        ],
+        "title": "BookRunResponse",
+        "type": "object"
+      },
+      "BookRunResumeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "max_estimated_cost": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Estimated Cost"
+          },
+          "max_provider_calls": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Provider Calls"
+          },
+          "max_total_tokens": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Total Tokens"
+          }
+        },
+        "title": "BookRunResumeRequest",
+        "type": "object"
+      },
+      "BookRunStatus": {
+        "description": "Durable full-book workflow lifecycle.",
+        "enum": [
+          "pending",
+          "planning_validation",
+          "generating",
+          "paused",
+          "global_review",
+          "global_revision",
+          "completed",
+          "completed_needs_review",
+          "cancel_requested",
+          "cancelled",
+          "failed",
+          "budget_blocked"
+        ],
+        "title": "BookRunStatus",
+        "type": "string"
+      },
+      "BookSnapshotPageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BookSnapshotResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total_items": {
+            "title": "Total Items",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total_items"
+        ],
+        "title": "BookSnapshotPageResponse",
+        "type": "object"
+      },
+      "BookSnapshotResponse": {
+        "properties": {
+          "accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
+          "accepted_chapter_count": {
+            "title": "Accepted Chapter Count",
+            "type": "integer"
+          },
+          "book_run_id": {
+            "title": "Book Run Id",
+            "type": "integer"
+          },
+          "chapter_count": {
+            "title": "Chapter Count",
+            "type": "integer"
+          },
+          "chapter_version_map": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Chapter Version Map",
+            "type": "object"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "evaluation_summary": {
+            "additionalProperties": true,
+            "title": "Evaluation Summary",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "project_id": {
+            "title": "Project Id",
+            "type": "integer"
+          },
+          "snapshot_number": {
+            "title": "Snapshot Number",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookSnapshotStatus"
+          },
+          "total_words": {
+            "title": "Total Words",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "book_run_id",
+          "snapshot_number",
+          "status",
+          "chapter_version_map",
+          "total_words",
+          "chapter_count",
+          "accepted_chapter_count",
+          "content_hash",
+          "evaluation_summary",
+          "created_at",
+          "accepted_at"
+        ],
+        "title": "BookSnapshotResponse",
+        "type": "object"
+      },
+      "BookSnapshotStatus": {
+        "description": "Lifecycle of an immutable chapter-version mapping.",
+        "enum": [
+          "candidate",
+          "reviewed",
+          "accepted",
+          "superseded",
+          "needs_review"
+        ],
+        "title": "BookSnapshotStatus",
+        "type": "string"
+      },
       "BudgetPeriod": {
         "description": "Supported project-budget reset periods.",
         "enum": [
@@ -1998,7 +2815,9 @@
           "run_chapter_workflow",
           "resume_workflow",
           "reindex_memory",
-          "run_retrieval_warmup"
+          "run_retrieval_warmup",
+          "run_book",
+          "resume_book"
         ],
         "title": "JobType",
         "type": "string"
@@ -4386,10 +5205,48 @@
           "revision",
           "version_comparison",
           "embedding_document",
-          "embedding_query"
+          "embedding_query",
+          "book_critique"
         ],
         "title": "TaskType",
         "type": "string"
+      },
+      "TimelinePageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total_items": {
+            "title": "Total Items",
+            "type": "integer"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "page_size",
+          "total_items",
+          "total_pages"
+        ],
+        "title": "TimelinePageResponse",
+        "type": "object"
       },
       "TokenUsageSource": {
         "description": "Provenance of token accounting.",
@@ -5207,6 +6064,1467 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/book-runs/{book_run_id}": {
+      "get": {
+        "description": "Get Book Run",
+        "operationId": "get_book_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_run_id",
+            "required": true,
+            "schema": {
+              "title": "Book Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Run",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-runs/{book_run_id}/cancel": {
+      "post": {
+        "description": "Cancel Book Run",
+        "operationId": "cancel_book_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_run_id",
+            "required": true,
+            "schema": {
+              "title": "Book Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Cancel Book Run",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-runs/{book_run_id}/events": {
+      "get": {
+        "description": "List Book Run Events",
+        "operationId": "list_book_run_events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_run_id",
+            "required": true,
+            "schema": {
+              "title": "Book Run Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobEventPageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "List Book Run Events",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-runs/{book_run_id}/events/stream": {
+      "get": {
+        "description": "Stream Book Run Events",
+        "operationId": "stream_book_run_events",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_run_id",
+            "required": true,
+            "schema": {
+              "title": "Book Run Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Stream Book Run Events",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-runs/{book_run_id}/pause": {
+      "post": {
+        "description": "Pause Book Run",
+        "operationId": "pause_book_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_run_id",
+            "required": true,
+            "schema": {
+              "title": "Book Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Pause Book Run",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-runs/{book_run_id}/resume": {
+      "post": {
+        "description": "Resume Book Run",
+        "operationId": "resume_book_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "book_run_id",
+            "required": true,
+            "schema": {
+              "title": "Book Run Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookRunResumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRunResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Resume Book Run",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}": {
+      "get": {
+        "description": "Get Book Snapshot",
+        "operationId": "get_book_snapshot",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Snapshot",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/character-arcs": {
+      "get": {
+        "description": "Get Book Character Arcs",
+        "operationId": "get_book_character_arcs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Character Arcs",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/evaluation": {
+      "get": {
+        "description": "Get Book Evaluation",
+        "operationId": "get_book_evaluation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookEvaluationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Evaluation",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/foreshadowing": {
+      "get": {
+        "description": "Get Book Foreshadowing",
+        "operationId": "get_book_foreshadowing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Foreshadowing",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/pacing": {
+      "get": {
+        "description": "Get Book Pacing",
+        "operationId": "get_book_pacing",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Pacing",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/relationships": {
+      "get": {
+        "description": "Get Book Relationships",
+        "operationId": "get_book_relationships",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Relationships",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/revision-plan": {
+      "get": {
+        "description": "Get Book Revision Plan",
+        "operationId": "get_book_revision_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRevisionPlanResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Revision Plan",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/timeline": {
+      "get": {
+        "description": "Get Book Timeline",
+        "operationId": "get_book_timeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelinePageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Timeline",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/book-snapshots/{snapshot_id}/transitions": {
+      "get": {
+        "description": "Get Book Transitions",
+        "operationId": "get_book_transitions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookAnalysisResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Get Book Transitions",
+        "tags": [
+          "books"
+        ]
+      }
+    },
     "/api/v1/dead-letter-jobs": {
       "get": {
         "description": "List Dead Letter Jobs",
@@ -7294,6 +9612,332 @@
         "summary": "Update mutable project fields",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/book-runs": {
+      "get": {
+        "description": "List Book Runs",
+        "operationId": "list_book_runs",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRunPageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "List Book Runs",
+        "tags": [
+          "books"
+        ]
+      },
+      "post": {
+        "description": "Create Book Run",
+        "operationId": "create_book_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookRunCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookRunAcceptedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "Create Book Run",
+        "tags": [
+          "books"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/book-snapshots": {
+      "get": {
+        "description": "List Book Snapshots",
+        "operationId": "list_book_snapshots",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "title": "Project Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookSnapshotPageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "State or write conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Queue backpressure"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Dependency unavailable"
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Provider timeout"
+          }
+        },
+        "summary": "List Book Snapshots",
+        "tags": [
+          "books"
         ]
       }
     },
@@ -13796,6 +16440,10 @@
     {
       "description": "Asynchronous work and durable progress.",
       "name": "jobs"
+    },
+    {
+      "description": "Whole-book generation and global analysis.",
+      "name": "books"
     }
   ]
 }

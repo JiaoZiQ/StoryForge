@@ -23,6 +23,15 @@ TanStack Query key 以 resource、project/chapter/run ID 和 filter 组成。创
 
 应用壳层在窄屏使用可关闭导航；表格具备横向滚动，图谱提供键盘可访问的实体/关系按钮列表。Loading 使用 `role=status`，错误使用 `role=alert`，确认框支持初始焦点与 Escape。Playwright 用 axe 检查 serious/critical 违规。
 
+## Milestone 12 Book workspace
+
+Projects include Book Runs and a Book workspace with Progress, Snapshot, Timeline,
+Character Arcs, Relationships, Foreshadowing, Pacing, Transitions, Global Evaluation, and
+Revision Plan views. Progress consumes SSE and stops at terminal state, with polling
+fallback. Charts have text equivalents, controls are keyboard reachable, and every view
+has loading, empty, and error states. Lists never request prose; the existing chapter
+Content tab remains the only opt-in full-text request.
+
 ## Milestone 11 Job Center
 
 Planning, chapter generation, workflow, and reindex actions now create durable Jobs

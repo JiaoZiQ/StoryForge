@@ -235,6 +235,117 @@ export const conflictSchema = z.looseObject({
   resolved_at: dateTime.nullable(),
 });
 export const conflictPageSchema = page(conflictSchema);
+
+export const bookRunAcceptedSchema = z.looseObject({
+  book_run_id: z.number().int(),
+  job_id: z.number().int(),
+  reused: z.boolean(),
+  status: z.string(),
+  status_url: z.string(),
+  events_url: z.string(),
+});
+export const bookRunSchema = z.looseObject({
+  id: z.number().int(),
+  project_id: z.number().int(),
+  job_id: z.number().int().nullable(),
+  status: z.string(),
+  mode: z.string(),
+  total_chapters: z.number().int(),
+  completed_chapters: z.number().int(),
+  accepted_chapters: z.number().int(),
+  failed_chapters: z.number().int(),
+  needs_review_chapters: z.number().int(),
+  current_chapter_number: z.number().int().nullable(),
+  current_global_revision_round: z.number().int(),
+  max_global_revision_rounds: z.number().int(),
+  current_node: z.string(),
+  progress: z.number().int(),
+  book_snapshot_id: z.number().int().nullable(),
+  best_snapshot_id: z.number().int().nullable(),
+  blocking_reasons: z.array(z.string()),
+  chapter_status: z.record(z.string(), z.string()),
+  periodic_checks: z.array(z.record(z.string(), z.unknown())),
+  spent_cost: z.string(),
+  remaining_cost: z.string(),
+  used_tokens: z.number().int(),
+  remaining_tokens: z.number().int(),
+  provider_calls: z.number().int(),
+  remaining_provider_calls: z.number().int(),
+  started_at: dateTime.nullable(),
+  updated_at: dateTime,
+  finished_at: dateTime.nullable(),
+  error_code: z.string().nullable(),
+  error_message: z.string().nullable(),
+});
+export const bookRunPageSchema = z.object({
+  items: z.array(bookRunSchema),
+  page: z.number().int(),
+  page_size: z.number().int(),
+  total_items: z.number().int(),
+  total_pages: z.number().int(),
+});
+export const bookSnapshotSchema = z.looseObject({
+  id: z.number().int(),
+  project_id: z.number().int(),
+  book_run_id: z.number().int(),
+  snapshot_number: z.number().int(),
+  status: z.string(),
+  chapter_version_map: z.record(z.string(), z.number().int()),
+  total_words: z.number().int(),
+  chapter_count: z.number().int(),
+  accepted_chapter_count: z.number().int(),
+  content_hash: z.string(),
+  evaluation_summary: z.record(z.string(), z.unknown()),
+  created_at: dateTime,
+  accepted_at: dateTime.nullable(),
+});
+export const bookSnapshotPageSchema = z.object({
+  items: z.array(bookSnapshotSchema),
+  total_items: z.number().int(),
+});
+export const bookEvaluationSchema = z.looseObject({
+  id: z.number().int(),
+  book_snapshot_id: z.number().int(),
+  evaluation_version: z.number().int(),
+  final_score: z.number(),
+  passed: z.boolean(),
+  dimension_scores: z.record(z.string(), z.number()),
+  blocking_reasons: z.array(z.string()),
+  recommended_action: z.string(),
+  priority_chapters: z.array(z.number().int()),
+  global_issues: z.array(z.record(z.string(), z.unknown())),
+  evaluator_versions: z.record(z.string(), z.string()),
+  prompt_versions: z.record(z.string(), z.string()),
+  created_at: dateTime,
+});
+export const bookAnalysisSchema = z.looseObject({
+  snapshot_id: z.number().int(),
+  kind: z.string(),
+  score: z.number().nullable(),
+  summary: z.record(z.string(), z.unknown()),
+  items: z.array(z.record(z.string(), z.unknown())),
+});
+export const timelinePageSchema = z.object({
+  items: z.array(z.record(z.string(), z.unknown())),
+  page: z.number().int(),
+  page_size: z.number().int(),
+  total_items: z.number().int(),
+  total_pages: z.number().int(),
+});
+export const bookRevisionPlanSchema = z.looseObject({
+  id: z.number().int(),
+  book_snapshot_id: z.number().int(),
+  revision_round: z.number().int(),
+  status: z.string(),
+  global_objectives: z.array(z.string()),
+  tasks: z.array(z.record(z.string(), z.unknown())),
+  dependency_order: z.array(z.number().int()),
+  must_preserve: z.array(z.string()),
+  global_constraints: z.array(z.string()),
+  estimated_calls: z.number().int(),
+  estimated_tokens: z.number().int(),
+  estimated_cost: z.string(),
+});
 export const factSchema = z.looseObject({
   id: z.number().int(),
   project_id: z.number().int(),

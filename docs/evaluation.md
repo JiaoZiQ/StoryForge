@@ -1,5 +1,12 @@
 # 章节评估
 
+## M12 whole-book evaluation
+
+Chapter evaluation remains unchanged and is reused by every child workflow. Whole-book
+evaluation freezes accepted versions in a BookSnapshot, combines deterministic timeline,
+arc, foreshadowing, pacing, transition, and repetition results with a compressed governed
+BookCritic, then applies separate global blockers. See [book-evaluation.md](book-evaluation.md).
+
 ## M6 查询边界
 
 M6 没有复制或改变评估算法，而是通过 Application Service 将已有链路稳定暴露给 REST API 和 CLI。`POST /api/v1/projects/{project_id}/chapters/{chapter_number}/evaluate` 仍调用同一个 `EvaluationService`；历史列表和详情从数据库读取不可变 Evaluation 版本。
