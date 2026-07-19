@@ -39,4 +39,7 @@ export const queryKeys = {
   modelSettings: (projectId: number) =>
     ["project", projectId, "model-settings"] as const,
   modelProfiles: ["system", "model-profiles"] as const,
+  jobs: (filters: object = {}) => ["jobs", filters] as const,
+  job: (jobId: number) => ["job", jobId] as const,
+  jobEvents: (jobId: number) => ["job", jobId, "events"] as const,
 };

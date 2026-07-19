@@ -1,8 +1,29 @@
 # 开发进度
 
+## Milestone 11：异步任务与分布式可靠性
+
+状态：实现完成并通过两套全新 Compose/volume 的独立冷启动验收；准备独立提交、未
+push，未开始 Milestone 12。PostgreSQL 是任务状态权威，Redis 只传输 Job ID 和
+短暂事件唤醒；已实现事件回放、自动租约恢复、有限重试/DLQ 和协作控制。
+
+- 2026-07-19 最终门禁：Python 314 项收集，296 passed、18 个未配置 URL 的
+  PostgreSQL marker skipped，覆盖率 84.01%；独立 PostgreSQL/Redis marker 18 passed。
+- Ruff format/lint、strict mypy（163 个源文件）、SQLite/PostgreSQL Alembic
+  upgrade/check/唯一 head、`git diff --check` 均通过。
+- 前端 24 项 Vitest 通过，statement coverage 96.34%，lint/typecheck/build 通过；
+  无浏览器缓存的 Playwright/axe 5 个场景全部通过，包含异步任务与事件时间线。
+- 两套全新 PostgreSQL/Redis volume 均完成迁移、双 worker、`demo-m11` A–H、
+  重复 migration 和 restart 持久化；正常工作流接受版本 2，自动 lease recovery
+  由不同 worker 接管，重复版本/评估/冲突/事实和未发布 outbox 均为 0。
+- API 与两个 worker 共享单机 checkpoint named volume；SIGKILL 后恢复不重复
+  Provider 调用、费用、版本、评估、冲突、事实、memory 或 graph。
+- 第二套环境 OpenAPI 72 个 operation ID 全部唯一；日志、镜像、数据库审计未发现
+  API Key、数据库密码、完整正文、完整 prompt、Authorization 或 traceback。
+
 ## Milestone 10：Provider 治理、成本与可靠性
 
-状态：实现完成并通过最终冷启动验收；未提交、未 push，Milestone 11 未开始。
+状态：实现完成、通过最终冷启动验收并已独立提交；后续 Milestone 11 验收不改变
+本阶段结果。
 
 - 所有 Agent 与 embedding 入口统一经过注册、路由、隐私、预算、限流、熔断、重试和审计。
 - 新增 ProviderCall、ProjectBudget、ProviderIdempotencyRecord 及 WorkflowRun 用量聚合。

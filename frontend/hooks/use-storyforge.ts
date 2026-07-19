@@ -204,13 +204,7 @@ export function useGeneratePlan(projectId: number) {
     mutationFn: (replace: boolean) =>
       storyforgeApi.generatePlan(projectId, replace),
     onSuccess: async () => {
-      await Promise.all([
-        client.invalidateQueries({ queryKey: queryKeys.project(projectId) }),
-        client.invalidateQueries({ queryKey: queryKeys.plan(projectId) }),
-        client.invalidateQueries({
-          queryKey: ["project", projectId, "chapters"],
-        }),
-      ]);
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }
@@ -219,9 +213,7 @@ export function useGenerateChapter(projectId: number, chapter: number) {
   return useMutation({
     mutationFn: () => storyforgeApi.generateChapter(projectId, chapter),
     onSuccess: async () => {
-      await client.invalidateQueries({
-        queryKey: ["project", projectId, "chapter", chapter],
-      });
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }
@@ -230,12 +222,7 @@ export function useStartWorkflow(projectId: number, chapter: number) {
   return useMutation({
     mutationFn: () => storyforgeApi.startWorkflow(projectId, chapter),
     onSuccess: async () => {
-      await Promise.all([
-        client.invalidateQueries({
-          queryKey: ["project", projectId, "chapter", chapter],
-        }),
-        client.invalidateQueries({ queryKey: queryKeys.workflows(projectId) }),
-      ]);
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }
@@ -263,14 +250,7 @@ export function useReindexMemory(projectId: number) {
   return useMutation({
     mutationFn: () => storyforgeApi.reindexMemory(projectId),
     onSuccess: async () => {
-      await Promise.all([
-        client.invalidateQueries({
-          queryKey: ["project", projectId, "memory"],
-        }),
-        client.invalidateQueries({
-          queryKey: queryKeys.memoryStatus(projectId),
-        }),
-      ]);
+      await client.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 }

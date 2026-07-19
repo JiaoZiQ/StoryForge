@@ -1,5 +1,11 @@
 # 数据模型
 
+## M11 queue data
+
+`jobs` stores safe operation metadata and leases; `job_events` stores ordered progress;
+`outbox_messages` records enqueue intent; `worker_records` stores safe heartbeats.
+Unique keys and the active-chapter index prevent duplicates. Head: `b61d3f7a2c10`.
+
 主键沿用 Milestone 1 的自增整数。SQLite 是默认开发数据库；PostgreSQL 使用同一 SQLAlchemy metadata。
 
 ## M6 变化

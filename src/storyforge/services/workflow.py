@@ -13,6 +13,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from storyforge.database import SessionFactory
 from storyforge.enums import (
@@ -26,6 +27,8 @@ from storyforge.exceptions import (
     BudgetBlockedError,
     EntityNotFoundError,
     InvalidStateError,
+    JobCancellationRequested,
+    JobPauseRequested,
     WorkflowAlreadyRunningError,
     WorkflowExecutionError,
     WorkflowNotResumableError,
@@ -82,12 +85,18 @@ class ChapterWorkflowService:
         version_service: ChapterVersionService,
         evaluation_service: EvaluationService,
         checkpoint_path: str | Path,
+        control_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
+        initialized_callback: Callable[[Session, int], None] | None = None,
     ) -> None:
         self._session_factory = session_factory
         self._versions = version_service
         self._evaluation = evaluation_service
         self._checkpoint_path = Path(checkpoint_path).expanduser().resolve()
         self._checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        self._control_callback = control_callback
+        self._progress_callback = progress_callback
+        self._initialized_callback = initialized_callback
 
     def run(self, request: ChapterWorkflowRequest) -> WorkflowStatusResult:
         """Start and synchronously advance a new durable graph."""
@@ -111,6 +120,10 @@ class ChapterWorkflowService:
         }
         try:
             self._invoke(state, thread_id=thread_id, pause_after=request.pause_after)
+        except JobPauseRequested:
+            self._mark_control_pause(thread_id)
+        except JobCancellationRequested:
+            self._mark_control_cancel(thread_id)
         except (EntityNotFoundError, InvalidStateError, ValueError):
             raise
         except BudgetBlockedError as exc:
@@ -135,6 +148,10 @@ class ChapterWorkflowService:
             thread_id = run.thread_id
         try:
             self._invoke(None, thread_id=thread_id, pause_after=None)
+        except JobPauseRequested:
+            self._mark_control_pause(thread_id)
+        except JobCancellationRequested:
+            self._mark_control_cancel(thread_id)
         except BudgetBlockedError as exc:
             if not self._mark_budget_blocked_by_thread(thread_id, exc):
                 self._mark_failed_by_thread(thread_id, exc)
@@ -265,6 +282,8 @@ class ChapterWorkflowService:
             repository = WorkflowRunRepository(session)
             existing = repository.get_by_thread_id(thread_id)
             if existing is not None:
+                if self._initialized_callback is not None:
+                    self._initialized_callback(session, existing.id)
                 chapter = ChapterRepository(session).get(existing.chapter_id)
                 if chapter is None:
                     raise EntityNotFoundError("Workflow chapter was not found")
@@ -312,6 +331,8 @@ class ChapterWorkflowService:
                 )
             )
             transition_workflow(run, WorkflowRunStatus.RUNNING)
+            if self._initialized_callback is not None:
+                self._initialized_callback(session, run.id)
             chapter.status = ChapterStatus.WORKFLOW_RUNNING
             self._event(
                 session,
@@ -638,6 +659,8 @@ class ChapterWorkflowService:
         return self._state_update(state, node, changes)
 
     def _node_started(self, state: ChapterWorkflowState, node: str) -> None:
+        if self._control_callback is not None:
+            self._control_callback(node)
         with self._session_factory.begin() as session:
             run = WorkflowRunRepository(session).get(state["workflow_run_id"])
             if run is None:
@@ -658,6 +681,8 @@ class ChapterWorkflowService:
                 state["revision_attempt"],
                 "running",
             )
+        if self._progress_callback is not None:
+            self._progress_callback("started", node)
 
     def _node_completed(
         self,
@@ -685,6 +710,25 @@ class ChapterWorkflowService:
             )
             if not terminal:
                 run.updated_at = datetime.now(UTC)
+        if self._progress_callback is not None:
+            self._progress_callback("completed", node)
+
+    def _mark_control_pause(self, thread_id: str) -> None:
+        with self._session_factory() as session:
+            run = WorkflowRunRepository(session).get_by_thread_id(thread_id)
+            if run is None:
+                raise WorkflowExecutionError("Workflow pause checkpoint was not found")
+            run_id = run.id
+            node = run.current_node
+        self._mark_paused(run_id, node)
+
+    def _mark_control_cancel(self, thread_id: str) -> None:
+        with self._session_factory() as session:
+            run = WorkflowRunRepository(session).get_by_thread_id(thread_id)
+            if run is None:
+                raise WorkflowExecutionError("Workflow cancellation target was not found")
+            run_id = run.id
+        self.cancel(run_id)
 
     def _node_failed(
         self, state: ChapterWorkflowState, node: str, error: Exception, started: float

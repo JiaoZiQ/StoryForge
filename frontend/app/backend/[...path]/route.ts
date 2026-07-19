@@ -9,6 +9,7 @@ const forwardedHeaders = [
   "accept",
   "authorization",
   "content-type",
+  "last-event-id",
   "x-request-id",
 ];
 
@@ -66,11 +67,15 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     const responseHeaders = new Headers();
     const contentType = response.headers.get("content-type");
     if (contentType) responseHeaders.set("content-type", contentType);
+    for (const name of ["cache-control", "x-accel-buffering"]) {
+      const value = response.headers.get(name);
+      if (value) responseHeaders.set(name, value);
+    }
     responseHeaders.set(
       "x-request-id",
       response.headers.get("x-request-id") ?? requestId,
     );
-    return new Response(await response.arrayBuffer(), {
+    return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,

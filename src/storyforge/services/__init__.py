@@ -3,6 +3,7 @@
 from storyforge.services.context_builder import ContextBuilder
 from storyforge.services.evaluation_service import EvaluationService
 from storyforge.services.generation import ChapterGenerationService
+from storyforge.services.jobs import JobService
 from storyforge.services.planning import PlanningService
 from storyforge.services.projects import ProjectService
 from storyforge.services.versioning import ChapterVersionService
@@ -14,6 +15,7 @@ __all__ = [
     "ChapterWorkflowService",
     "ContextBuilder",
     "EvaluationService",
+    "JobService",
     "PlanningService",
     "ProjectService",
 ]

@@ -1,5 +1,36 @@
 # CLI
 
+## M11 commands
+
+Use the following M11 commands. JSON is a single parseable document; the demo uses
+Mock providers without a key or provider network.
+
+```powershell
+storyforge job submit --type run_retrieval_warmup --project-id 1 --operation warmup --idempotency-key warmup-1
+storyforge job list --status running
+storyforge job show --job-id 1
+storyforge job events --job-id 1
+storyforge job watch --job-id 1 --output json
+storyforge job pause --job-id 1
+storyforge job resume --job-id 1
+storyforge job cancel --job-id 1
+storyforge job retry --job-id 1
+storyforge job discard --job-id 1
+storyforge job dead-letter --output json
+storyforge worker status --output json
+storyforge plan generate --project-id 1 --async --output json
+storyforge workflow run --project-id 1 --chapter-number 1 --async --wait --output json
+storyforge memory reindex --project-id 1 --all-accepted-chapters --async --output json
+docker compose exec -T api storyforge demo-m11
+```
+
+`retry` and `discard` only accept dead-lettered jobs. Pause/cancel are cooperative at
+workflow node boundaries; a terminal job cannot be resumed.
+`--wait` polls durable state and returns distinct exit codes: cancelled 7,
+dead-lettered 8, and failed 9. Ctrl+C only stops local waiting; the server Job is
+cancelled only when `--cancel-on-interrupt` is explicit. JSON mode emits one JSON
+document and never interleaves progress text.
+
 `storyforge` 与 REST API 复用同一 Application Service、Repository 和领域 Service。每个命令都支持 `--output human|json`；JSON 模式的标准输出只有一个可由 JSON parser 读取的文档。
 
 ## 分组命令
@@ -29,7 +60,8 @@ uv run storyforge fact list --database .\storyforge.db --project-id 1 --output j
 uv run storyforge workflow events --database .\storyforge.db --workflow-run-id 1
 ```
 
-正文默认不显示；`chapter show --include-content` 是显式查看入口。Fact 命令只显示 accepted 数据。workflow run 是同步命令，返回时已经完成、需要人工复核或在指定节点暂停。
+正文默认不显示；`chapter show --include-content` 是显式查看入口。Fact 命令只显示
+accepted 数据。`workflow run` 默认保留同步调试语义；显式 `--async` 才提交后台 Job。
 
 ## 演示和兼容命令
 

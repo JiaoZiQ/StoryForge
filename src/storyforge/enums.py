@@ -256,3 +256,74 @@ class IdempotencyStatus(StrEnum):
     ACTIVE = "active"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class JobType(StrEnum):
+    """Controlled asynchronous operations accepted by the job registry."""
+
+    GENERATE_PLAN = "generate_plan"
+    GENERATE_CHAPTER = "generate_chapter"
+    EVALUATE_CHAPTER = "evaluate_chapter"
+    RUN_CHAPTER_WORKFLOW = "run_chapter_workflow"
+    RESUME_WORKFLOW = "resume_workflow"
+    REINDEX_MEMORY = "reindex_memory"
+    RUN_RETRIEVAL_WARMUP = "run_retrieval_warmup"
+
+
+class JobStatus(StrEnum):
+    """Durable lifecycle for one asynchronous job."""
+
+    PENDING = "pending"
+    OUTBOX_PENDING = "outbox_pending"
+    QUEUED = "queued"
+    LEASED = "leased"
+    RUNNING = "running"
+    PAUSE_REQUESTED = "pause_requested"
+    PAUSED = "paused"
+    CANCEL_REQUESTED = "cancel_requested"
+    CANCELLED = "cancelled"
+    RETRY_SCHEDULED = "retry_scheduled"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    DEAD_LETTERED = "dead_lettered"
+
+
+class JobEventType(StrEnum):
+    """Stable, content-free events emitted by job execution."""
+
+    JOB_CREATED = "job_created"
+    JOB_QUEUED = "job_queued"
+    JOB_LEASED = "job_leased"
+    JOB_STARTED = "job_started"
+    PROGRESS_UPDATED = "progress_updated"
+    WORKFLOW_NODE_STARTED = "workflow_node_started"
+    WORKFLOW_NODE_COMPLETED = "workflow_node_completed"
+    RETRY_SCHEDULED = "retry_scheduled"
+    PAUSE_REQUESTED = "pause_requested"
+    JOB_PAUSED = "job_paused"
+    RESUME_REQUESTED = "resume_requested"
+    CANCEL_REQUESTED = "cancel_requested"
+    JOB_CANCELLED = "job_cancelled"
+    JOB_SUCCEEDED = "job_succeeded"
+    JOB_FAILED = "job_failed"
+    JOB_DEAD_LETTERED = "job_dead_lettered"
+    JOB_DISCARDED = "job_discarded"
+
+
+class OutboxStatus(StrEnum):
+    """Delivery status for a transactional outbox row."""
+
+    PENDING = "pending"
+    CLAIMED = "claimed"
+    PUBLISHED = "published"
+    FAILED = "failed"
+
+
+class WorkerStatus(StrEnum):
+    """Safe worker-health projection."""
+
+    STARTING = "starting"
+    IDLE = "idle"
+    BUSY = "busy"
+    STOPPING = "stopping"
+    OFFLINE = "offline"

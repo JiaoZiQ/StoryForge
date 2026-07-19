@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -17,6 +18,7 @@ from storyforge.logging_config import configure_logging
 from storyforge.settings import Settings
 
 from .errors import install_exception_handlers
+from .job_routes import job_router
 from .middleware import install_http_middleware
 from .routes import api_router, root_router
 
@@ -52,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         engine = create_database_engine(configured.database_url)
         application.state.settings = configured
+        application.state.sse_semaphore = asyncio.Semaphore(configured.sse_max_connections)
         application.state.engine = engine
         application.state.session_factory = create_session_factory(engine)
         application.state.domain_factory = DomainServiceFactory(
@@ -66,8 +69,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="StoryForge API",
         summary="Generate, evaluate, revise, and audit long-form story chapters.",
         description=(
-            "Milestone 8 adds accepted-only hybrid retrieval and a PostgreSQL relational graph "
-            "to the synchronous versioned REST API; no background worker is implied."
+            "Milestone 11 adds PostgreSQL-authoritative asynchronous jobs, transactional "
+            "outbox delivery, Redis-backed workers, and replayable progress events."
         ),
         version=__version__,
         lifespan=lifespan,
@@ -80,12 +83,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             {"name": "evaluations", "description": "Evaluation history and detail."},
             {"name": "conflicts", "description": "Consistency conflict review."},
             {"name": "facts", "description": "Accepted canonical facts only."},
-            {"name": "workflows", "description": "Durable synchronous workflows."},
+            {"name": "workflows", "description": "Durable resumable workflows."},
             {"name": "memory", "description": "Accepted semantic memory lifecycle."},
             {"name": "retrieval", "description": "Explainable hybrid retrieval."},
             {"name": "graph", "description": "Bounded relational story graph."},
             {"name": "providers", "description": "Safe model registry and health."},
             {"name": "usage", "description": "Provider usage, cost, and budgets."},
+            {"name": "jobs", "description": "Asynchronous work and durable progress."},
         ],
     )
     install_http_middleware(application, configured)
@@ -100,6 +104,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_exception_handlers(application)
     application.include_router(root_router)
     application.include_router(api_router, prefix=configured.api_prefix)
+    application.include_router(job_router, prefix=configured.api_prefix)
     return application
 
 

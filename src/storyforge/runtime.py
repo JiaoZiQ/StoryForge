@@ -8,6 +8,7 @@ import time
 import urllib.request
 from collections.abc import Callable, Mapping
 from pathlib import Path
+from uuid import uuid4
 
 import uvicorn
 from alembic import command
@@ -17,6 +18,7 @@ from sqlalchemy import text
 from storyforge.database import (
     DEFAULT_DATABASE_URL,
     create_database_engine,
+    create_session_factory,
     normalize_database_url,
 )
 from storyforge.exceptions import ConfigurationError, StoryForgeError
@@ -153,6 +155,95 @@ def api_main() -> int:
         )
     except Exception as exc:
         return _deployment_failure("api_startup", exc)
+    return 0
+
+
+def dispatcher_main() -> int:
+    """Run the bounded transactional-outbox dispatcher until terminated."""
+    try:
+        settings = Settings.from_env()
+        configure_logging(settings, force=True)
+        from storyforge.application.factory import DomainServiceFactory
+        from storyforge.jobs.broker import DramatiqJobBroker
+        from storyforge.jobs.dispatcher import OutboxDispatcher
+        from storyforge.jobs.handlers import JobHandlers
+        from storyforge.jobs.worker import JobExecutor
+        from storyforge.services.jobs import JobService
+
+        engine = create_database_engine(settings.database_url)
+        session_factory = create_session_factory(engine)
+        broker = DramatiqJobBroker(settings.redis_url, namespace=settings.queue_prefix)
+        dispatcher = OutboxDispatcher(
+            session_factory,
+            broker,
+            settings,
+            dispatcher_id=f"dispatcher-{uuid4().hex[:12]}",
+        )
+        job_service = JobService(session_factory, settings)
+        executor = JobExecutor(
+            session_factory,
+            JobHandlers(
+                session_factory,
+                DomainServiceFactory(session_factory, settings),
+                settings,
+                job_service,
+            ),
+            settings,
+            heartbeat_thread=False,
+        )
+        try:
+            while True:
+                recovered = executor.recover_expired()
+                redis_recovered = dispatcher.recover_stranded()
+                dispatched = dispatcher.dispatch_once()
+                if dispatched == 0 and recovered == 0 and redis_recovered == 0:
+                    time.sleep(settings.outbox_poll_interval)
+        except KeyboardInterrupt:
+            logger.info("dispatcher_stopped")
+        finally:
+            engine.dispose()
+    except Exception as exc:
+        return _deployment_failure("dispatcher", exc)
+    return 0
+
+
+def worker_main() -> int:
+    """Run Dramatiq with one process and configured worker-thread concurrency."""
+    try:
+        settings = Settings.from_env()
+        configure_logging(settings, force=True)
+        from dramatiq.cli import main as dramatiq_main
+        from dramatiq.cli import make_argument_parser
+
+        arguments = make_argument_parser().parse_args(  # type: ignore[no-untyped-call]
+            [
+                "storyforge.jobs.actors:redis_broker",
+                "--processes",
+                "1",
+                "--threads",
+                str(settings.worker_concurrency),
+                "--skip-logging",
+            ]
+        )
+        dramatiq_main(arguments)  # type: ignore[no-untyped-call]
+    except SystemExit as exc:
+        return int(exc.code or 0)
+    except Exception as exc:
+        return _deployment_failure("worker", exc)
+    return 0
+
+
+def queue_healthcheck_main() -> int:
+    """Check PostgreSQL and Redis without exposing either connection URL."""
+    try:
+        settings = Settings.from_env()
+        probe_database(settings.database_url)
+        from storyforge.jobs import DramatiqJobBroker
+
+        if not DramatiqJobBroker(settings.redis_url, namespace=settings.queue_prefix).ping():
+            raise StoryForgeError("Queue broker is unavailable")
+    except Exception as exc:
+        return _deployment_failure("queue_healthcheck", exc)
     return 0
 
 

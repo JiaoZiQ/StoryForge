@@ -8,6 +8,7 @@ const globalLinks = [
   ["Dashboard", "/"],
   ["Projects", "/projects"],
   ["Providers", "/providers"],
+  ["Jobs", "/jobs"],
   ["System", "/system"],
 ] as const;
 const projectLinks = [

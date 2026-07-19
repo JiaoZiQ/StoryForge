@@ -23,9 +23,11 @@ from storyforge.application import (
     ProjectApplicationService,
     WorkflowApplicationService,
 )
+from storyforge.cli.m11 import submit_job_request
 from storyforge.database import SessionFactory, create_database_engine, create_session_factory
-from storyforge.enums import ConflictStatus, FactStatus
+from storyforge.enums import ConflictStatus, FactStatus, JobType
 from storyforge.m6_demo import run_demo_m6
+from storyforge.migrations import alembic_config_path
 from storyforge.schemas.api import (
     ConflictPatchRequest,
     EvaluateChapterRequest,
@@ -34,9 +36,8 @@ from storyforge.schemas.api import (
     ProjectCreateRequest,
     StartWorkflowRequest,
 )
+from storyforge.schemas.jobs import JobCreateRequest
 from storyforge.settings import Settings
-
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +87,7 @@ def _upgrade(database_url: str) -> None:
     previous = os.environ.get("DATABASE_URL")
     os.environ["DATABASE_URL"] = database_url
     try:
-        command.upgrade(Config(str(PROJECT_ROOT / "alembic.ini")), "head")
+        command.upgrade(Config(str(alembic_config_path())), "head")
     finally:
         if previous is None:
             os.environ.pop("DATABASE_URL", None)
@@ -130,6 +131,17 @@ def _project_show(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _plan_generate(args: argparse.Namespace) -> dict[str, object]:
+    if args.run_async:
+        return _queued(
+            args,
+            JobCreateRequest(
+                job_type=JobType.GENERATE_PLAN,
+                project_id=args.project_id,
+                operation="generate",
+                payload={"replace_existing": args.replace_existing},
+                idempotency_key=args.idempotency_key,
+            ),
+        )
     with _services(args) as services:
         return _dump(
             services.planning.generate(
@@ -176,6 +188,21 @@ def _chapter_context(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _chapter_generate(args: argparse.Namespace) -> dict[str, object]:
+    if args.run_async:
+        return _queued(
+            args,
+            JobCreateRequest(
+                job_type=JobType.GENERATE_CHAPTER,
+                project_id=args.project_id,
+                chapter_number=args.chapter_number,
+                operation="generate",
+                payload={
+                    "regenerate": args.regenerate,
+                    "max_context_chars": args.max_context_chars,
+                },
+                idempotency_key=args.idempotency_key,
+            ),
+        )
     with _services(args) as services:
         return _dump(
             services.chapters.generate(
@@ -190,6 +217,18 @@ def _chapter_generate(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _chapter_evaluate(args: argparse.Namespace) -> dict[str, object]:
+    if args.run_async:
+        return _queued(
+            args,
+            JobCreateRequest(
+                job_type=JobType.EVALUATE_CHAPTER,
+                project_id=args.project_id,
+                chapter_number=args.chapter_number,
+                operation="evaluate",
+                payload={"force_new_version": args.force},
+                idempotency_key=args.idempotency_key,
+            ),
+        )
     with _services(args) as services:
         return _dump(
             services.evaluations.evaluate(
@@ -287,6 +326,21 @@ def _fact_list(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _workflow_run(args: argparse.Namespace) -> dict[str, object]:
+    if args.run_async:
+        return _queued(
+            args,
+            JobCreateRequest(
+                job_type=JobType.RUN_CHAPTER_WORKFLOW,
+                project_id=args.project_id,
+                chapter_number=args.chapter_number,
+                operation="generate_evaluate_revise",
+                payload={
+                    "max_revision_attempts": args.max_revision_attempts,
+                    "pause_after_node": args.pause_after_node,
+                },
+                idempotency_key=args.idempotency_key,
+            ),
+        )
     with _services(args) as services:
         return _dump(
             services.workflows.start(
@@ -298,6 +352,17 @@ def _workflow_run(args: argparse.Namespace) -> dict[str, object]:
                 ),
             )
         )
+
+
+def _queued(args: argparse.Namespace, request: JobCreateRequest) -> dict[str, object]:
+    payload, exit_code = submit_job_request(
+        request,
+        wait=args.wait,
+        poll_interval=args.poll_interval,
+        cancel_on_interrupt=args.cancel_on_interrupt,
+    )
+    args.result_exit_code = exit_code
+    return payload
 
 
 def _workflow_status(args: argparse.Namespace) -> dict[str, object]:
@@ -360,6 +425,7 @@ def configure_m6_commands(commands: Any, plan_parser: argparse.ArgumentParser) -
     _common(generate)
     generate.add_argument("--project-id", type=int, required=True)
     generate.add_argument("--replace-existing", action="store_true")
+    _async_options(generate)
     generate.set_defaults(handler=_plan_generate)
     show_plan = plan_sub.add_parser("show", help="Show a plan")
     _common(show_plan)
@@ -389,11 +455,13 @@ def configure_m6_commands(commands: Any, plan_parser: argparse.ArgumentParser) -
     _chapter_identity(generate_chapter, number=True)
     generate_chapter.add_argument("--regenerate", action="store_true")
     generate_chapter.add_argument("--max-context-chars", type=int, default=24_000)
+    _async_options(generate_chapter)
     generate_chapter.set_defaults(handler=_chapter_generate)
     evaluate = chapter_sub.add_parser("evaluate", help="Evaluate one chapter")
     _common(evaluate)
     _chapter_identity(evaluate, number=True)
     evaluate.add_argument("--force", action="store_true")
+    _async_options(evaluate)
     evaluate.add_argument(
         "--critic-scenario",
         choices=("normal", "death", "outline", "poor", "conflict"),
@@ -454,6 +522,7 @@ def configure_m6_commands(commands: Any, plan_parser: argparse.ArgumentParser) -
     run.add_argument("--max-revision-attempts", type=int, default=2)
     run.add_argument("--scenario", choices=("pass", "improve", "stagnate"), default="improve")
     run.add_argument("--pause-after-node")
+    _async_options(run)
     run.set_defaults(handler=_workflow_run)
     for name, handler in (
         ("status", _workflow_status),
@@ -497,6 +566,14 @@ def _common(parser: argparse.ArgumentParser) -> None:
 def _page(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--page", type=int, default=1)
     parser.add_argument("--page-size", type=int, default=20)
+
+
+def _async_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--async", dest="run_async", action="store_true")
+    parser.add_argument("--wait", action="store_true")
+    parser.add_argument("--cancel-on-interrupt", action="store_true")
+    parser.add_argument("--poll-interval", type=float, default=0.25)
+    parser.add_argument("--idempotency-key")
 
 
 def _chapter_identity(parser: argparse.ArgumentParser, *, number: bool) -> None:

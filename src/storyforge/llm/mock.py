@@ -1,7 +1,7 @@
 """Deterministic, offline LLM provider for development and tests."""
 
 from collections import deque
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from copy import deepcopy
 from enum import StrEnum
 
@@ -20,6 +20,7 @@ from storyforge.llm.exceptions import (
 from storyforge.llm.types import LLMResponse, PromptRequest, ResponseT, TokenUsage
 
 type MockPayload = BaseModel | Mapping[str, object]
+type MockResponseSelector = Callable[[PromptRequest], MockPayload]
 
 
 class MockFailure(StrEnum):
@@ -48,6 +49,7 @@ class MockLLMProvider:
         model: str = "storyforge-deterministic-mock",
     ) -> None:
         self._responses: dict[type[BaseModel], deque[dict[str, object]]] = {}
+        self._selectors: dict[type[BaseModel], MockResponseSelector] = {}
         for response_model, payload in (responses or {}).items():
             self.register_response(response_model, payload)
         self._failures = deque(failures)
@@ -89,6 +91,14 @@ class MockLLMProvider:
         """Append deterministic failures for subsequent calls in test/demo order."""
         self._failures.extend(failures)
 
+    def register_response_selector(
+        self,
+        response_model: type[BaseModel],
+        selector: MockResponseSelector,
+    ) -> None:
+        """Select deterministic data from request content without process-local ordering."""
+        self._selectors[response_model] = selector
+
     def generate(
         self,
         request: PromptRequest,
@@ -118,13 +128,23 @@ class MockLLMProvider:
         if failure is MockFailure.CONTENT_POLICY:
             raise LLMRefusalError("Mock LLM content policy rejection", attempts=1)
 
+        selector = self._selectors.get(response_model)
         configured = self._responses.get(response_model)
-        if not configured:
+        if selector is None and not configured:
             raise LLMConfigurationError(
                 f"No deterministic response registered for {response_model.__name__}"
             )
         try:
-            payload = configured.popleft() if len(configured) > 1 else configured[0]
+            if selector is not None:
+                selected = selector(request)
+                payload = (
+                    selected.model_dump(mode="python")
+                    if isinstance(selected, BaseModel)
+                    else dict(selected)
+                )
+            else:
+                assert configured is not None
+                payload = configured.popleft() if len(configured) > 1 else configured[0]
             output = response_model.model_validate(deepcopy(payload))
         except ValidationError as exc:
             raise LLMInvalidResponseError(

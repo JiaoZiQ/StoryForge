@@ -101,6 +101,24 @@ class Settings(BaseModel):
     circuit_cooldown_seconds: float = Field(default=30.0, gt=0, le=3_600)
     allow_unknown_pricing: bool = False
     enable_real_provider_tests: bool = False
+    job_execution_mode: Literal["inline", "queue"] = "inline"
+    redis_url: str = Field(default="redis://127.0.0.1:6379/0", repr=False)
+    queue_prefix: str = Field(default="storyforge", min_length=1, max_length=50)
+    worker_concurrency: int = Field(default=2, ge=1, le=128)
+    worker_heartbeat_seconds: float = Field(default=5.0, gt=0, le=300)
+    worker_offline_after_seconds: float = Field(default=20.0, gt=0, le=3_600)
+    job_lease_seconds: float = Field(default=30.0, gt=1, le=3_600)
+    job_default_timeout: int = Field(default=3_600, ge=1, le=86_400)
+    job_max_attempts: int = Field(default=3, ge=1, le=20)
+    outbox_poll_interval: float = Field(default=0.5, gt=0, le=60)
+    outbox_batch_size: int = Field(default=50, ge=1, le=1_000)
+    queue_pending_soft_limit: int = Field(default=100, ge=1, le=1_000_000)
+    queue_pending_hard_limit: int = Field(default=500, ge=1, le=1_000_000)
+    project_pending_limit: int = Field(default=25, ge=1, le=100_000)
+    sse_heartbeat_seconds: float = Field(default=15.0, gt=0, le=120)
+    sse_max_connections: int = Field(default=100, ge=1, le=10_000)
+    distributed_rate_limit_enabled: bool = False
+    distributed_circuit_enabled: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -113,6 +131,10 @@ class Settings(BaseModel):
                 values["model_profile"] = "offline" if provider == "mock" else "balanced"
             if "privacy_policy" not in values:
                 values["privacy_policy"] = "offline" if provider == "mock" else "strict"
+            if values.get("environment") == "production":
+                values.setdefault("job_execution_mode", "queue")
+                values.setdefault("distributed_rate_limit_enabled", True)
+                values.setdefault("distributed_circuit_enabled", True)
             return values
         return data
 
@@ -162,6 +184,22 @@ class Settings(BaseModel):
             raise ConfigurationError("Project soft budget cannot exceed hard budget")
         if self.default_currency.upper() != self.default_currency:
             raise ConfigurationError("Default currency must use uppercase ISO-style letters")
+        if self.queue_pending_soft_limit > self.queue_pending_hard_limit:
+            raise ConfigurationError("Queue soft limit cannot exceed hard limit")
+        if not self.redis_url.strip():
+            raise ConfigurationError("STORYFORGE_REDIS_URL must not be empty")
+        if not self.queue_prefix.replace("-", "").replace("_", "").isalnum():
+            raise ConfigurationError("STORYFORGE_QUEUE_PREFIX contains unsupported characters")
+        if self.worker_heartbeat_seconds >= self.job_lease_seconds:
+            raise ConfigurationError("Worker heartbeat must be shorter than the job lease")
+        if self.worker_offline_after_seconds <= self.worker_heartbeat_seconds:
+            raise ConfigurationError("Worker offline threshold must exceed the heartbeat interval")
+        if self.environment == "production" and self.job_execution_mode != "queue":
+            raise ConfigurationError("Production must use queued job execution")
+        if self.environment == "production" and not self.distributed_rate_limit_enabled:
+            raise ConfigurationError("Production must enable distributed rate limiting")
+        if self.environment == "production" and not self.distributed_circuit_enabled:
+            raise ConfigurationError("Production must enable the distributed circuit breaker")
         if (
             self.model_profile is ModelProfile.OFFLINE
             and self.privacy_policy is not PrivacyPolicy.OFFLINE
@@ -396,6 +434,47 @@ class Settings(BaseModel):
                 enable_real_provider_tests=_boolean(
                     value("ENABLE_REAL_PROVIDER_TESTS", None, "false"),
                     name="STORYFORGE_ENABLE_REAL_PROVIDER_TESTS",
+                ),
+                job_execution_mode=cast(
+                    Literal["inline", "queue"],
+                    value(
+                        "JOB_EXECUTION_MODE",
+                        None,
+                        "queue" if environment_value == "production" else "inline",
+                    ),
+                ),
+                redis_url=value("REDIS_URL", None, "redis://127.0.0.1:6379/0"),
+                queue_prefix=value("QUEUE_PREFIX", None, "storyforge"),
+                worker_concurrency=int(value("WORKER_CONCURRENCY", None, "2")),
+                worker_heartbeat_seconds=float(value("WORKER_HEARTBEAT_SECONDS", None, "5")),
+                worker_offline_after_seconds=float(
+                    value("WORKER_OFFLINE_AFTER_SECONDS", None, "20")
+                ),
+                job_lease_seconds=float(value("JOB_LEASE_SECONDS", None, "30")),
+                job_default_timeout=int(value("JOB_DEFAULT_TIMEOUT", None, "3600")),
+                job_max_attempts=int(value("JOB_MAX_ATTEMPTS", None, "3")),
+                outbox_poll_interval=float(value("OUTBOX_POLL_INTERVAL", None, "0.5")),
+                outbox_batch_size=int(value("OUTBOX_BATCH_SIZE", None, "50")),
+                queue_pending_soft_limit=int(value("QUEUE_PENDING_SOFT_LIMIT", None, "100")),
+                queue_pending_hard_limit=int(value("QUEUE_PENDING_HARD_LIMIT", None, "500")),
+                project_pending_limit=int(value("PROJECT_PENDING_LIMIT", None, "25")),
+                sse_heartbeat_seconds=float(value("SSE_HEARTBEAT_SECONDS", None, "15")),
+                sse_max_connections=int(value("SSE_MAX_CONNECTIONS", None, "100")),
+                distributed_rate_limit_enabled=_boolean(
+                    value(
+                        "DISTRIBUTED_RATE_LIMIT_ENABLED",
+                        None,
+                        "true" if environment_value == "production" else "false",
+                    ),
+                    name="STORYFORGE_DISTRIBUTED_RATE_LIMIT_ENABLED",
+                ),
+                distributed_circuit_enabled=_boolean(
+                    value(
+                        "DISTRIBUTED_CIRCUIT_ENABLED",
+                        None,
+                        "true" if environment_value == "production" else "false",
+                    ),
+                    name="STORYFORGE_DISTRIBUTED_CIRCUIT_ENABLED",
                 ),
             )
         except ValueError as exc:

@@ -1,5 +1,10 @@
 # 开发指南
 
+## M11 development
+
+Use inline mode for SQLite tests. Queue mode requires PostgreSQL/Redis, one dispatcher,
+and at least two workers. Tests use InMemoryJobBroker and injected clocks without network.
+
 ## 前置条件
 
 - Python 3.12
@@ -206,7 +211,11 @@ $env:PLAYWRIGHT_EXTERNAL_SERVER="1"
 npm run test:e2e
 ```
 
-四个 Playwright 场景各自创建数据，可并行且不依赖顺序。测试运行时使用 Compose internal network、MockLLM 和 MockEmbedding，不需要 API Key；trace 关闭，仅失败 screenshot 可作为短期 artifact。`npm run generate:api` 会改写 OpenAPI/生成类型，提交前必须执行 `npm run check:api` 确认没有漂移。
+五个 Playwright 场景各自创建数据，可并行且不依赖顺序，其中一个覆盖异步任务
+提交和 JobEvent 时间线。测试运行时使用 Compose internal network、MockLLM 和
+MockEmbedding，不需要 API Key；trace 关闭，仅失败 screenshot 可作为短期 artifact。
+`npm run generate:api` 会改写 OpenAPI/生成类型，提交前必须执行 `npm run check:api`
+确认没有漂移。
 
 ## Milestone 10 development
 
@@ -224,3 +233,19 @@ effective version/date. To test a real compatible provider manually, use a local
 ignored environment file, enable the explicit gate, and run only `provider
 smoke-test`. Never paste a key into source, shell history, test fixtures, or CI.
 The smoke sends a fixed tiny JSON request and no story data.
+
+## Milestone 11 development
+
+Queue mode requires PostgreSQL and Redis. Compose starts the migration gate,
+dispatcher, and two workers; use only Mock providers in automated verification:
+
+```powershell
+docker compose up --build --detach --wait
+docker compose exec -T api storyforge demo-m11
+docker compose exec -T api storyforge worker-status
+docker compose exec -T api alembic check
+```
+
+Job payloads contain identifiers and bounded options, never prompts, chapter bodies,
+credentials, database URLs, or provider clients. Redis carries Job IDs and ephemeral
+event wake-ups; PostgreSQL remains the replay and state authority.

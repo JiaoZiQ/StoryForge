@@ -78,6 +78,24 @@ def test_mock_response_can_be_replaced(prompt_request: PromptRequest) -> None:
     assert provider.call_count == 1
 
 
+def test_mock_response_selector_is_request_deterministic(
+    prompt_request: PromptRequest,
+) -> None:
+    provider = MockLLMProvider()
+    provider.register_response_selector(
+        ScoreOutput,
+        lambda request: {"score": 88 if "revised" in request.messages[-1].content else 40},
+    )
+    revised = PromptRequest(
+        prompt=prompt_request.prompt,
+        messages=(LLMMessage(role="user", content="Review the revised chapter."),),
+    )
+
+    assert provider.generate(prompt_request, ScoreOutput).output.score == 40
+    assert provider.generate(revised, ScoreOutput).output.score == 88
+    assert provider.generate(prompt_request, ScoreOutput).output.score == 40
+
+
 def test_mock_snapshots_mutable_registered_data(prompt_request: PromptRequest) -> None:
     beats = ["dock"]
     payload: dict[str, object] = {"title": "Arrival", "beats": beats}

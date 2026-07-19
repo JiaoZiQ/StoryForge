@@ -506,3 +506,83 @@ export const modelProfileOptionSchema = z.looseObject({
   description: z.string(),
   external_allowed: z.boolean(),
 });
+
+export const jobSchema = z.looseObject({
+  id: z.number().int(),
+  project_id: z.number().int().nullable(),
+  chapter_id: z.number().int().nullable(),
+  chapter_number: z.number().int().nullable(),
+  workflow_run_id: z.number().int().nullable(),
+  job_type: z.string(),
+  queue_name: z.string(),
+  status: z.string(),
+  priority: z.number().int(),
+  progress: z.number().int(),
+  current_step: z.string().nullable(),
+  attempt: z.number().int(),
+  max_attempts: z.number().int(),
+  result: z.record(z.string(), z.unknown()),
+  error_code: z.string().nullable(),
+  error_message: z.string().nullable(),
+  worker_id: z.string().nullable(),
+  correlation_id: z.string(),
+  available_at: dateTime,
+  queued_at: dateTime.nullable(),
+  started_at: dateTime.nullable(),
+  finished_at: dateTime.nullable(),
+  created_at: dateTime,
+  updated_at: dateTime,
+});
+export const jobAcceptedSchema = z.object({
+  job_id: z.number().int(),
+  status: z.string(),
+  reused: z.boolean(),
+  status_url: z.string(),
+  events_url: z.string(),
+});
+export const jobPageSchema = z.object({
+  items: z.array(jobSchema),
+  page: z.number().int(),
+  page_size: z.number().int(),
+  total_items: z.number().int(),
+});
+export const jobEventSchema = z.looseObject({
+  id: z.number().int(),
+  job_id: z.number().int(),
+  sequence: z.number().int(),
+  event_type: z.string(),
+  status: z.string(),
+  step: z.string().nullable(),
+  progress: z.number().int(),
+  message_code: z.string(),
+  message: z.string(),
+  attempt: z.number().int(),
+  worker_id: z.string().nullable(),
+  workflow_event_id: z.number().int().nullable(),
+  created_at: dateTime,
+});
+export const jobEventPageSchema = z.object({
+  items: z.array(jobEventSchema),
+  page: z.number().int(),
+  page_size: z.number().int(),
+  total_items: z.number().int(),
+});
+export const workerSchema = z.looseObject({
+  worker_id: z.string(),
+  queue_name: z.string(),
+  status: z.string(),
+  current_job_id: z.number().int().nullable(),
+  started_at: dateTime,
+  last_heartbeat_at: dateTime,
+  version: z.string(),
+});
+export const queueHealthSchema = z.looseObject({
+  mode: z.string(),
+  broker_reachable: z.boolean(),
+  pending_jobs: z.number().int(),
+  soft_limit_exceeded: z.boolean(),
+  pending_soft_limit: z.number().int(),
+  pending_hard_limit: z.number().int(),
+  project_pending_limit: z.number().int(),
+  workers: z.array(workerSchema),
+});

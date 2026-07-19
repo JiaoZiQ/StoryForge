@@ -32,8 +32,29 @@ x-app-environment: &app-environment
   STORYFORGE_DATABASE_WAIT_ATTEMPTS: "60"
   STORYFORGE_DATABASE_WAIT_INTERVAL_SECONDS: "1"
   STORYFORGE_CHECKPOINT_PATH: /tmp/storyforge/checkpoints.sqlite3
+  STORYFORGE_JOB_EXECUTION_MODE: queue
+  STORYFORGE_REDIS_URL: redis://redis:6379/0
+  STORYFORGE_QUEUE_PREFIX: storyforge
+  STORYFORGE_WORKER_CONCURRENCY: "2"
+  STORYFORGE_WORKER_HEARTBEAT_SECONDS: "5"
+  STORYFORGE_WORKER_OFFLINE_AFTER_SECONDS: "20"
+  STORYFORGE_DISTRIBUTED_RATE_LIMIT_ENABLED: "true"
+  STORYFORGE_DISTRIBUTED_CIRCUIT_ENABLED: "true"
 
 services:
+  redis:
+    image: redis:7.4.2-alpine
+    command: ["redis-server", "--appendonly", "yes", "--save", "60", "1"]
+    volumes:
+      - storyforge_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [storyforge_internal]
+
   postgres:
     image: pgvector/pgvector:0.8.2-pg16-bookworm
     environment:
@@ -81,6 +102,8 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "storyforge-healthcheck"]
       interval: 10s
@@ -88,6 +111,52 @@ services:
       retries: 12
       start_period: 10s
     restart: unless-stopped
+    volumes:
+      - storyforge_checkpoint_data:/tmp/storyforge
+    networks: [storyforge_internal]
+
+  dispatcher:
+    image: storyforge:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["storyforge-dispatcher"]
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "storyforge-queue-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    networks: [storyforge_internal]
+
+  worker:
+    image: storyforge:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["storyforge-worker"]
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "storyforge-queue-healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+    volumes:
+      - storyforge_checkpoint_data:/tmp/storyforge
     networks: [storyforge_internal]
 
   frontend:
@@ -146,6 +215,8 @@ services:
 
 volumes:
   storyforge_postgres_data:
+  storyforge_redis_data:
+  storyforge_checkpoint_data:
 
 networks:
   storyforge_internal:

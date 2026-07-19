@@ -53,3 +53,11 @@ export type ProjectBudgetResponse =
 export type ProjectModelSettingsResponse =
   components["schemas"]["ProjectModelSettingsResponse"];
 export type ModelProfileOption = components["schemas"]["ModelProfileOption"];
+export type JobResponse = components["schemas"]["JobResponse"];
+export type JobAcceptedResponse = components["schemas"]["JobAcceptedResponse"];
+export type JobCreateRequest = components["schemas"]["JobCreateRequest"];
+export type JobEventResponse = components["schemas"]["JobEventResponse"];
+export type JobPageResponse = components["schemas"]["JobPageResponse"];
+export type JobEventPageResponse =
+  components["schemas"]["JobEventPageResponse"];
+export type QueueHealthResponse = components["schemas"]["QueueHealthResponse"];

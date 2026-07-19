@@ -20,8 +20,16 @@ from storyforge.repositories.domain import (
     WorkflowEventRepository,
     WorkflowRunRepository,
 )
+from storyforge.repositories.jobs import (
+    ACTIVE_JOB_STATUSES,
+    JobEventRepository,
+    JobRepository,
+    OutboxRepository,
+    WorkerRepository,
+)
 
 __all__ = [
+    "ACTIVE_JOB_STATUSES",
     "ChapterRepository",
     "ChapterVersionRepository",
     "CharacterRepository",
@@ -31,7 +39,10 @@ __all__ = [
     "EvaluationRepository",
     "FactRepository",
     "ForeshadowingRepository",
+    "JobEventRepository",
+    "JobRepository",
     "LocationRepository",
+    "OutboxRepository",
     "PageSlice",
     "ProjectRepository",
     "Repository",
@@ -39,6 +50,7 @@ __all__ = [
     "StoryRuleRepository",
     "SystemRepository",
     "VersionComparisonRepository",
+    "WorkerRepository",
     "WorkflowEventRepository",
     "WorkflowRunRepository",
 ]

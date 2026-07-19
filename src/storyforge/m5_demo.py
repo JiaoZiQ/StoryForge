@@ -2,7 +2,7 @@
 
 from storyforge.demo import build_demo_critique
 from storyforge.evaluation.models import ChapterCritique
-from storyforge.llm import MockLLMProvider
+from storyforge.llm import MockLLMProvider, PromptRequest
 from storyforge.revision import RevisedChapterDraft
 from storyforge.schemas.generation import (
     ChapterDraft,
@@ -165,26 +165,42 @@ def build_m5_provider(scenario: str, target_chapters: int = 3) -> MockLLMProvide
         critiques = [build_demo_critique("normal")]
         revised_content = _REVISED_CONTENT
     elif scenario == "improve":
-        critiques = [build_demo_critique("poor"), build_demo_critique("normal")]
+        poor_critique = build_demo_critique("poor")
+        normal_critique = build_demo_critique("normal")
+        critiques = [poor_critique, normal_critique]
         revised_content = _REVISED_CONTENT
+        conflicting_extraction = FactExtractionResult(
+            facts=[
+                ExtractedFact(
+                    subject="Mara",
+                    predicate="speaks",
+                    object="warning",
+                    fact_type="action",
+                    confidence=0.99,
+                    source_quote="Stay by the door",
+                    valid_from_chapter=1,
+                )
+            ]
+        )
         provider.register_responses(
             FactExtractionResult,
-            [
-                FactExtractionResult(
-                    facts=[
-                        ExtractedFact(
-                            subject="Mara",
-                            predicate="speaks",
-                            object="warning",
-                            fact_type="action",
-                            confidence=0.99,
-                            source_quote="Stay by the door",
-                            valid_from_chapter=1,
-                        )
-                    ]
-                ),
-                extraction,
-            ],
+            [conflicting_extraction, extraction],
+        )
+        provider.register_response_selector(
+            FactExtractionResult,
+            lambda request: (
+                extraction
+                if _request_contains(request, "clear evidence sleeve")
+                else conflicting_extraction
+            ),
+        )
+        provider.register_response_selector(
+            ChapterCritique,
+            lambda request: (
+                normal_critique
+                if _request_contains(request, "clear evidence sleeve")
+                else poor_critique
+            ),
         )
     elif scenario == "stagnate":
         critiques = [build_demo_critique("poor")]
@@ -212,3 +228,7 @@ def build_m5_provider(scenario: str, target_chapters: int = 3) -> MockLLMProvide
 def m5_content_metrics() -> tuple[int, int]:
     """Expose deterministic content lengths for assertions without exposing prose in logs."""
     return len(_DRAFT_CONTENT), len(_REVISED_CONTENT)
+
+
+def _request_contains(request: PromptRequest, marker: str) -> bool:
+    return any(marker in message.content for message in request.messages)

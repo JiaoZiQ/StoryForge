@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy import make_url
+from sqlalchemy.orm import Session
 
 from storyforge.agents import CriticAgent, FactExtractorAgent, RevisionAgent, WriterAgent
 from storyforge.consistency import ConsistencyChecker
@@ -31,7 +32,13 @@ from storyforge.providers import (
     ProviderCallContext,
     build_provider_registry,
 )
-from storyforge.reliability import CircuitBreaker, ProviderRateLimiter, RetryPolicy
+from storyforge.reliability import (
+    CircuitBreaker,
+    ProviderRateLimiter,
+    RedisCircuitBreaker,
+    RedisProviderRateLimiter,
+    RetryPolicy,
+)
 from storyforge.repositories import ChapterRepository, ProjectRepository
 from storyforge.retrieval import (
     FactRetriever,
@@ -61,15 +68,34 @@ class DomainServiceFactory:
         self.settings = settings
         self.provider_registry = build_provider_registry(settings)
         self.model_router = ModelRouter(self.provider_registry, settings)
-        self.rate_limiter = ProviderRateLimiter(
-            requests_per_minute=settings.rate_limit_rpm,
-            tokens_per_minute=settings.rate_limit_tpm,
-            max_concurrency=settings.provider_max_concurrency,
-        )
-        self.circuit_breaker = CircuitBreaker(
-            failure_threshold=settings.circuit_failure_threshold,
-            cooldown_seconds=settings.circuit_cooldown_seconds,
-        )
+        self.rate_limiter: ProviderRateLimiter
+        self.circuit_breaker: CircuitBreaker
+        if settings.distributed_rate_limit_enabled:
+            self.rate_limiter = RedisProviderRateLimiter(
+                settings.redis_url,
+                prefix=settings.queue_prefix,
+                requests_per_minute=settings.rate_limit_rpm,
+                tokens_per_minute=settings.rate_limit_tpm,
+                max_concurrency=settings.provider_max_concurrency,
+            )
+        else:
+            self.rate_limiter = ProviderRateLimiter(
+                requests_per_minute=settings.rate_limit_rpm,
+                tokens_per_minute=settings.rate_limit_tpm,
+                max_concurrency=settings.provider_max_concurrency,
+            )
+        if settings.distributed_circuit_enabled:
+            self.circuit_breaker = RedisCircuitBreaker(
+                settings.redis_url,
+                prefix=settings.queue_prefix,
+                failure_threshold=settings.circuit_failure_threshold,
+                cooldown_seconds=settings.circuit_cooldown_seconds,
+            )
+        else:
+            self.circuit_breaker = CircuitBreaker(
+                failure_threshold=settings.circuit_failure_threshold,
+                cooldown_seconds=settings.circuit_cooldown_seconds,
+            )
 
     def validate_provider(self, override: str | None) -> None:
         if override is not None and override != self.settings.llm_provider:
@@ -202,7 +228,14 @@ class DomainServiceFactory:
             EvaluationScorer(),
         )
 
-    def workflow_service(self, provider: LLMProvider) -> ChapterWorkflowService:
+    def workflow_service(
+        self,
+        provider: LLMProvider,
+        *,
+        control_callback: Callable[[str], None] | None = None,
+        progress_callback: Callable[[str, str], None] | None = None,
+        initialized_callback: Callable[[Session, int], None] | None = None,
+    ) -> ChapterWorkflowService:
         registry = build_prompt_registry()
         versions = ChapterVersionService(
             self.session_factory,
@@ -219,6 +252,9 @@ class DomainServiceFactory:
             versions,
             self.evaluation_service(provider),
             self.checkpoint_path(),
+            control_callback=control_callback,
+            progress_callback=progress_callback,
+            initialized_callback=initialized_callback,
         )
 
     def memory_index_service(self) -> MemoryIndexService:

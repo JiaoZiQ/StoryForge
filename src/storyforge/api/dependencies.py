@@ -13,6 +13,7 @@ from storyforge.application import (
     DomainServiceFactory,
     EvaluationApplicationService,
     GovernanceApplicationService,
+    JobApplicationService,
     MemoryApplicationService,
     PlanningApplicationService,
     ProjectApplicationService,
@@ -119,6 +120,13 @@ def get_governance_service(
     return GovernanceApplicationService(session_factory, factory)
 
 
+def get_job_service(
+    session_factory: Annotated[SessionFactory, Depends(get_session_factory)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> JobApplicationService:
+    return JobApplicationService(session_factory, settings)
+
+
 ProjectServiceDep = Annotated[ProjectApplicationService, Depends(get_project_service)]
 PlanningServiceDep = Annotated[PlanningApplicationService, Depends(get_planning_service)]
 ChapterServiceDep = Annotated[ChapterApplicationService, Depends(get_chapter_service)]
@@ -127,3 +135,4 @@ WorkflowServiceDep = Annotated[WorkflowApplicationService, Depends(get_workflow_
 SystemServiceDep = Annotated[SystemApplicationService, Depends(get_system_service)]
 MemoryServiceDep = Annotated[MemoryApplicationService, Depends(get_memory_service)]
 GovernanceServiceDep = Annotated[GovernanceApplicationService, Depends(get_governance_service)]
+JobServiceDep = Annotated[JobApplicationService, Depends(get_job_service)]

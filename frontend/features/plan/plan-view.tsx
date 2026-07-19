@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ApiClientError } from "@/lib/api/errors";
 import { useGeneratePlan, usePlan, useProject } from "@/hooks/use-storyforge";
 import { PageHeader, Section } from "@/components/ui/page";
@@ -17,6 +18,7 @@ export function PlanView({ projectId }: { projectId: number }) {
   const project = useProject(projectId);
   const plan = usePlan(projectId);
   const generate = useGeneratePlan(projectId);
+  const router = useRouter();
   const [confirmReplace, setConfirmReplace] = useState(false);
   if (project.isLoading || plan.isLoading)
     return <PageLoading label="Loading project plan…" />;
@@ -32,7 +34,8 @@ export function PlanView({ projectId }: { projectId: number }) {
     return <ErrorState error={plan.error} retry={() => void plan.refetch()} />;
   const run = async (replace: boolean) => {
     setConfirmReplace(false);
-    await generate.mutateAsync(replace);
+    const job = await generate.mutateAsync(replace);
+    router.push(`/jobs/${job.job_id}`);
   };
   if (missing)
     return (
@@ -44,8 +47,8 @@ export function PlanView({ projectId }: { projectId: number }) {
         />
         <section className="surface rounded-xl p-8 text-center">
           <p className="text-ink-600">
-            StoryForge will synchronously generate the overview, characters,
-            locations, three chapter outlines, and foreshadowing.
+            StoryForge will queue generation of the overview, characters,
+            locations, chapter outlines, and foreshadowing.
           </p>
           <button
             className="button-primary mt-5"
@@ -57,7 +60,7 @@ export function PlanView({ projectId }: { projectId: number }) {
           </button>
           {generate.isPending ? (
             <div className="mt-3">
-              <InlineLoading label="This request continues only while this page remains connected." />
+              <InlineLoading label="Creating a durable job…" />
             </div>
           ) : null}
           {generate.error ? (
